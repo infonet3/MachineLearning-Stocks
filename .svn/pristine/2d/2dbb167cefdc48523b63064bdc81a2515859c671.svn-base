@@ -1,0 +1,21 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Runner;
+
+import Linear_Regression.LinearRegression;
+import StockData.StockDataDownloader;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class Main {
+    public static void main(String... args) {
+        
+        StockDataDownloader downloader = new StockDataDownloader();
+        downloader.downloadAllStockData();
+        //LinearRegression.runLinearRegression();
+    }
+}

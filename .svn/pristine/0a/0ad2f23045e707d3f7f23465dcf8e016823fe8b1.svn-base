@@ -1,0 +1,61 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LinearRegFormulas {
+    
+    private static final double ALPHA = 1;
+    
+    public static double costFunction(double[][] inputMatrix, double[] theta, double[] result) {
+        double sum = 0.0;
+        double variance = 0.0;
+        for (int i = 0; i < inputMatrix.length; i++) {
+            variance = hypothesis(inputMatrix[i], theta) - result[i];
+            sum += Math.pow(variance, 2);
+        }
+        
+        return (1 / (2.0 * ((double)inputMatrix.length)) * sum);
+    }
+    
+    private static double hypothesis(double[] inputs, double[] theta) {
+        
+        double sum = 0.0;
+        
+        for (int i = 0; i < inputs.length; i++) {
+            sum += inputs[i] * theta[i];
+        }
+        
+        return sum;
+    }
+    
+    public static void gradientDescent(double[][] inputMatrix, double[] theta, double[] result) {
+        double[] newTheta = new double[theta.length];
+        
+        double sum = 0.0;
+        double val = 0.0;
+        for (int i = 0; i < theta.length; i++) {
+
+            //Summation
+            for (int j = 0; j < inputMatrix.length; j++) {
+                val = hypothesis(inputMatrix[j], theta) - result[j];
+                val *= inputMatrix[j][i]; 
+                
+                sum += val;
+            }
+
+            newTheta[i] = theta[i] - ALPHA * (1.0 / ((double)inputMatrix.length)) * sum;
+        }
+        
+        //Update Theta
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = newTheta[i];
+        }
+        
+    }
+}

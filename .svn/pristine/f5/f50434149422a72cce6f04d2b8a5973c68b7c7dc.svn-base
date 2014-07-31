@@ -1,0 +1,298 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package StockData;
+
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import com.mysql.jdbc.jdbc2.optional.*;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.math.BigDecimal;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class StockDataHandler {
+    
+    final String CONF_FILE = "settings.conf";
+    final String STOCK_TICKERS_PATH;
+
+    final String MYSQL_SERVER_HOST;
+    final String MYSQL_SERVER_PORT;
+    final String MYSQL_SERVER_DB;
+    final String MYSQL_SERVER_LOGIN;
+    final String MYSQL_SERVER_PASSWORD;
+    
+    final String QUANDL_AUTH_TOKEN;
+    final String QUANDL_BASE_URL;
+    
+    public StockDataHandler() throws Exception {
+        //Load the file settings
+        Properties p = new Properties();
+        try (FileInputStream fis = new FileInputStream(CONF_FILE)) {
+            p.load(fis);
+            MYSQL_SERVER_HOST = p.getProperty("mysql_server_host");
+            MYSQL_SERVER_PORT = p.getProperty("mysql_server_port");
+            MYSQL_SERVER_DB = p.getProperty("mysql_server_db");
+            MYSQL_SERVER_LOGIN = p.getProperty("mysql_server_login");
+            MYSQL_SERVER_PASSWORD = p.getProperty("mysql_server_password");
+    
+            STOCK_TICKERS_PATH = p.getProperty("stock_tickers_path");
+            
+            QUANDL_AUTH_TOKEN = p.getProperty("quandl_auth_token");
+            QUANDL_BASE_URL = p.getProperty("quandl_base_url");
+        }
+    }
+
+    private Connection getDBConnection() throws Exception {
+        MysqlDataSource dataSource = new MysqlDataSource();
+        dataSource.setServerName(MYSQL_SERVER_HOST);
+        dataSource.setPort(Integer.parseInt(MYSQL_SERVER_PORT));
+        dataSource.setDatabaseName(MYSQL_SERVER_DB);
+        return dataSource.getConnection(MYSQL_SERVER_LOGIN, MYSQL_SERVER_PASSWORD);
+    }
+
+    public List<double[]> getStockPricesFromDB(String stockTicker) throws Exception {
+        
+        List<double[]> stockPriceList = new ArrayList<>();
+
+        try (Connection conxn = getDBConnection()) {
+            CallableStatement stmt = conxn.prepareCall("{call sp_Select_StockQuotes(?)}");
+            stmt.setString(1, stockTicker);
+            ResultSet rs = stmt.executeQuery();
+            
+            //year, month, day, dayOfWeek, open, high, low, close, volume;
+            double[] priceArray;
+            while(rs.next()) {
+                priceArray = new double[6];
+                priceArray[0] = rs.getDouble(1);
+                priceArray[1] = rs.getDouble(2);
+                priceArray[2] = rs.getDouble(3);
+                priceArray[3] = rs.getDouble(4);
+                priceArray[4] = rs.getDouble(5);
+                priceArray[5] = rs.getDouble(6);
+                
+                stockPriceList.add(priceArray);
+            }
+        } catch(Exception exc) {
+            System.out.println("Exception in getStockPricesFromDB");
+            throw exc;
+        }
+        
+        return stockPriceList;
+    }
+    
+    public void getAllStockFundamentals() throws Exception {
+        List<StockTicker> listOfAllStocks = getAllStockTickers();
+        
+        String quandlQuery = "";
+        for (StockTicker st : listOfAllStocks) {
+            quandlQuery = QUANDL_BASE_URL + "DMDRN/" + st.getTicker() + "_ALLFINANCIALRATIOS.csv?auth_token=" + QUANDL_AUTH_TOKEN;
+            String stockValues = downloadData(quandlQuery);
+
+            insertStockFundamentalsIntoDB(st.getTicker(), stockValues);
+        }
+    }
+    
+    private void insertStockFundamentalsIntoDB(String stockTicker, String stockFundamentals) throws Exception {
+        //FILL THIS IN
+    }
+    
+    private void getAllStockPrices() throws Exception {
+        List<StockTicker> listOfAllStocks = getAllStockTickers();
+
+        String quandlQuery = "";
+        for (StockTicker st : listOfAllStocks) {
+            quandlQuery = QUANDL_BASE_URL + st.getQuandlCode() + ".csv?auth_token=" + QUANDL_AUTH_TOKEN;
+            String stockValues = downloadData(quandlQuery);
+
+            insertStockPricesIntoDB(st.getTicker(), stockValues);
+        }
+    }
+
+    private void insertStockPricesIntoDB(String stockTicker, String stockValues) throws Exception {
+        String[] rows = stockValues.split("\n");
+
+        String row;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date dt;
+        BigDecimal open, high, low, close, volume;
+        java.sql.Date sqlDt;
+        int i = 0;
+        
+        try (Connection conxn = getDBConnection()) {
+            for (i = 0; i < rows.length; i++) {
+                if (i == 0) //Skip the header row
+                    continue;
+
+                //Parse the record
+                try {
+                    row = rows[i];
+                    String[] cells = row.split(",");
+
+                    dt = sdf.parse(cells[0]);
+                    sqlDt = new java.sql.Date(dt.getTime());
+
+                    open = new BigDecimal(cells[8]);
+                    high = new BigDecimal(cells[9]);
+                    low = new BigDecimal(cells[10]);
+                    close = new BigDecimal(cells[11]);
+                    volume = new BigDecimal(cells[12]);
+
+                    //Insert the record into the DB
+                    CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockQuote (?, ?, ?, ?, ?, ?, ?)}");
+                    stmt.setString(1, stockTicker);
+                    stmt.setDate(2, sqlDt);
+                    stmt.setBigDecimal(3, open);
+                    stmt.setBigDecimal(4, high);
+                    stmt.setBigDecimal(5, low);
+                    stmt.setBigDecimal(6, close);
+                    stmt.setBigDecimal(7, volume);
+                    stmt.executeUpdate();
+                    
+                } catch(Exception exc) {
+                    System.out.println("Method: insertStockPricesIntoDB, Ticker: " + stockTicker + "Row: " + i);
+                }
+            }
+        } catch(Exception exc) {
+            System.out.println("Method: insertStockPricesIntoDB, Description: " + exc);
+            throw exc;
+        }
+    }
+    
+    private List<StockTicker> getAllStockTickers() throws Exception {
+        List<StockTicker> tickerList = new ArrayList<>();
+        
+        try (Connection conxn = getDBConnection()) {
+
+            CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers()}");
+            ResultSet rs = stmt.executeQuery();
+            
+            String ticker;
+            String quandlCode;
+            String description;
+            
+            while(rs.next()) {
+                ticker = rs.getString(1);
+                quandlCode = rs.getString(2);
+                description = rs.getString(3);
+                
+                StockTicker st = new StockTicker(ticker, quandlCode, description);
+                tickerList.add(st);
+            }
+            
+        } catch (Exception exc) {
+            throw exc;
+        }
+        
+        return tickerList;
+    }
+    
+    public void loadStockTickers() {
+        Path p = Paths.get(STOCK_TICKERS_PATH);
+        int i = 0;
+        try(BufferedReader reader = Files.newBufferedReader(p, Charset.defaultCharset())) {
+
+            String row = "";
+            String[] cells;
+            for(i = 0; ; i++) {
+                row = reader.readLine();
+                if (row == null)
+                    break;
+                
+                if (i > 0) {
+                    cells = row.split(",");
+                    insertStockTickersIntoDB(cells);
+                }
+            }
+            
+        } catch (Exception exc) {
+            System.out.println("Row:" + i + ", " + exc);
+        }
+
+    }
+    
+    private void insertStockTickersIntoDB(String[] cells) throws Exception {
+        if (cells.length != 3)
+            throw new Exception("Method: insertStockTickersIntoDB, invalid number of paramaters");
+        
+        try (Connection conxn = getDBConnection()) {
+
+            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockTicker (?, ?, ?)}");
+            stmt.setString(1, cells[0]);
+            stmt.setString(2, cells[1]);
+            stmt.setString(3, cells[2]);
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            throw exc;
+        }
+    }
+    
+    public void downloadAllStockData() throws Exception {
+
+        getAllStockPrices();
+        
+        getAllStockFundamentals();
+        
+        //Housing Data===================================================================================
+        //http://www.quandl.com/api/v1/datasets/FRED/ASPNHSUS.csv?auth_token=p4SxJNWszqVq5yQ5NcUW Avg new home price
+        //http://www.quandl.com/api/v1/datasets/FMAC/FIX30YR.csv?auth_token=p4SxJNWszqVq5yQ5NcUW 30 Year Mortgage rate
+        
+        //Interest Rates=MONTHLY================================================================================
+        //http://www.quandl.com/api/v1/datasets/FRED/DPRIME.csv Prime
+        
+        //http://www.quandl.com/api/v1/datasets/ILOSTAT/UNE_DEAP_RT_SEX_T_M_USA.csv  Unemployment
+        //http://www.quandl.com/api/v1/datasets/RATEINF/CPI_USA.csv CPI Inflation
+        
+        //http://www.quandl.com/api/v1/datasets/USCENSUS/IE_0015.csv Imports/Exports, not sure need to confirm
+
+        
+    }
+    
+    private String downloadData(String urlString) {
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            URL url = new URL(urlString);
+            URLConnection conxn = url.openConnection();
+
+            System.out.println("Downloading: " + urlString);
+            
+            //Pull back the data as JSON
+            try (InputStream is = conxn.getInputStream()) {
+                int c;
+                for(;;) {
+                    c = is.read();
+                    if (c == -1)
+                        break;
+
+                    sb.append((char)c);
+                }
+            }
+            
+        } catch(Exception exc) {
+            System.out.println(exc);
+        }
+
+        return sb.toString();
+    }
+}

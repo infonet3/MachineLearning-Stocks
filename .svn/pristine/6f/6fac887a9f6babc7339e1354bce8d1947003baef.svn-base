@@ -1,0 +1,94 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class Matrix {
+
+    public static double[] getAverages(double[][] inputMatrix) {
+        int rows = inputMatrix.length;
+        int cols = inputMatrix[0].length;
+        double[] averages = new double[cols];
+        
+        //Initialize the array
+        for (int i = 0; i < cols; i++) {
+            averages[i] = 0.0;
+        }
+
+        //Sum the columns
+        for (int i = 0; i < cols; i++) {
+            for (int j = 0; j < rows; j++) {
+                averages[i] += inputMatrix[j][i];
+            }
+        }
+        
+        //Find the average
+        for (int i = 0; i < averages.length; i++) {
+            averages[i] /= rows; 
+        }
+        
+        return averages;
+    }
+
+    public static double[] getRanges(double[][] inputMatrix) {
+        int rows = inputMatrix.length;
+        int cols = inputMatrix[0].length;
+        double[] ranges = new double[cols];
+        
+        //Initialize the array
+        for (int i = 0; i < cols; i++) {
+            ranges[i] = 0.0;
+        }
+
+        //Sum the columns
+        double max = 0.0;
+        double min = 0.0;
+        for (int i = 0; i < cols; i++) {
+            for (int j = 0; j < rows; j++) {
+                
+                //Initialize max and min to the first element
+                if (j == 0) {
+                    max = min = inputMatrix[j][i];
+                } else {
+                    if (inputMatrix[j][i] < min) {
+                        min = inputMatrix[j][i];
+                    }
+                    
+                    if (inputMatrix[j][i] > max) {
+                        max = inputMatrix[j][i];
+                    }
+                }
+            }
+            
+            ranges[i] = max - min;
+        }
+
+        return ranges;
+    }
+
+    public static double[][] meanNormalization(double[][] inputMatrix, double[] averages, double[] ranges) {
+
+        int rows = inputMatrix.length;
+        int cols = inputMatrix[0].length;
+        double[][] normalizedMatrix = new double[rows][cols];
+
+        //Normalize the matrix
+        for (int i = 0; i < cols; i++) {
+            for (int j = 0; j < rows; j++) {
+                if (i == 0) {
+                    normalizedMatrix[j][i] = inputMatrix[j][i];
+                } else {
+                    normalizedMatrix[j][i] = (inputMatrix[j][i] - averages[i]) / ranges[i];
+                }
+            }
+        }
+        
+        return normalizedMatrix;
+    }
+
+}

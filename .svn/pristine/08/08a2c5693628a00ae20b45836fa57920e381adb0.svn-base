@@ -1,0 +1,76 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Logistic_Regression;
+
+import MatrixOps.Matrix;
+import MatrixOps.MatrixValues;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LogisticRegression {
+
+    public static void runLogisticRegression() {
+
+        MatrixValues mv = Matrix.loadMatrixFromFile("C:\\Java\\LogisticTest\\final.csv", ",", true, 6, 6); 
+
+        //Apply Mean Normalization to minimize work of gradient descent
+        double[][] trainingMatrix = mv.getFeatures();
+        double[] results = mv.getOutputValues();
+        
+        double[] averages = Matrix.getAverages(trainingMatrix);
+        double[] ranges = Matrix.getRanges(trainingMatrix);
+        
+        trainingMatrix = Matrix.meanNormalization(trainingMatrix, averages, ranges);
+        
+        //Initialize Theta
+        double[] theta = new double[trainingMatrix[0].length];
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = 1.0;
+        }
+        
+        //Run Gradient Descent 100 times
+        double costFunction;
+        for (int i = 0; i < 100; i++) {
+            LogisticRegFormulas.gradientDescent(trainingMatrix, theta, results);
+            costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results);
+            
+            System.out.printf("Cost Function = %.3f %n", costFunction);
+        }
+
+        //Now test the values of thetas
+        int correctValues = 0;
+        for (int i = 0; i < trainingMatrix.length; i++) {
+            double discreteVal = 0.0;
+            for (int j = 0; j < trainingMatrix[0].length; j++) {
+                if (j == 0)
+                    discreteVal = theta[j];
+                else
+                    discreteVal += theta[j] * trainingMatrix[i][j];
+            }
+
+            //Run through hypothesis function
+            //double hypothesis = 1.0 / (1.0 + Math.pow(Math.E, -discreteVal));
+            
+            //Derive 0 or 1 value from condition boundary
+            int estVal;
+            if (discreteVal >= 0.0)
+                estVal = 1;
+            else
+                estVal = 0;
+            
+            if (estVal == results[i])
+                correctValues++;
+            
+            //Show results
+            System.out.printf("Est: %.2f, Val: %d, Actual: %.0f %n", discreteVal, estVal, results[i]);
+        }
+        
+        //Show summary
+        System.out.printf("Correct Percentage = %.2f %n", 100.0 * (correctValues / (double)trainingMatrix.length));
+    }
+    
+}

@@ -1,0 +1,56 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+import MatrixOps.Matrix;
+import MatrixOps.MatrixValues;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LinearRegression {
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void runLinearRegression() {
+
+        MatrixValues mv = Matrix.loadMatrixFromFile("C:\\Java\\TestData\\auto-mpg.txt", "\\s+", false, 6, 0); 
+
+        //Apply Mean Normalization to minimize work of gradient descent
+        double[][] trainingMatrix = mv.getFeatures();
+        double[] results = mv.getOutputValues();
+        
+        double[] averages = Matrix.getAverages(trainingMatrix);
+        double[] ranges = Matrix.getRanges(trainingMatrix);
+        
+        trainingMatrix = Matrix.meanNormalization(trainingMatrix, averages, ranges);
+        
+        //Initialize Theta
+        double[] theta = new double[trainingMatrix[0].length];
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = 1.0;
+        }
+        
+        //Run Gradient Descent 10 times
+        double costFunction;
+        for (int i = 0; i < 100; i++) {
+            LinearRegFormulas.gradientDescent(trainingMatrix, theta, results);
+            costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results);
+            
+            System.out.println("Cost Function = " + costFunction);
+        }
+
+        //Now test the values of thetas
+        for (int i = 0; i < trainingMatrix.length; i++) {
+            double mpg = theta[0] + theta[1] * trainingMatrix[i][1] + theta[2] * trainingMatrix[i][2] + theta[3] * trainingMatrix[i][3] + 
+                    theta[4] * trainingMatrix[i][4] + theta[5] * trainingMatrix[i][5] + theta[6] * trainingMatrix[i][6];
+
+            System.out.printf("Est: %.2f, Actual: %.2f %n", mpg, results[i]);
+        }
+    }
+}
+        

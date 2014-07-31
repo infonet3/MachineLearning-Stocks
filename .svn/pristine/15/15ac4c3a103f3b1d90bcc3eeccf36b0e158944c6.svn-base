@@ -1,0 +1,59 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+import MatrixOps.Matrix;
+import MatrixOps.MatrixValues;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LinearRegression {
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void runLinearRegression() throws Exception {
+
+        MatrixValues mv = Matrix.loadMatrixFromFile("C:\\Java\\InputFiles\\LinearRegressionTestFile.csv", ",", true, 4, 4); 
+        //MatrixValues mv = Matrix.loadMatrixFromDB("AAPL");
+
+        //Map the features for better accuracy
+        //mv.featureMapping(3);
+        
+        //Get values from the MatrixValues object
+        double[][] trainingMatrix = mv.getFeatures();
+        double[] results = mv.getOutputValues();
+        double[] averages = mv.getAverages();
+        double[] ranges = mv.getRanges();
+
+        //Apply Mean Normalization
+        trainingMatrix = mv.meanNormalization();
+        
+        //Initialize Theta
+        double[] theta = new double[trainingMatrix[0].length];
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = 1.0;
+        }
+        
+        //Run Gradient Descent 50 times
+        double costFunction;
+        for (int i = 0; i < 50; i++) {
+            LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, 0);
+            costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, 0);
+            
+            System.out.println("Cost Function = " + costFunction);
+        }
+
+        //Now test the values of thetas
+        //1, year, month, day, dayofWeek - skip 0
+        for (double d : theta)
+            System.out.println("Theta = " + d + "\n");
+
+        //System.out.printf("Est: %.2f %n", stockValue);
+    }
+}
+        

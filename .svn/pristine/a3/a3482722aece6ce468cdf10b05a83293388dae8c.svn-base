@@ -1,0 +1,25 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Runner;
+
+import Linear_Regression.LinearRegression;
+import Logistic_Regression.LogisticRegression;
+import StockData.StockDataHandler;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class Main {
+    public static void main(String... args) throws Exception {
+        
+        //StockDataHandler downloader = new StockDataHandler();
+        //downloader.loadStockTickers();
+        //downloader.downloadAllStockData();
+        //downloader.getAllStockFundamentals();
+        LinearRegression.runLinearRegression();
+        //LogisticRegression.runLogisticRegression();
+    }
+}

@@ -1,0 +1,68 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Logistic_Regression;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LogisticRegFormulas {
+
+    private static final double ALPHA = 1;
+
+    public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
+        double sum = 0.0;
+        for (int i = 0; i < inputMatrix.length; i++) {
+            sum += (result[i] * Math.log(hypothesis(inputMatrix[i], theta))) + ((1 - result[i]) * Math.log(1 - hypothesis(inputMatrix[i], theta)));
+        }
+        
+        //Add in regularization if needed, skip x0
+        double regularization = 0.0;
+        for (int i = 1; i < theta.length; i++) {
+            regularization += Math.pow(theta[i], 2);
+        }
+        
+        return -((1.0 / inputMatrix.length) * sum) + ((lambda / (2 * inputMatrix.length)) * regularization);
+    }
+
+    //Sigmoid Function = 1 / (1 + e^-z)
+    private static double hypothesis(double[] inputs, double[] theta) {
+        
+        double sum = 0.0;
+        
+        for (int i = 0; i < inputs.length; i++) {
+            sum += inputs[i] * theta[i];
+        }
+        
+        return 1.0 / (1.0 + Math.pow(Math.E, -sum));
+    }
+    
+    public static void gradientDescent(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
+        double[] newTheta = new double[theta.length];
+        
+        double sum = 0.0;
+        double val = 0.0;
+        for (int i = 0; i < theta.length; i++) {
+
+            //Summation
+            for (int j = 0; j < inputMatrix.length; j++) {
+                val = hypothesis(inputMatrix[j], theta) - result[j];
+                val *= inputMatrix[j][i]; 
+                
+                sum += val;
+            }
+
+            //Regularization
+            if (i == 0)
+                newTheta[i] = theta[i] - ALPHA * (1.0 / inputMatrix.length) * sum;
+            else
+                newTheta[i] = theta[i] - ALPHA * ((1.0 / inputMatrix.length) * sum + ((lambda / inputMatrix.length) * theta[i]));
+        }
+
+        //Update values of theta
+        System.arraycopy(newTheta, 0, theta, 0, theta.length);
+    }
+    
+}

@@ -1,0 +1,62 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package StockData;
+
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class StockDataDownloader {
+    
+    public void downloadAllStockData() {
+        
+        final String AUTH_TOKEN = "p4SxJNWszqVq5yQ5NcUW";
+        final String BASE_URL = "http://www.quandl.com/api/v1/datasets/";
+        
+        String exampleUrl = "http://www.quandl.com/api/v1/datasets/FRED/GDP.json?auth_token=p4SxJNWszqVq5yQ5NcUW&sort_order=asc";
+        //"http://www.quandl.com/api/v1/datasets/DMDRN/AAPL_ALLFINANCIALRATIOS.csv";
+    
+        //Get AAPL prices
+        String appleStockPricesUrl = BASE_URL + "WIKI/AAPL.csv?auth_token=" + AUTH_TOKEN; //Apples stock price
+        String stockValues = downloadData(appleStockPricesUrl);
+        System.out.println(stockValues);
+
+        //Get AAPL fundamentals
+        String appleStockFundamentalsUrl = BASE_URL + "DMDRN/AAPL_ALLFINANCIALRATIOS.csv?auth_token=" + AUTH_TOKEN; //Apples fundamentals
+        String stockFundamentals = downloadData(appleStockFundamentalsUrl);
+        System.out.println(stockFundamentals);
+    }
+    
+    private String downloadData(String urlString) {
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            URL url = new URL(urlString);
+            URLConnection conxn = url.openConnection();
+
+            //Pull back the data as JSON
+            try (InputStream is = conxn.getInputStream()) {
+                int c;
+                for(;;) {
+                    c = is.read();
+                    if (c == -1)
+                        break;
+
+                    sb.append((char)c);
+                }
+            }
+            
+        } catch(Exception exc) {
+            System.out.println(exc);
+        }
+
+        return sb.toString();
+    }
+}

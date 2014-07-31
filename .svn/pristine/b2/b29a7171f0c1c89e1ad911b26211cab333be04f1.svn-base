@@ -1,0 +1,35 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package MatrixOps;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class MatrixValues {
+    private double[][] features;
+    private double[] outputValues;
+
+    public MatrixValues(double[][] features, double[] outputValues) {
+        this.features = features;
+        this.outputValues = outputValues;
+    }
+    
+    public double[][] getFeatures() {
+        return features;
+    }
+
+    public void setFeatures(double[][] features) {
+        this.features = features;
+    }
+
+    public double[] getOutputValues() {
+        return outputValues;
+    }
+
+    public void setOutputValues(double[] outputValues) {
+        this.outputValues = outputValues;
+    }
+}

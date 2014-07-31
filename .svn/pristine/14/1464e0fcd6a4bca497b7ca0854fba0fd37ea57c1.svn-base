@@ -1,0 +1,93 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package linearregression;
+
+import java.io.BufferedReader;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class Dataset {
+    
+    //Properties
+    static final String INPUT_FILE = "C:\\Java\\TestData\\auto-mpg.txt";
+    private double[][] trainingSet;
+    private double[] resultingValues;
+    
+    //Methods
+    private int rowsInFile(String inputFile) {
+        Path p = Paths.get(inputFile);
+        int rowCount = 0;
+
+        try(BufferedReader br = Files.newBufferedReader(p, Charset.defaultCharset())) {
+            
+            String row;
+            for (;;) {
+                row = br.readLine();
+                if (row == null)
+                    break;
+                
+                rowCount++;
+            }
+        } catch (Exception exc) {
+            System.out.println(exc);
+        }
+        
+        System.out.println("Row Count = " + rowCount);
+        return rowCount;
+    }
+    
+    public void loadData() {
+
+        int rowsInFile = rowsInFile(INPUT_FILE);
+        trainingSet = new double[rowsInFile][];
+        resultingValues = new double[rowsInFile];
+        
+        Path p = Paths.get(INPUT_FILE);
+        StringTokenizer st;
+        
+        try(BufferedReader br = Files.newBufferedReader(p, Charset.defaultCharset())) {
+            String row;
+            for (int i = 0; i < rowsInFile; i++) {
+                row = br.readLine();
+                if (row == null)
+                    break;
+
+                String[] colValues = row.split("\\s+"); //Split by whitespace
+                
+                resultingValues[i] = Double.parseDouble(colValues[0]); //mpg
+
+                double[] tmpArray = new double[7];
+                tmpArray[0] = 1; 
+                tmpArray[1] = Double.parseDouble(colValues[1]); //cyclinders
+                tmpArray[2] = Double.parseDouble(colValues[2]); //displacement
+                tmpArray[3] = Double.parseDouble(colValues[3]); //horsepower
+                tmpArray[4] = Double.parseDouble(colValues[4]); //weight
+                tmpArray[5] = Double.parseDouble(colValues[5]); //acceleration
+                tmpArray[6] = Double.parseDouble(colValues[6]); //modelYear
+                
+                trainingSet[i] = tmpArray;
+            }
+        } catch(Exception exc) {
+            System.out.println(exc);
+        }
+    }
+
+    public double[][] getTrainingSet() {
+        return trainingSet;
+    }
+
+    public double[] getResultingValues() {
+        return resultingValues;
+    }
+}

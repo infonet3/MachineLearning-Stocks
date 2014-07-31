@@ -1,0 +1,83 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+import MatrixOps.Matrix;
+import MatrixOps.MatrixValues;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LinearRegression {
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void runLinearRegression() throws Exception {
+
+        //MatrixValues mv = Matrix.loadMatrixFromFile("C:\\Java\\TestData\\auto-mpg.txt", "\\s+", false, 6, 0); 
+        MatrixValues mv = Matrix.loadMatrixFromDB("AAPL");
+
+        //Map the features for better accuracy
+        mv.featureMapping(3);
+        
+        //Get values from the MatrixValues object
+        double[][] trainingMatrix = mv.getFeatures();
+        double[] results = mv.getOutputValues();
+        double[] averages = mv.getAverages();
+        double[] ranges = mv.getRanges();
+
+        //Apply Mean Normalization
+        trainingMatrix = mv.meanNormalization();
+        
+        //Initialize Theta
+        double[] theta = new double[trainingMatrix[0].length];
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = 1.0;
+        }
+        
+        //Run Gradient Descent 100 times
+        double costFunction;
+        for (int i = 0; i < 300; i++) {
+            LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, 0);
+            costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, 0);
+            
+            System.out.println("Cost Function = " + costFunction);
+        }
+
+        //Now test the values of thetas
+        //1, year, month, day, dayofWeek - skip 0
+        double year = (2014 - averages[1]) / ranges[1];
+        double year2 = (Math.pow(2014, 2) - averages[2]) / ranges[2];
+        double year3 = (Math.pow(2014, 3) - averages[3]) / ranges[3];
+        double month = (7 - averages[4]) / ranges[4];
+        double month2 = (Math.pow(7, 2) - averages[5]) / ranges[5];
+        double month3 = (Math.pow(7, 3) - averages[6]) / ranges[6];
+        double day = (11 - averages[7]) / ranges[7];
+        double day2 = (Math.pow(11, 2) - averages[8]) / ranges[8];
+        double day3 = (Math.pow(11, 3) - averages[9]) / ranges[9];
+        double dayOfWeek = (6 - averages[10]) / ranges[10];
+        double dayOfWeek2 = (Math.pow(6, 2) - averages[11]) / ranges[11];
+        double dayOfWeek3 = (Math.pow(6, 3) - averages[12]) / ranges[12];
+
+        //Witout feature mapping
+        /*double stockValue = theta[0] + 
+                theta[1] * year + 
+                theta[2] * month + 
+                theta[3] * day + 
+                theta[4] * dayOfWeek;
+        
+        */ 
+        double stockValue = theta[0] + 
+                theta[1] * year + theta[2] * year2 + theta[3] * year3 + 
+                theta[4] * month + theta[5] * month2 + theta[6] * month3 + 
+                theta[7] * day + theta[8] * day2 + theta[9] * day3 + 
+                theta[10] * dayOfWeek + theta[11] * dayOfWeek2 + theta[12] * dayOfWeek3;
+        
+        System.out.printf("Est: %.2f %n", stockValue);
+    }
+}
+        

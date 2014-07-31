@@ -1,0 +1,81 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Linear_Regression;
+
+import MatrixOps.Matrix;
+import MatrixOps.MatrixValues;
+
+/**
+ *
+ * @author Matt Jones
+ */
+public class LinearRegression {
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void runLinearRegression() throws Exception {
+
+        //MatrixValues mv = Matrix.loadMatrixFromFile("C:\\Java\\InputFiles\\LinearRegressionTestFile.csv", ",", true, 4, 4); 
+        MatrixValues mv = Matrix.loadMatrixFromDB("AAPL");
+
+        //Map the features for better accuracy
+        //mv.featureMapping(3);
+        
+        //Get values from the MatrixValues object
+        double[][] trainingMatrix = mv.getFeatures();
+        double[] results = mv.getOutputValues();
+        double[] averages = mv.getAverages();
+        double[] ranges = mv.getRanges();
+
+        //Apply Mean Normalization
+        trainingMatrix = mv.meanNormalization();
+        
+        //Initialize Theta
+        double[] theta = new double[trainingMatrix[0].length];
+        for (int i = 0; i < theta.length; i++) {
+            theta[i] = 1.0;
+        }
+        
+        //Run Gradient Descent until there is less than a 0.001 variance
+        final double MAX_VARIANCE = 0.001;
+        double oldCostFunction = Double.MAX_VALUE;
+        double costFunction = 0.0;
+        int i;
+        for (i = 0; ; i++) {
+            LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, 0);
+            costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, 0);
+            
+            //See if the variance has been met
+            if (oldCostFunction - costFunction < MAX_VARIANCE) 
+                break;
+            else if (oldCostFunction < costFunction)
+                throw new Exception("Learning Rate ALPHA is too high!");
+            
+            oldCostFunction = costFunction;
+        }
+        System.out.println("Cost Function = " + costFunction + ", Iterations = " + i);
+
+        //Output the values of theta
+        for (double d : theta)
+            System.out.println("Theta = " + d);
+ 
+        //Run the test set with the values of theta
+        double[] row;
+        double projectedValue;
+        for (int j = 0; j < trainingMatrix.length; j++) {
+            row = trainingMatrix[j];
+            projectedValue = 0.0;
+            
+            for (int k = 0; k < row.length; k++) {
+                projectedValue += row[k] * theta[k];
+            }
+                
+            System.out.println("ProjectedValue = " + projectedValue + ", ActualValue = " + results[j]);
+        }
+        
+    }
+}
+        

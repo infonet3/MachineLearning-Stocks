@@ -1,0 +1,9 @@
+# Apache configuration file (see httpd.apache.org/docs/2.2/mod/quickreference.html)
+mysql_server_host=localhost
+mysql_server_port=3306
+mysql_server_db=stock_data_db
+mysql_server_login=root
+mysql_server_password=jones211
+stock_tickers_path=C:\Java\InputFiles\WIKI_Tickers.csv
+quandl_auth_token=p4SxJNWszqVq5yQ5NcUW
+quandl_base_url=http://www.quandl.com/api/v1/datasets/
