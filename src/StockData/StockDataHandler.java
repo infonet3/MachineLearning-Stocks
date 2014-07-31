@@ -1206,7 +1206,7 @@ public class StockDataHandler {
         //GDP
         Date lastDt = getGDP_UpdateDate();
         String jsonGDP = downloadBEAData(lastDt);
-        insertGDPIntoDB(jsonGDP);
+        //insertGDPIntoDB(jsonGDP);
     }
 
     private String downloadBEAData(Date lastDt) throws Exception {
@@ -1214,7 +1214,7 @@ public class StockDataHandler {
         StringBuilder sb = new StringBuilder();
 
         try {
-            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=X&ResultFormat=JSON");
+            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=2014&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
             System.out.println("Downloading: GDP data from BEA");
