@@ -25,6 +25,11 @@ public class StockPrice {
         this.volume = volume;
     }
 
+    public StockPrice(Date date, BigDecimal price) {
+        this.date = date;
+        this.price = price;
+    }
+
     public Date getDate() {
         return date;
     }

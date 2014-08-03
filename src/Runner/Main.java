@@ -16,7 +16,9 @@ public class Main {
         
         StockDataHandler downloader = new StockDataHandler();
         downloader.downloadAllStockData();
+
         downloader.computeMovingAverages();
+        downloader.computeStockQuoteSlopes();
         
         //RunModels models = new RunModels();
         //models.runModels();

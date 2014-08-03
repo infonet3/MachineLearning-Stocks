@@ -11,7 +11,9 @@ import java.net.URLConnection;
 import com.mysql.jdbc.jdbc2.optional.*;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.StringReader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,12 +25,15 @@ import java.sql.ResultSetMetaData;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
+import javax.json.Json;
+import javax.json.stream.JsonParser;
 
 /**
  *
@@ -92,42 +97,46 @@ public class StockDataHandler {
             BigDecimal fiveDayMA = null;
             BigDecimal twentyDayMA = null;
             BigDecimal sixtyDayMA = null;
-            
+            final int FIVE = 5;
+            final int TWENTY = 20;
+            final int SIXTY = 60;
+
+            //Look through a stock's price history
             for (StockPrice price : priceList) {
 
                 //5 Day MA
                 fiveDayMAQueue.add(price);
-                if (fiveDayMAQueue.size() >= 5) {
+                if (fiveDayMAQueue.size() >= FIVE) {
                     BigDecimal sum = new BigDecimal(0.0);
                     for (StockPrice sp : fiveDayMAQueue) {
                         sum = sum.add(sp.getPrice());
                     }
                 
-                    fiveDayMA = sum.divide(new BigDecimal(5));
+                    fiveDayMA = sum.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
                     fiveDayMAQueue.remove();
                 }
                     
                 //20 Day MA
                 twentyDayMAQueue.add(price);
-                if (twentyDayMAQueue.size() >= 20) {
+                if (twentyDayMAQueue.size() >= TWENTY) {
                     BigDecimal sum = new BigDecimal(0.0);
                     for (StockPrice sp : twentyDayMAQueue) {
                         sum = sum.add(sp.getPrice());
                     }
                 
-                    twentyDayMA = sum.divide(new BigDecimal(20));
+                    twentyDayMA = sum.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
                     twentyDayMAQueue.remove();
                 }
                 
                 //60 Day MA
                 sixtyDayMAQueue.add(price);
-                if (sixtyDayMAQueue.size() >= 60) {
+                if (sixtyDayMAQueue.size() >= SIXTY) {
                     BigDecimal sum = new BigDecimal(0.0);
                     for (StockPrice sp : sixtyDayMAQueue) {
                         sum = sum.add(sp.getPrice());
                     }
                 
-                    sixtyDayMA = sum.divide(new BigDecimal(60));
+                    sixtyDayMA = sum.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
                     sixtyDayMAQueue.remove();
                 }
                 
@@ -138,6 +147,73 @@ public class StockDataHandler {
         } //End of ticker loop
     }
 
+    public void computeStockQuoteSlopes() throws Exception {
+        List<StockTicker> tickers = getAllStockTickers();
+        
+        //Iterate through all stock tickers
+        for (StockTicker stockTicker : tickers) {
+            
+            //Iterate through the 5 Day Moving Averages
+            List<StockPrice> priceList = getAll5DayMAs(stockTicker.getTicker());
+            BigDecimal fiveDayDelta = null;
+            BigDecimal twentyDayDelta = null;
+            BigDecimal sixtyDayDelta = null;
+            BigDecimal curMA = null;
+            BigDecimal slope = null;
+            final int FIVE = 5;
+            final int TWENTY = 20;
+            final int SIXTY = 60;
+
+            //Look through the 5 Day MAs
+            for (int i = 0; i < priceList.size() - FIVE; i++) {
+                curMA = priceList.get(i).getPrice();
+                fiveDayDelta = priceList.get(i + FIVE).getPrice();
+                
+                slope = curMA.add(fiveDayDelta.negate()).divide(new BigDecimal(FIVE), 5, RoundingMode.HALF_UP);
+                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), FIVE, slope);
+            } 
+            
+            //Look through the 20 Day MAs
+            for (int i = 0; i < priceList.size() - TWENTY; i++) {
+                curMA = priceList.get(i).getPrice();
+                twentyDayDelta = priceList.get(i + TWENTY).getPrice();
+
+                slope = curMA.add(twentyDayDelta.negate()).divide(new BigDecimal(TWENTY), 5, RoundingMode.HALF_UP);
+                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), TWENTY, slope);
+            } 
+            
+            //Look through the 60 Day MAs
+            for (int i = 0; i < priceList.size() - SIXTY; i++) {
+                curMA = priceList.get(i).getPrice();
+                sixtyDayDelta = priceList.get(i + SIXTY).getPrice();
+
+                slope = curMA.add(sixtyDayDelta.negate()).divide(new BigDecimal(SIXTY), 5, RoundingMode.HALF_UP);
+                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), SIXTY, slope);
+            } 
+            
+        } //End of ticker loop
+    }
+
+    private void setStockQuoteSlope(String ticker, Date date, int days, BigDecimal slope) throws Exception {
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote_Slope(?, ?, ?, ?)}")) {
+
+            java.sql.Date sqlDate = new java.sql.Date(date.getTime());
+            
+            stmt.setString(1, ticker);
+            stmt.setDate(2, sqlDate);
+            stmt.setInt(3, days);
+            stmt.setBigDecimal(4, slope);
+
+            stmt.executeUpdate();
+
+        } catch(Exception exc) {
+            System.out.println("Exception in setStockQuoteSlope");
+            throw exc;
+        }
+    }
+    
     private void setMovingAverages(String ticker, Date date, BigDecimal fiveDayMA, BigDecimal twentyDayMA, BigDecimal sixtyDayMA) throws Exception {
 
         try (Connection conxn = getDBConnection();
@@ -158,7 +234,7 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
+
     private List<StockPrice> getAllStockQuotes(String ticker) throws Exception {
 
         List<StockPrice> stockPrices = new ArrayList<>();
@@ -178,6 +254,31 @@ public class StockDataHandler {
                 
         } catch(Exception exc) {
             System.out.println("Exception in getAllStockQuotes");
+            throw exc;
+        }
+        
+        return stockPrices;
+    }
+
+    private List<StockPrice> getAll5DayMAs(String ticker) throws Exception {
+
+        List<StockPrice> stockPrices = new ArrayList<>();
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_5DayMovingAvgs(?)}")) {
+            
+            stmt.setString(1, ticker);
+
+            ResultSet rs = stmt.executeQuery();
+            
+            StockPrice price;
+            while(rs.next()) {
+                price = new StockPrice(rs.getDate(1), rs.getBigDecimal(2));
+                stockPrices.add(price);
+            }
+                
+        } catch(Exception exc) {
+            System.out.println("Exception in getAll5DayMAs");
             throw exc;
         }
         
@@ -438,8 +539,8 @@ public class StockDataHandler {
         }
         
     }
-    
-    private void insertInflationDataIntoDB(String cpiInflation) throws Exception {
+
+        private void insertInflationDataIntoDB(String cpiInflation) throws Exception {
         String[] rows = cpiInflation.split("\n");
 
         String row;
@@ -480,7 +581,65 @@ public class StockDataHandler {
             System.out.println("Method: insertInflationDataIntoDB, Description: " + exc);
             throw exc;
         }
+    }
+
+    private void insertGDPDataIntoDB(String jsonData) throws Exception {
+
+        JsonParser parser = Json.createParser(new StringReader(jsonData));
         
+        String seriesCode = null;
+        String lineDesc = null;
+        String timePeriod = null;
+        String dataValue = null;
+        while(parser.hasNext()) {
+            JsonParser.Event event = parser.next();
+            if (event == JsonParser.Event.KEY_NAME) {
+                switch(parser.getString()) {
+                    case "SeriesCode":
+                        parser.next();
+                        seriesCode = parser.getString();
+                        break;
+                    case "LineDescription":
+                        parser.next();
+                        lineDesc = parser.getString();
+                        break;
+                    case "TimePeriod":
+                        parser.next();
+                        timePeriod = parser.getString();
+                        break;
+                    case "DataValue":
+                        parser.next();
+                        dataValue = parser.getString().replaceAll(",", "");
+                        break;
+                } //End Switch
+            } //End If
+            
+            //Save record to DB if we have all elements
+            if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
+                short year = Short.parseShort(timePeriod.substring(0, 4));
+                byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
+
+                System.out.println("Series: " + seriesCode + ", Time: " + timePeriod + ", Value: " + dataValue + ", Desc: " + lineDesc);
+                
+                try (Connection conxn = getDBConnection();
+                    CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?)}")) {
+            
+                    //Insert the record into the DB
+                    stmt.setString(1, seriesCode);
+                    stmt.setShort(2, year);
+                    stmt.setByte(3, quarter);
+                    stmt.setString(4, lineDesc);
+                    stmt.setBigDecimal(5, new BigDecimal(dataValue));
+                    
+                    stmt.executeUpdate();
+                } 
+                
+                //Reset the values
+                seriesCode = lineDesc = timePeriod = dataValue = null;
+            
+            } //End If
+            
+        } //End While
     }
     
     private void insertUnemploymentRatesIntoDB(String unemploymentRates) throws Exception {
@@ -1204,20 +1363,20 @@ public class StockDataHandler {
         */ 
         
         //GDP
-        Date lastDt = getGDP_UpdateDate();
-        String jsonGDP = downloadBEAData(lastDt);
-        //insertGDPIntoDB(jsonGDP);
+        //Date lastDt = getGDP_UpdateDate();
+        String jsonGDP = downloadBEAData("X");
+        insertGDPDataIntoDB(jsonGDP);
     }
 
-    private String downloadBEAData(Date lastDt) throws Exception {
+    private String downloadBEAData(String yearStr) throws Exception {
         
         StringBuilder sb = new StringBuilder();
 
         try {
-            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=2014&ResultFormat=JSON");
+            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=5&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
-            System.out.println("Downloading: GDP data from BEA");
+            System.out.println(url);
             
             //Pull back the data as CSV
             try (InputStream is = conxn.getInputStream()) {
