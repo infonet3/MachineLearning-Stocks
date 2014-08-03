@@ -15,12 +15,12 @@ public class Main {
     public static void main(String... args) throws Exception {
         
         StockDataHandler downloader = new StockDataHandler();
-        downloader.downloadAllStockData();
-
+        //downloader.downloadAllStockData();
+        
         downloader.computeMovingAverages();
         downloader.computeStockQuoteSlopes();
         
-        //RunModels models = new RunModels();
-        //models.runModels();
+        RunModels models = new RunModels();
+        models.runModels();
     }
 }

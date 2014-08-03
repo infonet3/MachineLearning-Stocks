@@ -90,6 +90,7 @@ public class StockDataHandler {
         for (StockTicker stockTicker : tickers) {
             
             //Iterate through the stock prices
+            List<MovingAverage> listMAs = new ArrayList<>();
             List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker());
             Queue<StockPrice> fiveDayMAQueue = new LinkedList<>();
             Queue<StockPrice> twentyDayMAQueue = new LinkedList<>();
@@ -101,6 +102,8 @@ public class StockDataHandler {
             final int TWENTY = 20;
             final int SIXTY = 60;
 
+            System.out.println("Method: computeMovingAverages, Ticker: " + stockTicker.getTicker());
+            
             //Look through a stock's price history
             for (StockPrice price : priceList) {
 
@@ -140,10 +143,16 @@ public class StockDataHandler {
                     sixtyDayMAQueue.remove();
                 }
                 
-                //Save MAs to DB
-                this.setMovingAverages(stockTicker.getTicker(), price.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA);
+                //Save MAs to list
+                MovingAverage avg = new MovingAverage(stockTicker.getTicker(), price.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA);
+                listMAs.add(avg);
+                
                 
             } //End of PriceList loop
+
+            //Save MAs to DB
+            setMovingAverages(listMAs);
+            System.gc();
         } //End of ticker loop
     }
 
@@ -163,6 +172,8 @@ public class StockDataHandler {
             final int FIVE = 5;
             final int TWENTY = 20;
             final int SIXTY = 60;
+
+            System.out.println("Method: computeStockQuoteSlopes, Ticker: " + stockTicker.getTicker());
 
             //Look through the 5 Day MAs
             for (int i = 0; i < priceList.size() - FIVE; i++) {
@@ -214,20 +225,27 @@ public class StockDataHandler {
         }
     }
     
-    private void setMovingAverages(String ticker, Date date, BigDecimal fiveDayMA, BigDecimal twentyDayMA, BigDecimal sixtyDayMA) throws Exception {
+    private void setMovingAverages(List<MovingAverage> listMAs) throws Exception {
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote(?, ?, ?, ?, ?)}")) {
 
-            java.sql.Date sqlDate = new java.sql.Date(date.getTime());
+            conxn.setAutoCommit(false);
             
-            stmt.setString(1, ticker);
-            stmt.setDate(2, sqlDate);
-            stmt.setBigDecimal(3, fiveDayMA);
-            stmt.setBigDecimal(4, twentyDayMA);
-            stmt.setBigDecimal(5, sixtyDayMA);
+            for (MovingAverage ma : listMAs) {
 
-            stmt.executeUpdate();
+                stmt.setString(1, ma.getStockTicker());
+
+                java.sql.Date sqlDate = new java.sql.Date(ma.getDate().getTime());
+                stmt.setDate(2, sqlDate);
+                stmt.setBigDecimal(3, ma.getFiveDayMA());
+                stmt.setBigDecimal(4, ma.getTwentyDayMA());
+                stmt.setBigDecimal(5, ma.getSixtyDayMA());
+                stmt.addBatch();
+            }
+            
+            stmt.executeBatch();
+            conxn.commit();
 
         } catch(Exception exc) {
             System.out.println("Exception in updateMovingAverages");
@@ -336,6 +354,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockIndexPrices (?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -380,13 +400,17 @@ public class StockDataHandler {
                     stmt.setBigDecimal(6, settlePrice);
                     stmt.setBigDecimal(7, volume);
                     stmt.setBigDecimal(8, adjClosePrice);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertStockIndexDataIntoDB, Index: " + stockIndex + ", Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Execute DB commands
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertStockIndexDataIntoDB, Index: " + stockIndex + ", Description: " + exc);
             throw exc;
@@ -407,6 +431,8 @@ public class StockDataHandler {
         int i = 0;
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_EnergyPrices (?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
             
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
@@ -436,13 +462,17 @@ public class StockDataHandler {
                     stmt.setBigDecimal(6, settlePrice);
                     stmt.setInt(7, volume);
                     stmt.setInt(8, openInterest);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertEnergyPricesIntoDB, EnergyCode: " + energyCode + ", Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertEnergyPricesIntoDB, EnergyCode: " + energyCode + ", Description: " + exc);
             throw exc;
@@ -462,6 +492,9 @@ public class StockDataHandler {
         int i = 0;
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_CurrencyRatios (?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -480,13 +513,17 @@ public class StockDataHandler {
                     stmt.setDate(1, sqlDt);
                     stmt.setString(2, currency);
                     stmt.setBigDecimal(3, ratio);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertCurrencyRatiosIntoDB, Currency: " + currency + ", Row: " + i);
                 }
-            }
+            } //End for
+            
+            //Send commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+
         } catch(Exception exc) {
             System.out.println("Method: insertCurrencyRatiosIntoDB, Currency: " + currency + ", Description: " + exc);
             throw exc;
@@ -508,6 +545,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_PreciousMetalsPrices (?, ?, ?)}")) {
 
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -526,13 +565,17 @@ public class StockDataHandler {
                     stmt.setDate(1, sqlDt);
                     stmt.setString(2, metal);
                     stmt.setBigDecimal(3, price);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertPreciousMetalsPricesIntoDB, Metal: " + metal + ", Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+
         } catch(Exception exc) {
             System.out.println("Method: insertPreciousMetalsPricesIntoDB, Metal: " + metal + ", Description: " + exc);
             throw exc;
@@ -540,7 +583,14 @@ public class StockDataHandler {
         
     }
 
-        private void insertInflationDataIntoDB(String cpiInflation) throws Exception {
+    private void removeAllBadData() throws Exception {
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_RemoveAll_BadData()}")) {
+            stmt.executeUpdate();
+        }
+    }
+    
+    private void insertInflationDataIntoDB(String cpiInflation) throws Exception {
         String[] rows = cpiInflation.split("\n");
 
         String row;
@@ -553,6 +603,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_CPI (?, ?)}")) {
 
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -563,83 +615,112 @@ public class StockDataHandler {
                     String[] cells = row.split(",");
 
                     dt = sdf.parse(cells[0]);
-                    sqlDt = new java.sql.Date(dt.getTime());
+                    Calendar c = Calendar.getInstance();
+                    c.setTime(dt);
+
+                    //Increment one month
+                    c.set(Calendar.DAY_OF_MONTH, 1);
+                    c.add(Calendar.MONTH, 1);
+                    sqlDt = new java.sql.Date(c.getTimeInMillis());
                     
                     rate = new BigDecimal(cells[1]);
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
                     stmt.setBigDecimal(2, rate);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertInflationDataIntoDB, Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send Command to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertInflationDataIntoDB, Description: " + exc);
             throw exc;
         }
     }
 
-    private void insertGDPDataIntoDB(String jsonData) throws Exception {
+    private void insertGDPDataIntoDB(String jsonData, Quarter qtr) throws Exception {
 
-        JsonParser parser = Json.createParser(new StringReader(jsonData));
-        
-        String seriesCode = null;
-        String lineDesc = null;
-        String timePeriod = null;
-        String dataValue = null;
-        while(parser.hasNext()) {
-            JsonParser.Event event = parser.next();
-            if (event == JsonParser.Event.KEY_NAME) {
-                switch(parser.getString()) {
-                    case "SeriesCode":
-                        parser.next();
-                        seriesCode = parser.getString();
-                        break;
-                    case "LineDescription":
-                        parser.next();
-                        lineDesc = parser.getString();
-                        break;
-                    case "TimePeriod":
-                        parser.next();
-                        timePeriod = parser.getString();
-                        break;
-                    case "DataValue":
-                        parser.next();
-                        dataValue = parser.getString().replaceAll(",", "");
-                        break;
-                } //End Switch
-            } //End If
-            
-            //Save record to DB if we have all elements
-            if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
-                short year = Short.parseShort(timePeriod.substring(0, 4));
-                byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
+        try (Connection conxn = getDBConnection();
+            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?)}")) {
 
-                System.out.println("Series: " + seriesCode + ", Time: " + timePeriod + ", Value: " + dataValue + ", Desc: " + lineDesc);
-                
-                try (Connection conxn = getDBConnection();
-                    CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?)}")) {
+            conxn.setAutoCommit(false);
             
+            JsonParser parser = Json.createParser(new StringReader(jsonData));
+            String seriesCode = null;
+            String lineDesc = null;
+            String timePeriod = null;
+            String dataValue = null;
+            while(parser.hasNext()) {
+                JsonParser.Event event = parser.next();
+                if (event == JsonParser.Event.KEY_NAME) {
+                    switch(parser.getString()) {
+                        case "SeriesCode":
+                            parser.next();
+                            seriesCode = parser.getString();
+                            break;
+                        case "LineDescription":
+                            parser.next();
+                            lineDesc = parser.getString();
+                            break;
+                        case "TimePeriod":
+                            parser.next();
+                            timePeriod = parser.getString();
+                            break;
+                        case "DataValue":
+                            parser.next();
+                            dataValue = parser.getString().replaceAll(",", "");
+                            break;
+                    } //End Switch
+                } //End If
+
+                //Save record to DB if we have all elements
+                if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
+                    short year = Short.parseShort(timePeriod.substring(0, 4));
+                    byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
+
+                    //Move one quarter forward
+                    if (quarter >= 1 && quarter <= 3) {
+                        quarter++;
+                    }
+                    else if (quarter == 4) {
+                        quarter = 1;
+                        year++;
+                    }
+
+                    //Ensure we haven't already saved this quarter
+                    if (!(year > qtr.getYear() || (year == qtr.getYear() && quarter > qtr.getQuarter()))) {
+                        continue;
+                    }
+
+                    System.out.println("Series: " + seriesCode + ", Time: " + timePeriod + ", Value: " + dataValue + ", Desc: " + lineDesc);
+
                     //Insert the record into the DB
                     stmt.setString(1, seriesCode);
                     stmt.setShort(2, year);
                     stmt.setByte(3, quarter);
                     stmt.setString(4, lineDesc);
                     stmt.setBigDecimal(5, new BigDecimal(dataValue));
+                    stmt.addBatch();
                     
-                    stmt.executeUpdate();
-                } 
-                
-                //Reset the values
-                seriesCode = lineDesc = timePeriod = dataValue = null;
+                    //Reset the values
+                    seriesCode = lineDesc = timePeriod = dataValue = null;
+
+                } //End If
+
+            } //End While
+
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
             
-            } //End If
-            
-        } //End While
+        } //End Try
     }
     
     private void insertUnemploymentRatesIntoDB(String unemploymentRates) throws Exception {
@@ -698,6 +779,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_InterestRates (?, ?)}")) {
             
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -715,13 +798,17 @@ public class StockDataHandler {
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
                     stmt.setBigDecimal(2, rate);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertInterestRatesIntoDB, Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertInterestRatesIntoDB, Description: " + exc);
             throw exc;
@@ -741,6 +828,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_30yr_mortgagerates (?, ?)}")) {
             
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -758,13 +847,17 @@ public class StockDataHandler {
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
                     stmt.setBigDecimal(2, price);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertMortgateDataIntoDB, Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertMortgateDataIntoDB, Description: " + exc);
             throw exc;
@@ -784,6 +877,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_NewHomePrices (?, ?)}")) {
 
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -801,13 +896,17 @@ public class StockDataHandler {
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
                     stmt.setBigDecimal(2, price);
-                    
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertNewHomePriceDataIntoDB, Row: " + i);
                 }
-            }
+            } //End For
+            
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertNewHomePriceDataIntoDB, Description: " + exc);
             throw exc;
@@ -827,6 +926,8 @@ public class StockDataHandler {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockQuote (?, ?, ?, ?, ?, ?, ?)}")) {
 
+            conxn.setAutoCommit(false);
+            
             for (i = 0; i < rows.length; i++) {
                 if (i == 0) //Skip the header row
                     continue;
@@ -853,12 +954,17 @@ public class StockDataHandler {
                     stmt.setBigDecimal(5, low);
                     stmt.setBigDecimal(6, close);
                     stmt.setBigDecimal(7, volume);
-                    stmt.executeUpdate();
+                    stmt.addBatch();
                     
                 } catch(Exception exc) {
                     System.out.println("Method: insertStockPricesIntoDB, Ticker: " + stockTicker + "Row: " + i);
                 }
-            }
+
+            } //End for
+            
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertStockPricesIntoDB, Description: " + exc);
             throw exc;
@@ -1081,22 +1187,23 @@ public class StockDataHandler {
         }
     }
 
-    public Date getGDP_UpdateDate() throws Exception {
+    public Quarter getBEA_UpdateDate() throws Exception {
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_GDP_LastUpdate ()}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_BEA_LastUpdate ()}")) {
             
             ResultSet rs = stmt.executeQuery();
             
-            if (rs.next())
-                return rs.getDate(1);
+            Quarter qtr;
+            if (rs.next()) {
+                qtr = new Quarter(rs.getInt(1), rs.getInt(2));
+                return qtr;
+            }
             else {
-                Calendar c = GregorianCalendar.getInstance();
-                c.set(1990, 1, 1);
-                return c.getTime();
+                return null;
             }
             
         } catch (Exception exc) {
-            System.out.println("Exception in getGDP_UpdateDate");
+            System.out.println("Exception in getBEA_UpdateDate");
             throw exc;
         }
     }
@@ -1254,7 +1361,7 @@ public class StockDataHandler {
     }
     
     public void downloadAllStockData() throws Exception {
-        /*
+
         //Mortgage Rates
         Date lastDt;
         lastDt = get30YrMortgageRates_UpdateDate();
@@ -1341,11 +1448,13 @@ public class StockDataHandler {
         String primeRates = downloadData("FRED/DPRIME", lastDt);
         insertInterestRatesIntoDB(primeRates);
 
+        /*
         //Unemployment Rates - OLD!!!!!!!
         lastDt = getUnemployment_UpdateDate();
         String unemploymentRates = downloadData("ILOSTAT/UNE_DEAP_RT_SEX_T_M_USA", lastDt);
         insertUnemploymentRatesIntoDB(unemploymentRates);
-
+        */ 
+        
         //Stock Quotes
         List<StockTicker> listOfAllStocks = getAllStockTickers();
         for (StockTicker st : listOfAllStocks) {
@@ -1363,22 +1472,33 @@ public class StockDataHandler {
         */ 
         
         //GDP
-        //Date lastDt = getGDP_UpdateDate();
-        String jsonGDP = downloadBEAData("X");
-        insertGDPDataIntoDB(jsonGDP);
+        Quarter qtr = getBEA_UpdateDate();
+        String jsonGDP = downloadBEAData(qtr);
+        insertGDPDataIntoDB(jsonGDP, qtr);
+        
+        //Remove bad data
+        removeAllBadData();
     }
 
-    private String downloadBEAData(String yearStr) throws Exception {
+    private String downloadBEAData(Quarter qtr) throws Exception {
+        
+        String yearStr;
+        if (qtr == null)
+            yearStr = "X";
+        else {
+            int year = qtr.getYear();
+            yearStr = String.valueOf(year);
+            yearStr = "2015";
+        }
         
         StringBuilder sb = new StringBuilder();
-
         try {
             URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=5&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
             System.out.println(url);
             
-            //Pull back the data as CSV
+            //Pull back the data as JSON
             try (InputStream is = conxn.getInputStream()) {
                 int c;
                 for(;;) {
@@ -1437,9 +1557,7 @@ public class StockDataHandler {
             stmtModel.setDate(2, dt);
             stmtModel.setString(3, modelType);
             stmtModel.setBigDecimal(4, costBD);
-            
             stmtModel.executeUpdate();
-            
 
         } catch(Exception exc) {
             System.out.println("Method: insertWeightsIntoDB, Description: " + exc);
