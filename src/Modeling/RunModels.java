@@ -57,6 +57,8 @@ public class RunModels {
             //LINEAR REGRESSION==========================================================================================================================
             //Pull data for this stock from the DB and save to class field
             matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, ModelApproach.VALUES);
+            double[] averages = matrixValues.getAverages();
+            double[] ranges = matrixValues.getRanges();
             
             //Calculate costs for different sizes of lambda
             double[] costFnTrain = new double[lambdas.length];
@@ -82,10 +84,14 @@ public class RunModels {
             //Run the final TEST data set
             try {
                 double[] linearRegThetas = getThetaForModel(matrixValues, ModelApproach.VALUES, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
-                double costFunction = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), linearRegThetas, matrixValues.getOutputValues(TEST), finalLambda);
+                
+                //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                double trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), linearRegThetas, matrixValues.getOutputValues(TRAINING), finalLambda);
+                double crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), linearRegThetas, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
+                double testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), linearRegThetas, matrixValues.getOutputValues(TEST), finalLambda);
 
                 //Save values to DB
-                sdh.setModelValues(ticker.getTicker(), "LINEAR-REG", linearRegThetas, finalLambda, costFunction);
+                sdh.setModelValues(ticker.getTicker(), "LINEAR-REG", linearRegThetas, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
             } catch (Exception exc) {
                 System.out.println(exc);
             }
@@ -142,11 +148,13 @@ public class RunModels {
                 throw new Exception("Problem with Gradient Descent================================================");
             }
             
+            //Learning Rate ALPHA Check
+            if (oldCostFunction < costFunction)
+                throw new Exception("Learning Rate ALPHA is too high!");
+            
             //See if the variance has been met
             if (oldCostFunction - costFunction < MAX_VARIANCE) 
                 break;
-            else if (oldCostFunction < costFunction)
-                throw new Exception("Learning Rate ALPHA is too high!");
             
             oldCostFunction = costFunction;
         }

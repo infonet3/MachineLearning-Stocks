@@ -164,6 +164,7 @@ public class StockDataHandler {
             
             //Iterate through the 5 Day Moving Averages
             List<StockPrice> priceList = getAll5DayMAs(stockTicker.getTicker());
+            List<StockQuoteSlope> slopeList = new ArrayList<>();
             BigDecimal fiveDayDelta = null;
             BigDecimal twentyDayDelta = null;
             BigDecimal sixtyDayDelta = null;
@@ -181,7 +182,8 @@ public class StockDataHandler {
                 fiveDayDelta = priceList.get(i + FIVE).getPrice();
                 
                 slope = curMA.add(fiveDayDelta.negate()).divide(new BigDecimal(FIVE), 5, RoundingMode.HALF_UP);
-                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), FIVE, slope);
+                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), FIVE, slope);
+                slopeList.add(sqSlope);
             } 
             
             //Look through the 20 Day MAs
@@ -190,7 +192,8 @@ public class StockDataHandler {
                 twentyDayDelta = priceList.get(i + TWENTY).getPrice();
 
                 slope = curMA.add(twentyDayDelta.negate()).divide(new BigDecimal(TWENTY), 5, RoundingMode.HALF_UP);
-                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), TWENTY, slope);
+                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), TWENTY, slope);
+                slopeList.add(sqSlope);
             } 
             
             //Look through the 60 Day MAs
@@ -199,25 +202,38 @@ public class StockDataHandler {
                 sixtyDayDelta = priceList.get(i + SIXTY).getPrice();
 
                 slope = curMA.add(sixtyDayDelta.negate()).divide(new BigDecimal(SIXTY), 5, RoundingMode.HALF_UP);
-                setStockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), SIXTY, slope);
+                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), SIXTY, slope);
+                slopeList.add(sqSlope);
             } 
+
+            //Send data to DB
+            setStockQuoteSlope(slopeList);
             
+            System.gc();
         } //End of ticker loop
     }
 
-    private void setStockQuoteSlope(String ticker, Date date, int days, BigDecimal slope) throws Exception {
+    private void setStockQuoteSlope(List<StockQuoteSlope> slopeList) throws Exception {
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote_Slope(?, ?, ?, ?)}")) {
 
-            java.sql.Date sqlDate = new java.sql.Date(date.getTime());
+            conxn.setAutoCommit(false);
             
-            stmt.setString(1, ticker);
-            stmt.setDate(2, sqlDate);
-            stmt.setInt(3, days);
-            stmt.setBigDecimal(4, slope);
+            for (StockQuoteSlope s : slopeList) {
+                java.sql.Date sqlDate = new java.sql.Date(s.getDate().getTime());
+            
+                stmt.setString(1, s.getTicker());
+                stmt.setDate(2, sqlDate);
+                stmt.setInt(3, s.getDays());
+                stmt.setBigDecimal(4, s.getSlope());
 
-            stmt.executeUpdate();
+                stmt.executeUpdate();
+            }
+
+            //Send data to DB
+            stmt.executeBatch();
+            conxn.commit();
 
         } catch(Exception exc) {
             System.out.println("Exception in setStockQuoteSlope");
@@ -1517,15 +1533,17 @@ public class StockDataHandler {
         return sb.toString();
     }
     
-    public void setModelValues(String ticker, String modelType, double[] weights, double lambda, double cost) throws Exception {
+    public void setModelValues(String ticker, String modelType, double[] weights, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
         BigDecimal theta;
         BigDecimal lambdaBD;
-        BigDecimal costBD;
+        BigDecimal trainingCostBD;
+        BigDecimal crossValCostBD;
+        BigDecimal testCostBD;
         java.sql.Date dt = new java.sql.Date(new Date().getTime());
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?)}");
-             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?)}")) {
+             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?)}")) {
 
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
@@ -1551,12 +1569,16 @@ public class StockDataHandler {
             stmtWeights.executeUpdate();
             
             //Now insert the model cost
-            costBD = new BigDecimal(cost);
+            trainingCostBD = new BigDecimal(trainingCost);
+            crossValCostBD = new BigDecimal(crossValCost);
+            testCostBD = new BigDecimal(testCost);
 
             stmtModel.setString(1, ticker);
             stmtModel.setDate(2, dt);
             stmtModel.setString(3, modelType);
-            stmtModel.setBigDecimal(4, costBD);
+            stmtModel.setBigDecimal(4, trainingCostBD);
+            stmtModel.setBigDecimal(5, crossValCostBD);
+            stmtModel.setBigDecimal(6, testCostBD);
             stmtModel.executeUpdate();
 
         } catch(Exception exc) {
