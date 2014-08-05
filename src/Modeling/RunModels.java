@@ -49,7 +49,7 @@ public class RunModels {
 
         //Run through all stock tickers
         StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers();
+        List<StockTicker> stockList = sdh.getAllStockTickers(false);
         MatrixValues matrixValues;
         for (StockTicker ticker : stockList) {
             

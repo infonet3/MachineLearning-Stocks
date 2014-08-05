@@ -84,7 +84,7 @@ public class StockDataHandler {
     }
 
     public void computeMovingAverages() throws Exception {
-        List<StockTicker> tickers = getAllStockTickers();
+        List<StockTicker> tickers = getAllStockTickers(false);
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
@@ -157,7 +157,7 @@ public class StockDataHandler {
     }
 
     public void computeStockQuoteSlopes() throws Exception {
-        List<StockTicker> tickers = getAllStockTickers();
+        List<StockTicker> tickers = getAllStockTickers(false);
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
@@ -330,12 +330,19 @@ public class StockDataHandler {
             ResultSetMetaData md = rs.getMetaData();
             int columns = md.getColumnCount();
             
-            double[] values = new double[columns];
-            for (int i = 0; i < columns; i++) {
-                values[i] = rs.getDouble(i + 1);
+            double[] values = null;
+            if (rs.next()) {
+                values = new double[columns];
+                for (int i = 0; i < columns; i++) {
+                    values[i] = rs.getDouble(i + 1);
+                }
             }
-            
+
             return values;
+            
+        } catch(Exception exc) {
+            System.out.println("Exception in getFeatures");
+            throw exc;
         }
     }
     
@@ -356,6 +363,9 @@ public class StockDataHandler {
             }
             
             return listWeights;
+        } catch(Exception exc) {
+            System.out.println("Exception in getWeights");
+            throw exc;
         }
     }
     
@@ -1096,12 +1106,14 @@ public class StockDataHandler {
         }
     }
     
-    public List<StockTicker> getAllStockTickers() throws Exception {
+    public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
         List<StockTicker> tickerList = new ArrayList<>();
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers()}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers(?)}")) {
 
+            stmt.setBoolean(1, isJustDow);
+            
             ResultSet rs = stmt.executeQuery();
             
             String ticker;
@@ -1537,7 +1549,7 @@ public class StockDataHandler {
         */ 
         
         //Stock Quotes
-        List<StockTicker> listOfAllStocks = getAllStockTickers();
+        List<StockTicker> listOfAllStocks = getAllStockTickers(false);
         for (StockTicker st : listOfAllStocks) {
             lastDt = getStockQuote_UpdateDate(st.getTicker());
             String stockValues = downloadData(st.getQuandlCode(), lastDt);
