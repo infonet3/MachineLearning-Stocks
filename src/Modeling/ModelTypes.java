@@ -8,6 +8,6 @@ package Modeling;
  *
  * @author Matt Jones
  */
-public enum ModelApproach {
-    VALUES, CLASSIFICATION;
+public enum ModelTypes {
+    LINEAR_REG, LOGISTIC_REG, NEURAL_NET, SVM;
 }

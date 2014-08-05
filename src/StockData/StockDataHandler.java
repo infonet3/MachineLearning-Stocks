@@ -4,7 +4,7 @@
  */
 package StockData;
 
-import Modeling.ModelApproach;
+import Modeling.ModelTypes;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -241,6 +241,28 @@ public class StockDataHandler {
         }
     }
     
+    public void setStockPredictions(String ticker, Date projectedDate, ModelTypes model, BigDecimal projectedValue) throws Exception {
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Set_StockPrediction(?, ?, ?, ?)}")) {
+
+            stmt.setString(1, ticker);
+            
+            java.sql.Date dt = new java.sql.Date(projectedDate.getTime());
+            stmt.setDate(2, dt);
+
+            stmt.setString(3, model.toString());
+            stmt.setBigDecimal(4, projectedValue);
+            
+            stmt.executeUpdate();
+
+        } catch (Exception exc) {
+            System.out.println("Exception in setStockPredictions");
+            throw exc;
+        }
+
+    }
+    
     private void setMovingAverages(List<MovingAverage> listMAs) throws Exception {
 
         try (Connection conxn = getDBConnection();
@@ -294,6 +316,49 @@ public class StockDataHandler {
         return stockPrices;
     }
 
+    public double[] getFeatures(String ticker, Date date) throws Exception {
+        
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Features(?, ?)}")) {
+            
+            stmt.setString(1, ticker);
+            
+            java.sql.Date dt = new java.sql.Date(date.getTime());
+            stmt.setDate(2, dt);
+            
+            ResultSet rs = stmt.executeQuery();
+            ResultSetMetaData md = rs.getMetaData();
+            int columns = md.getColumnCount();
+            
+            double[] values = new double[columns];
+            for (int i = 0; i < columns; i++) {
+                values[i] = rs.getDouble(i + 1);
+            }
+            
+            return values;
+        }
+    }
+    
+    public List<Weight> getWeights(String ticker, ModelTypes modelType) throws Exception {
+        
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Weights(?, ?)}")) {
+            
+            stmt.setString(1, ticker);
+            stmt.setString(2, modelType.toString());
+            
+            ResultSet rs = stmt.executeQuery();
+            List<Weight> listWeights = new ArrayList<>();
+            Weight w;
+            while (rs.next()) {
+                w = new Weight(rs.getInt(1), rs.getBigDecimal(2), rs.getBigDecimal(3), rs.getBigDecimal(4));
+                listWeights.add(w);
+            }
+            
+            return listWeights;
+        }
+    }
+    
     private List<StockPrice> getAll5DayMAs(String ticker) throws Exception {
 
         List<StockPrice> stockPrices = new ArrayList<>();
@@ -319,16 +384,16 @@ public class StockDataHandler {
         return stockPrices;
     }
     
-    public List<double[]> getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelApproach approach) throws Exception {
+    public List<double[]> getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach) throws Exception {
         
         List<double[]> stockFeatureMatrix = new ArrayList<>();
 
         try (Connection conxn = getDBConnection()) {
             CallableStatement stmt = null;
             
-            if (approach == ModelApproach.VALUES)
+            if (approach == ModelTypes.LINEAR_REG)
                 stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
-            else if (approach == ModelApproach.CLASSIFICATION)
+            else if (approach == ModelTypes.LOGISTIC_REG)
                 stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?)}");
             
             stmt.setString(1, stockTicker);
@@ -1533,8 +1598,10 @@ public class StockDataHandler {
         return sb.toString();
     }
     
-    public void setModelValues(String ticker, String modelType, double[] weights, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
+    public void setModelValues(String ticker, String modelType, double[] weights, double[] valAvg, double[] valRange, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
         BigDecimal theta;
+        BigDecimal valAvgBD;
+        BigDecimal valRangeBD;
         BigDecimal lambdaBD;
         BigDecimal trainingCostBD;
         BigDecimal crossValCostBD;
@@ -1542,19 +1609,23 @@ public class StockDataHandler {
         java.sql.Date dt = new java.sql.Date(new Date().getTime());
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?)}");
+             CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?)}");
              CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?)}")) {
 
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
                 theta = new BigDecimal(weights[i]);
-
+                valAvgBD = new BigDecimal(valAvg[i]);
+                valRangeBD = new BigDecimal(valRange[i]);
+                
                 //Insert theta records into the DB
                 stmtWeights.setString(1, ticker);
                 stmtWeights.setDate(2, dt);
                 stmtWeights.setString(3, modelType);
                 stmtWeights.setInt(4, i);
                 stmtWeights.setBigDecimal(5, theta);
+                stmtWeights.setBigDecimal(6, valAvgBD);
+                stmtWeights.setBigDecimal(7, valRangeBD);
                 stmtWeights.executeUpdate();
             }
             

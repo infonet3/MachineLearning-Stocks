@@ -20,9 +20,9 @@ import java.util.List;
 public class RunModels {
 
     //Methods
-    public void runModels() throws Exception {
+    public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
 
-        testAllStocks();
+        testAllStocks(MODEL, DAYS_IN_FUTURE);
     }
 
     private void getModelError(RecordType type) {
@@ -39,10 +39,9 @@ public class RunModels {
     }
     
     //Run through all stock and determine optimal values of theta for prediction
-    private void testAllStocks() throws Exception {
+    private void testAllStocks(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
         
         //Model Settings
-        final int DAYS_IN_FUTURE = 28;
         final RecordType TRAINING = RecordType.TRAINING;
         final RecordType CROSS_VAL = RecordType.CROSS_VALIDATION;
         final RecordType TEST = RecordType.TEST;
@@ -56,44 +55,34 @@ public class RunModels {
             
             //LINEAR REGRESSION==========================================================================================================================
             //Pull data for this stock from the DB and save to class field
-            matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, ModelApproach.VALUES);
-            double[] averages = matrixValues.getAverages();
-            double[] ranges = matrixValues.getRanges();
+            matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL);
+            double[] averages = matrixValues.getOriginalFeatureAverages();
+            double[] ranges = matrixValues.getOriginalFeatureRanges();
             
             //Calculate costs for different sizes of lambda
             double[] costFnTrain = new double[lambdas.length];
             double[] costFnCrossVal = new double[lambdas.length];
             double[] totalCost = new double[lambdas.length];
-/*        
-            for (int i = 0; i < lambdas.length; i++) {
-                double lambdaTest = lambdas[i];
-            
-                double[] linearRegThetas = getThetaForModel(ModelApproach.VALUES, ticker.getTicker(), DAYS_IN_FUTURE, lambdaTest);
-                costFnTrain[i] = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), linearRegThetas, matrixValues.getOutputValues(TRAINING), lambdaTest);
-                costFnCrossVal[i] = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), linearRegThetas, matrixValues.getOutputValues(CROSS_VAL), lambdaTest);
-                
-                System.out.println("Train Cost = " + costFnTrain[i] + ", Cross Val Cost = " + costFnCrossVal[i]);
-                totalCost[i] = costFnTrain[i] + costFnCrossVal[i];
-            }
-            
-            //Determine lowest cost option
-            double finalLambda = getLowestCostOption(totalCost, lambdas);
-*/
             double finalLambda = 0.0;
             
-            //Run the final TEST data set
-            try {
-                double[] linearRegThetas = getThetaForModel(matrixValues, ModelApproach.VALUES, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
-                
-                //Save cost values for all 3 datasets (Training, Cross Val, Test)
-                double trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), linearRegThetas, matrixValues.getOutputValues(TRAINING), finalLambda);
-                double crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), linearRegThetas, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
-                double testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), linearRegThetas, matrixValues.getOutputValues(TEST), finalLambda);
+            switch (MODEL) {
+                case LINEAR_REG:
 
-                //Save values to DB
-                sdh.setModelValues(ticker.getTicker(), "LINEAR-REG", linearRegThetas, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
-            } catch (Exception exc) {
-                System.out.println(exc);
+                    try {
+                        double[] linearRegThetas = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
+
+                        //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                        double trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), linearRegThetas, matrixValues.getOutputValues(TRAINING), finalLambda);
+                        double crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), linearRegThetas, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
+                        double testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), linearRegThetas, matrixValues.getOutputValues(TEST), finalLambda);
+
+                        //Save values to DB
+                        sdh.setModelValues(ticker.getTicker(), "LINEAR-REG", linearRegThetas, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
+                    } catch (Exception exc) {
+                        System.out.println(exc);
+                    }
+
+                    break;
             }
         }
     }
@@ -112,7 +101,7 @@ public class RunModels {
         return smallestCostIndex;
     }
     
-    private double[] getThetaForModel(final MatrixValues MATRIX_VAL, final ModelApproach MOD_APPR, final String TICKER, final int DAYS_IN_FUTURE, double lambda) throws Exception {
+    private double[] getThetaForModel(final MatrixValues MATRIX_VAL, final ModelTypes MOD_APPR, final String TICKER, final int DAYS_IN_FUTURE, double lambda) throws Exception {
         //Get values from the MatrixValues object
         final RecordType REC_TYPE = RecordType.TRAINING;
         double[][] trainingMatrix = MATRIX_VAL.getFeatures(REC_TYPE);
@@ -124,7 +113,7 @@ public class RunModels {
         return thetas;
     }
 
-    private double[] runGradientDescent(ModelApproach approach, double[][] trainingMatrix, double[] results, double[] theta, double lambda) throws Exception {
+    private double[] runGradientDescent(ModelTypes approach, double[][] trainingMatrix, double[] results, double[] theta, double lambda) throws Exception {
         //Run Gradient Descent until there is less than a 0.001 variance
         final double MAX_VARIANCE = 0.001;
         double oldCostFunction = Double.MAX_VALUE;
@@ -133,11 +122,11 @@ public class RunModels {
         int i;
         for (i = 0; ; i++) {
             switch(approach) {
-                case VALUES:
+                case LINEAR_REG:
                     LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
                     costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
-                case CLASSIFICATION:
+                case LOGISTIC_REG:
                     LogisticRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
                     costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;

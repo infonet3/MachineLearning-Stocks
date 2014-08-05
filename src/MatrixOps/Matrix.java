@@ -4,7 +4,7 @@
  */
 package MatrixOps;
 
-import Modeling.ModelApproach;
+import Modeling.ModelTypes;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -22,7 +22,7 @@ import StockData.StockDataHandler;
 public class Matrix {
 
     //Output - y column is always the last element in the row
-    public static MatrixValues loadMatrixFromDB(final String STOCK_TICKER, final int DAYS_IN_FUTURE, ModelApproach approach) throws Exception {
+    public static MatrixValues loadMatrixFromDB(final String STOCK_TICKER, final int DAYS_IN_FUTURE, ModelTypes approach) throws Exception {
 
         //Pull the data from the DB
         StockDataHandler sdh = new StockDataHandler();

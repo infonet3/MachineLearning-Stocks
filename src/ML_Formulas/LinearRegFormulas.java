@@ -30,7 +30,7 @@ public class LinearRegFormulas {
         return (1.0 / (2.0 * m)) * (sum + (lambda * regularization));
     }
     
-    private static double hypothesis(double[] inputs, double[] theta) {
+    public static double hypothesis(double[] inputs, double[] theta) {
         
         double sum = 0.0;
         

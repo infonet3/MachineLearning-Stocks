@@ -19,7 +19,17 @@ public class MatrixValues {
     private double[][] features;
     private double[] outputs;
     private RecordType[] recordTypes;
+    private double[] averages;
+    private double[] ranges;
 
+    public double[] getOriginalFeatureAverages() {
+        return averages;
+    }
+    
+    public double[] getOriginalFeatureRanges() {
+        return ranges;
+    }
+    
     //Take every feature, except x0, and raise to x^2, ..., x^degree
     public void featureMapping(int degree) throws Exception {
         if (degree <= 1)
@@ -80,16 +90,18 @@ public class MatrixValues {
         double rand;
         for (int i = 0; i < recordTypes.length; i++) {
             rand = Math.random();
+
+            //Andrew's recommendation is 60% training, 20% CV, and 20% Test
             
-            //70% Training
-            if (rand <= 0.7) {
+            //80% Training
+            if (rand <= 0.80) {
                 recordTypes[i] = RecordType.TRAINING;
             }
-            //15% Cross Validation
-            else if (rand > 0.7 && rand <= 0.85) {
+            //10% Cross Validation
+            else if (rand > 0.80 && rand <= 0.90) {
                 recordTypes[i] = RecordType.CROSS_VALIDATION;
             }
-            //15% Test Data
+            //10% Test Data
             else {
                 recordTypes[i] = RecordType.TEST;
             }
@@ -139,7 +151,8 @@ public class MatrixValues {
         return tmpOutputs;
     }
 
-    public double[] getAverages() {
+    //Only for internal class use
+    private double[] getAverages() {
         int rows = features.length;
         int cols = features[0].length;
         double[] averages = new double[cols];
@@ -164,7 +177,8 @@ public class MatrixValues {
         return averages;
     }
 
-    public double[] getRanges() {
+    //Only for internal class use
+    private double[] getRanges() {
         int rows = features.length;
         int cols = features[0].length;
         double[] ranges = new double[cols];
@@ -200,10 +214,32 @@ public class MatrixValues {
         return ranges;
     }
 
+    public static double[] meanNormalization(double[] features, double[] avgValues, double[] rangeValues) {
+        
+        int cols = features.length;
+        double[] normalizedFeatures = new double[cols];
+        
+        //Normalize the matrix
+        for (int i = 0; i < cols; i++) {
+            if (i == 0) {
+                normalizedFeatures[i] = features[i]; //Skip x0
+            } else {
+                //Protect against a feature that is constant for all training examples
+                if (rangeValues[i] == 0.0)
+                    normalizedFeatures[i] = features[i] / avgValues[i]; //Will set constant feature to 1
+                else
+                    normalizedFeatures[i] = (features[i] - avgValues[i]) / rangeValues[i];
+            }
+        }
+        
+        return normalizedFeatures;
+    }
+
+    
     private void meanNormalization() {
 
-        double[] averages = getAverages();
-        double[] ranges = getRanges();
+        averages = getAverages();
+        ranges = getRanges();
         
         int rows = features.length;
         int cols = features[0].length;
