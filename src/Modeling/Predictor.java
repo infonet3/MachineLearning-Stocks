@@ -5,6 +5,7 @@
 package Modeling;
 
 import ML_Formulas.LinearRegFormulas;
+import ML_Formulas.LogisticRegFormulas;
 import MatrixOps.MatrixValues;
 import StockData.*;
 import java.math.BigDecimal;
@@ -19,12 +20,14 @@ import java.util.List;
 public class Predictor {
     public void predictAllStocks(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date testDate) throws Exception {
 
+        if (!(DAYS_IN_FUTURE == 1 || (DAYS_IN_FUTURE % 7) == 0)) {
+            throw new Exception("Method: predictAllStocks, Desc: Can only predict 1 day out or a multiple of 7!" );
+        }
+        
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         for (StockTicker ticker : stockList) {
 
-            System.out.println("Ticker = " + ticker.getTicker());
-            
             //Get Features and pre calculated weights
             double[] features = sdh.getFeatures(ticker.getTicker(), testDate);
             if (features == null) //If features are unavailable for this date then skip it
@@ -36,8 +39,6 @@ public class Predictor {
             
             //Sanity Check
             if (features.length != numWeights) {
-                System.out.println("Features = " + features.length);
-                System.out.println("Weights = " + numWeights);
                 throw new Exception("Method: predictAllStocks, Desc: Number of features != Number of weights."); 
             }
             
@@ -55,13 +56,28 @@ public class Predictor {
             features = MatrixValues.meanNormalization(features, avg, range);
             
             //Hypothesis
-            double value = LinearRegFormulas.hypothesis(features, weights);
+            double value = 0.0;
+            switch (MODEL_TYPE) {
+                case LINEAR_REG:
+                    value = LinearRegFormulas.hypothesis(features, weights);
+                    break;
+                case LOGIST_REG:
+                    value = LogisticRegFormulas.hypothesis(features, weights);
+                    break;
+            }
             BigDecimal bd = new BigDecimal(value);
 
+            //Set the predicted target date
             Calendar c = Calendar.getInstance();
             c.setTime(testDate);
-            c.add(Calendar.DATE, DAYS_IN_FUTURE);
-            
+            if (DAYS_IN_FUTURE == 1 && c.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY) {
+                c.add(Calendar.DATE, 3);
+            }
+            else {
+                c.add(Calendar.DATE, DAYS_IN_FUTURE);
+            }
+
+            //Save Predictions to DB
             sdh.setStockPredictions(ticker.getTicker(), c.getTime(), MODEL_TYPE, bd);
         }
     }

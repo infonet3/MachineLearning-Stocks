@@ -10,7 +10,7 @@ package ML_Formulas;
  */
 public class LogisticRegFormulas {
 
-    private static final double ALPHA = 1;
+    private static final double ALPHA = 0.03;
 
     public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
         double sum = 0.0;
@@ -28,7 +28,7 @@ public class LogisticRegFormulas {
     }
 
     //Sigmoid Function = 1 / (1 + e^-z)
-    private static double hypothesis(double[] inputs, double[] theta) {
+    public static double hypothesis(double[] inputs, double[] theta) {
         
         double sum = 0.0;
         

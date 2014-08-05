@@ -49,41 +49,42 @@ public class RunModels {
 
         //Run through all stock tickers
         StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers(false);
+        List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         MatrixValues matrixValues;
         for (StockTicker ticker : stockList) {
             
-            //LINEAR REGRESSION==========================================================================================================================
             //Pull data for this stock from the DB and save to class field
             matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL);
             double[] averages = matrixValues.getOriginalFeatureAverages();
             double[] ranges = matrixValues.getOriginalFeatureRanges();
             
             //Calculate costs for different sizes of lambda
-            double[] costFnTrain = new double[lambdas.length];
-            double[] costFnCrossVal = new double[lambdas.length];
-            double[] totalCost = new double[lambdas.length];
+            double trainingCost = 0.0;
+            double crossValCost = 0.0;
+            double testCost = 0.0;
             double finalLambda = 0.0;
-            
+
+            double[] thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
+
             switch (MODEL) {
                 case LINEAR_REG:
-
-                    try {
-                        double[] linearRegThetas = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
-
-                        //Save cost values for all 3 datasets (Training, Cross Val, Test)
-                        double trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), linearRegThetas, matrixValues.getOutputValues(TRAINING), finalLambda);
-                        double crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), linearRegThetas, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
-                        double testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), linearRegThetas, matrixValues.getOutputValues(TEST), finalLambda);
-
-                        //Save values to DB
-                        sdh.setModelValues(ticker.getTicker(), "LINEAR-REG", linearRegThetas, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
-                    } catch (Exception exc) {
-                        System.out.println(exc);
-                    }
+                    //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                    trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
+                    crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
+                    testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
 
                     break;
+                case LOGIST_REG:
+                    //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                    trainingCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
+                    crossValCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
+                    testCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
+                    
+                    break;
             }
+
+            //Save values to DB
+            sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, thetaValues, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
         }
     }
 
@@ -126,14 +127,14 @@ public class RunModels {
                     LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
                     costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
-                case LOGISTIC_REG:
+                case LOGIST_REG:
                     LogisticRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
                     costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
             } //End switch
             
             //Test Check
-            if (i > 5000) {
+            if (i > 7000) {
                 throw new Exception("Problem with Gradient Descent================================================");
             }
             

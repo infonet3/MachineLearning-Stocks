@@ -25,7 +25,6 @@ import java.sql.ResultSetMetaData;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
@@ -74,7 +73,7 @@ public class StockDataHandler {
             BEA_USER_ID = p.getProperty("bea_user_id");
         }
     }
-
+    
     private Connection getDBConnection() throws Exception {
         MysqlDataSource dataSource = new MysqlDataSource();
         dataSource.setServerName(MYSQL_SERVER_HOST);
@@ -83,15 +82,15 @@ public class StockDataHandler {
         return dataSource.getConnection(MYSQL_SERVER_LOGIN, MYSQL_SERVER_PASSWORD);
     }
 
-    public void computeMovingAverages() throws Exception {
-        List<StockTicker> tickers = getAllStockTickers(false);
+    public void computeMovingAverages(final int DAYS_BACK) throws Exception {
+        List<StockTicker> tickers = getAllStockTickers(true); //FIX THIS LATER!!!
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
             
             //Iterate through the stock prices
             List<MovingAverage> listMAs = new ArrayList<>();
-            List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker());
+            List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker(), DAYS_BACK);
             Queue<StockPrice> fiveDayMAQueue = new LinkedList<>();
             Queue<StockPrice> twentyDayMAQueue = new LinkedList<>();
             Queue<StockPrice> sixtyDayMAQueue = new LinkedList<>();
@@ -156,14 +155,14 @@ public class StockDataHandler {
         } //End of ticker loop
     }
 
-    public void computeStockQuoteSlopes() throws Exception {
-        List<StockTicker> tickers = getAllStockTickers(false);
+    public void computeStockQuoteSlopes(final int DAYS_BACK) throws Exception {
+        List<StockTicker> tickers = getAllStockTickers(true); //FIX THIS LATER!!!
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
             
             //Iterate through the 5 Day Moving Averages
-            List<StockPrice> priceList = getAll5DayMAs(stockTicker.getTicker());
+            List<StockPrice> priceList = getAll5DayMAs(stockTicker.getTicker(), DAYS_BACK);
             List<StockQuoteSlope> slopeList = new ArrayList<>();
             BigDecimal fiveDayDelta = null;
             BigDecimal twentyDayDelta = null;
@@ -291,14 +290,15 @@ public class StockDataHandler {
         }
     }
 
-    private List<StockPrice> getAllStockQuotes(String ticker) throws Exception {
+    private List<StockPrice> getAllStockQuotes(String ticker, int daysBack) throws Exception {
 
         List<StockPrice> stockPrices = new ArrayList<>();
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockQuotes(?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockQuotes(?, ?)}")) {
             
             stmt.setString(1, ticker);
+            stmt.setInt(2, daysBack);
 
             ResultSet rs = stmt.executeQuery();
             
@@ -369,14 +369,15 @@ public class StockDataHandler {
         }
     }
     
-    private List<StockPrice> getAll5DayMAs(String ticker) throws Exception {
+    private List<StockPrice> getAll5DayMAs(String ticker, int daysBack) throws Exception {
 
         List<StockPrice> stockPrices = new ArrayList<>();
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_5DayMovingAvgs(?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_5DayMovingAvgs(?, ?)}")) {
             
             stmt.setString(1, ticker);
+            stmt.setInt(2, daysBack);
 
             ResultSet rs = stmt.executeQuery();
             
@@ -399,12 +400,16 @@ public class StockDataHandler {
         List<double[]> stockFeatureMatrix = new ArrayList<>();
 
         try (Connection conxn = getDBConnection()) {
+
             CallableStatement stmt = null;
-            
-            if (approach == ModelTypes.LINEAR_REG)
-                stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
-            else if (approach == ModelTypes.LOGISTIC_REG)
-                stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?)}");
+            switch(approach) {
+                case LINEAR_REG:
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
+                    break;
+                case LOGIST_REG:
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?)}");
+                    break;
+            }
             
             stmt.setString(1, stockTicker);
             stmt.setInt(2, daysInFuture);
@@ -1610,7 +1615,7 @@ public class StockDataHandler {
         return sb.toString();
     }
     
-    public void setModelValues(String ticker, String modelType, double[] weights, double[] valAvg, double[] valRange, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
+    public void setModelValues(String ticker, String modelType, int daysForecast, double[] weights, double[] valAvg, double[] valRange, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
         BigDecimal theta;
         BigDecimal valAvgBD;
         BigDecimal valRangeBD;
@@ -1621,8 +1626,8 @@ public class StockDataHandler {
         java.sql.Date dt = new java.sql.Date(new Date().getTime());
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?)}");
-             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?)}")) {
+             CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?, ?)}");
+             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?, ?)}")) {
 
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
@@ -1634,10 +1639,11 @@ public class StockDataHandler {
                 stmtWeights.setString(1, ticker);
                 stmtWeights.setDate(2, dt);
                 stmtWeights.setString(3, modelType);
-                stmtWeights.setInt(4, i);
-                stmtWeights.setBigDecimal(5, theta);
-                stmtWeights.setBigDecimal(6, valAvgBD);
-                stmtWeights.setBigDecimal(7, valRangeBD);
+                stmtWeights.setInt(4, daysForecast);
+                stmtWeights.setInt(5, i);
+                stmtWeights.setBigDecimal(6, theta);
+                stmtWeights.setBigDecimal(7, valAvgBD);
+                stmtWeights.setBigDecimal(8, valRangeBD);
                 stmtWeights.executeUpdate();
             }
             
@@ -1647,8 +1653,9 @@ public class StockDataHandler {
             stmtWeights.setString(1, ticker);
             stmtWeights.setDate(2, dt);
             stmtWeights.setString(3, modelType);
-            stmtWeights.setInt(4, -1);
-            stmtWeights.setBigDecimal(5, lambdaBD);
+            stmtWeights.setInt(4, daysForecast);
+            stmtWeights.setInt(5, -1);
+            stmtWeights.setBigDecimal(6, lambdaBD);
             stmtWeights.executeUpdate();
             
             //Now insert the model cost
@@ -1659,9 +1666,10 @@ public class StockDataHandler {
             stmtModel.setString(1, ticker);
             stmtModel.setDate(2, dt);
             stmtModel.setString(3, modelType);
-            stmtModel.setBigDecimal(4, trainingCostBD);
-            stmtModel.setBigDecimal(5, crossValCostBD);
-            stmtModel.setBigDecimal(6, testCostBD);
+            stmtModel.setInt(4, daysForecast);
+            stmtModel.setBigDecimal(5, trainingCostBD);
+            stmtModel.setBigDecimal(6, crossValCostBD);
+            stmtModel.setBigDecimal(7, testCostBD);
             stmtModel.executeUpdate();
 
         } catch(Exception exc) {
@@ -1682,7 +1690,7 @@ public class StockDataHandler {
         
         String quandlQuery = QUANDL_BASE_URL + QUANDL_CODE + ".csv?auth_token=" + QUANDL_AUTH_TOKEN + "&trim_start=" + dtStr + "&sort_order=asc";
         
-        StringBuilder sb = new StringBuilder();
+        String responseStr = "";
 
         try {
             URL url = new URL(quandlQuery);
@@ -1692,20 +1700,17 @@ public class StockDataHandler {
             
             //Pull back the data as CSV
             try (InputStream is = conxn.getInputStream()) {
-                int c;
-                for(;;) {
-                    c = is.read();
-                    if (c == -1)
-                        break;
-
-                    sb.append((char)c);
-                }
+                long length = conxn.getContentLengthLong();
+                byte[] byteArray = new byte[(int)length];
+                is.read(byteArray);
+                
+                responseStr = new String(byteArray);
             }
             
         } catch(Exception exc) {
             System.out.println(exc);
         }
 
-        return sb.toString();
+        return responseStr;
     }
 }
