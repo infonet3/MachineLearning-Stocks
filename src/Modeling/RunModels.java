@@ -142,8 +142,8 @@ public class RunModels {
             if (oldCostFunction < costFunction)
                 throw new Exception("Learning Rate ALPHA is too high!");
             
-            //See if the variance has been met
-            if (oldCostFunction - costFunction < MAX_VARIANCE) 
+            //See if the variance has been met and also ensure at least 1000 iterations have taken place
+            if (oldCostFunction - costFunction < MAX_VARIANCE && i >= 1000) 
                 break;
             
             oldCostFunction = costFunction;

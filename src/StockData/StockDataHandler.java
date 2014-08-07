@@ -27,8 +27,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
 import javax.json.Json;
@@ -240,20 +242,40 @@ public class StockDataHandler {
         }
     }
     
-    public void setStockPredictions(String ticker, Date projectedDate, ModelTypes model, BigDecimal projectedValue) throws Exception {
+    public void setStockPredictions(List<PredictionValues> predictionList) throws Exception {
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Set_StockPrediction(?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Set_StockPrediction(?, ?, ?, ?, ?)}")) {
 
-            stmt.setString(1, ticker);
+            conxn.setAutoCommit(false);
             
-            java.sql.Date dt = new java.sql.Date(projectedDate.getTime());
-            stmt.setDate(2, dt);
+            Map<Date, Date> map = new HashMap<>();
+            for (PredictionValues p : predictionList) {
 
-            stmt.setString(3, model.toString());
-            stmt.setBigDecimal(4, projectedValue);
+                java.sql.Date dt = new java.sql.Date(p.getDate().getTime());
+                java.sql.Date projDt = new java.sql.Date(p.getProjectedDate().getTime());
+                
+                //Dedup Check
+                if (map.containsKey(dt)) {
+                    System.out.println("Method: setStockPredictions, Dup Found for Date: " + dt);
+                    continue;
+                }
+                else {
+                    map.put(dt, dt);
+                }
+                
+                //Write values to DB
+                stmt.setString(1, p.getTicker());
+                stmt.setDate(2, dt);
+                stmt.setDate(3, projDt);
+                stmt.setString(4, p.getModelType());
+                stmt.setBigDecimal(5, p.getEstimatedValue());
+
+                stmt.addBatch();
+            }
             
-            stmt.executeUpdate();
+            stmt.executeBatch();
+            conxn.commit();
 
         } catch (Exception exc) {
             System.out.println("Exception in setStockPredictions");
@@ -316,29 +338,73 @@ public class StockDataHandler {
         return stockPrices;
     }
 
-    public double[] getFeatures(String ticker, Date date) throws Exception {
+    public List<PredictionValues> getStockBackTesting(String ticker, String modelType, Date fromDate, Date toDate) throws Exception {
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Stock_BackTesting(?, ?, ?, ?)}")) {
+            
+            stmt.setString(1, ticker);
+            stmt.setString(2, modelType);
+            
+            java.sql.Date fromDt = new java.sql.Date(fromDate.getTime());
+            stmt.setDate(3, fromDt);
+
+            java.sql.Date toDt = new java.sql.Date(toDate.getTime());
+            stmt.setDate(4, toDt);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            List<PredictionValues> listVals = new ArrayList<>();
+            PredictionValues val;
+            while(rs.next()) {
+                val = new PredictionValues(ticker, rs.getDate(1), rs.getDate(2), modelType, rs.getBigDecimal(3), rs.getBigDecimal(4)); 
+                listVals.add(val);
+            }
+                
+            return listVals;
+            
+        } catch(Exception exc) {
+            System.out.println("Exception in getAllStockQuotes");
+            throw exc;
+        }
+    }
+
+    public List<Features> getFeatures(String ticker, Date fromDate, Date toDate) throws Exception {
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Features(?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Features(?, ?, ?)}")) {
             
             stmt.setString(1, ticker);
             
-            java.sql.Date dt = new java.sql.Date(date.getTime());
-            stmt.setDate(2, dt);
-            
+            java.sql.Date fromDt = new java.sql.Date(fromDate.getTime());
+            stmt.setDate(2, fromDt);
+
+            java.sql.Date toDt = new java.sql.Date(toDate.getTime());
+            stmt.setDate(3, toDt);
+
             ResultSet rs = stmt.executeQuery();
             ResultSetMetaData md = rs.getMetaData();
-            int columns = md.getColumnCount();
+            int columns = md.getColumnCount() - 1; //First column is the date
             
-            double[] values = null;
-            if (rs.next()) {
+            //Prepare the return values
+            List<Features> featureList = new ArrayList<>();
+            double[] values;
+            Features f;
+            Date dt;
+            while (rs.next()) {
+
+                dt = rs.getDate(1);
+                
                 values = new double[columns];
                 for (int i = 0; i < columns; i++) {
-                    values[i] = rs.getDouble(i + 1);
+                    values[i] = rs.getDouble(i + 2);
                 }
+                
+                f = new Features(dt, values);
+                featureList.add(f);
             }
 
-            return values;
+            return featureList;
             
         } catch(Exception exc) {
             System.out.println("Exception in getFeatures");
@@ -791,7 +857,7 @@ public class StockDataHandler {
                     }
 
                     //Ensure we haven't already saved this quarter
-                    if (!(year > qtr.getYear() || (year == qtr.getYear() && quarter > qtr.getQuarter()))) {
+                    if (qtr != null && !(year > qtr.getYear() || (year == qtr.getYear() && quarter > qtr.getQuarter()))) {
                         continue;
                     }
 
@@ -1545,14 +1611,7 @@ public class StockDataHandler {
         lastDt = getInterestRates_UpdateDate();
         String primeRates = downloadData("FRED/DPRIME", lastDt);
         insertInterestRatesIntoDB(primeRates);
-
-        /*
-        //Unemployment Rates - OLD!!!!!!!
-        lastDt = getUnemployment_UpdateDate();
-        String unemploymentRates = downloadData("ILOSTAT/UNE_DEAP_RT_SEX_T_M_USA", lastDt);
-        insertUnemploymentRatesIntoDB(unemploymentRates);
-        */ 
-        
+      
         //Stock Quotes
         List<StockTicker> listOfAllStocks = getAllStockTickers(false);
         for (StockTicker st : listOfAllStocks) {
@@ -1560,14 +1619,6 @@ public class StockDataHandler {
             String stockValues = downloadData(st.getQuandlCode(), lastDt);
             insertStockPricesIntoDB(st.getTicker(), stockValues);
         }
-
-        //Stock Fundamentals
-        /*
-        List<StockTicker> listOfAllStocks = getAllStockTickers();
-        for (StockTicker st : listOfAllStocks) {
-            getAllFundamentalsData(st.getTicker());
-        }
-        */ 
         
         //GDP
         Quarter qtr = getBEA_UpdateDate();
@@ -1690,7 +1741,7 @@ public class StockDataHandler {
         
         String quandlQuery = QUANDL_BASE_URL + QUANDL_CODE + ".csv?auth_token=" + QUANDL_AUTH_TOKEN + "&trim_start=" + dtStr + "&sort_order=asc";
         
-        String responseStr = "";
+        StringBuilder responseStr = new StringBuilder();
 
         try {
             URL url = new URL(quandlQuery);
@@ -1700,17 +1751,21 @@ public class StockDataHandler {
             
             //Pull back the data as CSV
             try (InputStream is = conxn.getInputStream()) {
-                long length = conxn.getContentLengthLong();
-                byte[] byteArray = new byte[(int)length];
-                is.read(byteArray);
                 
-                responseStr = new String(byteArray);
+                int b;
+                for(;;) {
+                    b = is.read();
+                    if (b == -1)
+                        break;
+                    
+                    responseStr.append((char) b);
+                }
             }
             
         } catch(Exception exc) {
             System.out.println(exc);
         }
 
-        return responseStr;
+        return responseStr.toString();
     }
 }
