@@ -35,9 +35,6 @@ public class Predictor {
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         for (StockTicker ticker : stockList) {
 
-            //Try to fix DB bug
-            Thread.sleep(10);
-
             //Get Features for the selected dates
             List<Features> featureList = sdh.getFeatures(ticker.getTicker(), fromDate, toDate);
 
@@ -129,8 +126,12 @@ public class Predictor {
     public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
 
         System.out.println("Backtesting Stocks: From: " + FROM_DATE + ", To: " + TO_DATE);
+
+        //Commissions
+        final BigDecimal TRADING_COST = new BigDecimal("10.00");
         
         //Loop through all stocks
+        List<BacktestingResults> listResults = new ArrayList<>();
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         for (StockTicker ticker : stockList) {
@@ -139,54 +140,91 @@ public class Predictor {
             List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), MODEL_TYPE.toString(), FROM_DATE, TO_DATE);
             BigDecimal capital = new BigDecimal("10000.0");
             int sharesOwned = 0;
+            int numTrades = 0;
             BigDecimal curPrice = null;
-
+            boolean buyFlag = false;
+            boolean sellFlag = false;
+            
+            //Used for Buy and Hold values
+            boolean isFirstDate = true;
+            BigDecimal firstPrice = null;
+            
             Prices:
             for (PredictionValues pred : listPredictions) {
                 curPrice = pred.getActualValue();
                 
+                if (isFirstDate) {
+                    firstPrice = pred.getActualValue();
+                    isFirstDate = false;
+                }
+                
                 switch (MODEL_TYPE) {
                     case LINEAR_REG:
+                        if (pred.getEstimatedValue().doubleValue() > curPrice.doubleValue() && sharesOwned == 0) //Buy
+                            buyFlag = true;
+                        else if (pred.getEstimatedValue().doubleValue() <= curPrice.doubleValue() && sharesOwned > 0) //Sell
+                            sellFlag = true;
+                            
                         break;
 
                     case LOGIST_REG:
-                        //BUY
-                        if (pred.getEstimatedValue().doubleValue() > 0.5 && sharesOwned == 0) {
-                            //Broke Test
-                            if (capital.doubleValue() < 1000) {
-                                System.out.println("YOUR BROKE!");
-                                break Prices;
-                            }
-                            
-                            System.out.println("BUY: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
-                            
-                            sharesOwned = capital.divide(curPrice, 0, RoundingMode.DOWN).intValue();
-                            
-                            BigDecimal cost = pred.getActualValue().multiply(new BigDecimal(sharesOwned));
-                            
-                            capital = capital.add(cost.negate());
-                        }
-                        //SELL
-                        else if (pred.getEstimatedValue().doubleValue() <= 0.5 && sharesOwned > 0) {
-                            System.out.println("SELL: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
-
-                            BigDecimal proceeds = curPrice.multiply(new BigDecimal(sharesOwned));
-                            
-                            capital = capital.add(proceeds);
-                            
-                            sharesOwned = 0;
-                        }
+                        if (pred.getEstimatedValue().doubleValue() > 0.5 && sharesOwned == 0) //Buy
+                            buyFlag = true;
+                        else if (pred.getEstimatedValue().doubleValue() <= 0.5 && sharesOwned > 0) //Sell
+                            sellFlag = true;
                             
                         break;
                 }
-            } //End for loop
-            
-            //Sum up all assets
-            BigDecimal totalAssets = curPrice.multiply(new BigDecimal(sharesOwned)).add(capital);
-            
-            //Display findings
-            System.out.println("BackTest: " + ticker.getTicker() + ", Resulting Capital = " + totalAssets.toString() + "========================================");
-        }
 
+                //Trading Actions
+                if (buyFlag) {
+
+                    buyFlag = false;
+                
+                    //Broke Test
+                    if (capital.doubleValue() < 1000) {
+                        System.out.println("YOUR BROKE!");
+                        break Prices;
+                    }
+                            
+                    System.out.println("BUY: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
+
+                    capital = capital.add(TRADING_COST.negate());
+                    sharesOwned = capital.divide(curPrice, 0, RoundingMode.DOWN).intValue();
+                    BigDecimal cost = pred.getActualValue().multiply(new BigDecimal(sharesOwned));
+                    capital = capital.add(cost.negate());
+                    numTrades++;
+                }
+                else if (sellFlag) {
+                    
+                    sellFlag = false;
+                
+                    System.out.println("SELL: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
+
+                    BigDecimal proceeds = curPrice.multiply(new BigDecimal(sharesOwned));
+                    capital = capital.add(proceeds);
+                    capital = capital.add(TRADING_COST.negate());
+                    sharesOwned = 0;
+                    numTrades++;
+                }
+                
+            } //End for loop
+         
+            //Sum up all assets
+            final BigDecimal ORIG_CAPITAL = new BigDecimal("10000.00");
+            final BigDecimal MULTIPLIER = new BigDecimal("100.00");
+            
+            BigDecimal totalAssets = curPrice.multiply(new BigDecimal(sharesOwned)).add(capital);
+            BigDecimal pctChg = totalAssets.add(ORIG_CAPITAL.negate()).divide(ORIG_CAPITAL, 2, RoundingMode.UP).multiply(MULTIPLIER);
+
+            BigDecimal buyAndHoldChg = curPrice.add(firstPrice.negate()).divide(firstPrice, 2, RoundingMode.HALF_UP).multiply(MULTIPLIER);
+            
+            BacktestingResults results = new BacktestingResults(ticker.getTicker(), MODEL_TYPE.toString(), FROM_DATE, TO_DATE, numTrades, pctChg, buyAndHoldChg);
+            listResults.add(results);
+
+        } //End ticker loop
+        
+        //Save to DB
+        sdh.setStockBacktestingIntoDB(listResults);
     }
 }

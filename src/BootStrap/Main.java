@@ -25,8 +25,8 @@ public class Main {
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
 
         StockDataHandler sdh = new StockDataHandler();
-        //sdh.downloadAllStockData();
-        /*
+        sdh.downloadAllStockData();
+
         final int DAYS_BACK = 0;
         sdh.computeMovingAverages(DAYS_BACK);
         sdh.computeStockQuoteSlopes(DAYS_BACK);
@@ -37,19 +37,18 @@ public class Main {
 
         //Run Logistic Regression
         models.runModels(LOG_REG, DAYS_IN_FUTURE);
-*/
+
         //Generate Predictions
+        Calendar toDate = Calendar.getInstance();
         Calendar fromDate = Calendar.getInstance();
         fromDate.set(2000, 0, 1);
-        
-        Calendar toDate = Calendar.getInstance();
 
         Predictor pred = new Predictor();
-        //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
-        //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         
         //Backtesting
-        //pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
+        pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
         pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());
     }
 }

@@ -693,6 +693,39 @@ public class StockDataHandler {
         
     }
 
+    public void setStockBacktestingIntoDB(List<BacktestingResults> listResults) throws Exception {
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BackTesting (?, ?, ?, ?, ?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            
+            for (BacktestingResults r : listResults) {
+                java.sql.Date startDt = new java.sql.Date(r.getStartDt().getTime());
+                java.sql.Date endDt = new java.sql.Date(r.getEndDt().getTime());
+                
+                stmt.setString(1, r.getTicker());
+                stmt.setString(2, r.getModelType());
+                stmt.setDate(3, startDt);
+                stmt.setDate(4, endDt);
+                stmt.setInt(5, r.getNumTrades());
+                stmt.setBigDecimal(6, r.getAssetValuePctChg());
+                stmt.setBigDecimal(7, r.getBuyAndHoldPctChg());
+                
+                stmt.addBatch();
+            }
+            
+            //Send commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+
+        } catch(Exception exc) {
+            System.out.println("Method: insertStockBacktestingIntoDB, Description: " + exc);
+            throw exc;
+        }
+        
+    }
+
     
     private void insertPreciousMetalsPricesIntoDB(String metal, String goldPrices) throws Exception {
         String[] rows = goldPrices.split("\n");
@@ -1178,8 +1211,11 @@ public class StockDataHandler {
     }
     
     public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
-        List<StockTicker> tickerList = new ArrayList<>();
+
+        //Overwrite argument for now
+        isJustDow = false;
         
+        List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers(?)}")) {
 
