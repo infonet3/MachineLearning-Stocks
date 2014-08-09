@@ -1166,44 +1166,251 @@ public class StockDataHandler {
         }
     }
 
-        private void insertStockFundamentalsIntoDB(String stockTicker, String indicator, String stockFundamentals) throws Exception {
-        String[] rows = stockFundamentals.split("\n");
+        private void insertStockFundamentalsIntoDB(List<StockFundamentals> listStockFund) throws Exception {
 
         String row;
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        Date dt;
-        BigDecimal value;
         java.sql.Date sqlDt;
         int i = 0;
-        
+       
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockFundamentals (?, ?, ?, ?)}")) {
             
-            for (i = 0; i < rows.length; i++) {
-                if (i == 0) //Skip the header row
-                    continue;
+            conxn.setAutoCommit(false);
+            
+            for (i = 0; i < listStockFund.size(); i++) {
 
-                //Parse the record
-                try {
-                    row = rows[i];
-                    String[] cells = row.split(",");
+                StockFundamentals fund = listStockFund.get(i);
+                Date[] dates = fund.getFinancials_Dates();
 
-                    dt = sdf.parse(cells[0]);
-                    sqlDt = new java.sql.Date(dt.getTime());
+                //Save Revenue
+                BigDecimal[] rev = fund.getFinancials_Revenue();
+                for (int j = 0; j < rev.length; j++) {
 
-                    value = new BigDecimal(cells[1]);
-
-                    //Insert the record into the DB
-                    stmt.setString(1, stockTicker);
-                    stmt.setDate(2, sqlDt);
-                    stmt.setString(3, indicator);
-                    stmt.setBigDecimal(4, value);
-                    stmt.executeUpdate();
+                    stmt.setString(1, fund.getTicker());
                     
-                } catch(Exception exc) {
-                    System.out.println("Method: insertStockFundamentalsIntoDB, Ticker: " + stockTicker + "Row: " + i);
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-REVENUE");
+                    stmt.setBigDecimal(4, rev[j]);
+
+                    stmt.addBatch();
+                }
+
+                //Gross Margin
+                BigDecimal[] grossMargin = fund.getFinancials_GrossMargin();
+                for (int j = 0; j < grossMargin.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-GROSS-MARGIN");
+                    stmt.setBigDecimal(4, grossMargin[j]);
+
+                    stmt.addBatch();
+                }
+
+                //Operating Income
+                BigDecimal[] operIncome = fund.getFinancials_OperIncome();
+                for (int j = 0; j < operIncome.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-OPERATING-INCOME");
+                    stmt.setBigDecimal(4, operIncome[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Operating Margin
+                BigDecimal[] operMargin = fund.getFinancials_OperMargin();
+                for (int j = 0; j < operMargin.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-OPERATING-MARGIN");
+                    stmt.setBigDecimal(4, operMargin[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Net Income
+                BigDecimal[] netIncome = fund.getFinancials_NetIncome();
+                for (int j = 0; j < netIncome.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-NET-INCOME");
+                    stmt.setBigDecimal(4, netIncome[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //EPS
+                BigDecimal[] eps = fund.getFinancials_EPS();
+                for (int j = 0; j < eps.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-EPS");
+                    stmt.setBigDecimal(4, eps[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Dividends
+                BigDecimal[] div = fund.getFinancials_Dividends();
+                for (int j = 0; j < div.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-DIVIDENDS");
+                    stmt.setBigDecimal(4, div[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Payout Ratio
+                BigDecimal[] payout = fund.getFinancials_PayoutRatio();
+                for (int j = 0; j < payout.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-PAYOUT-RATIO");
+                    stmt.setBigDecimal(4, payout[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Num Shares
+                BigDecimal[] numShares = fund.getFinancials_SharesMil();
+                for (int j = 0; j < numShares.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-NUM-SHARES");
+                    stmt.setBigDecimal(4, numShares[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Book Value Per Share
+                BigDecimal[] bookVal = fund.getFinancials_BookValPerShare();
+                for (int j = 0; j < bookVal.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-BOOK-VALUE-PER-SHARE");
+                    stmt.setBigDecimal(4, bookVal[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Operating Cash Flow
+                BigDecimal[] operCashFlow = fund.getFinancials_OperCashFlow();
+                for (int j = 0; j < operCashFlow.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-OPERATING-CASH-FLOW");
+                    stmt.setBigDecimal(4, operCashFlow[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Capital Spending
+                BigDecimal[] capSpending = fund.getFinancials_CapSpending();
+                for (int j = 0; j < capSpending.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-CAPITAL-SPENDING");
+                    stmt.setBigDecimal(4, capSpending[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Free Cash Flow
+                BigDecimal[] freeCashFlow = fund.getFinancials_FreeCashFlow();
+                for (int j = 0; j < freeCashFlow.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-FREE-CASH-FLOW");
+                    stmt.setBigDecimal(4, freeCashFlow[j]);
+
+                    stmt.addBatch();
+                }
+                
+                //Free Cash Flow Per Share
+                BigDecimal[] freeCashFlowPerShare = fund.getFinancials_FreeCashFlow();
+                for (int j = 0; j < freeCashFlowPerShare.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-FREE-CASH-FLOW-PER-SHARE");
+                    stmt.setBigDecimal(4, freeCashFlowPerShare[j]);
+
+                    stmt.addBatch();
+                }
+
+                //Working Capital
+                BigDecimal[] workCap = fund.getFinancials_WorkingCap();
+                for (int j = 0; j < workCap.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-WORKING-CAPITAL");
+                    stmt.setBigDecimal(4, workCap[j]);
+
+                    stmt.addBatch();
                 }
             }
+            
+            stmt.executeBatch();
+            conxn.commit();
+            
         } catch(Exception exc) {
             System.out.println("Method: insertStockFundamentalsIntoDB, Description: " + exc);
             throw exc;
@@ -1226,13 +1433,15 @@ public class StockDataHandler {
             String ticker;
             String quandlCode;
             String description;
+            String exchange;
             
             while(rs.next()) {
                 ticker = rs.getString(1);
                 quandlCode = rs.getString(2);
                 description = rs.getString(3);
+                exchange = rs.getString(4);
                 
-                StockTicker st = new StockTicker(ticker, quandlCode, description);
+                StockTicker st = new StockTicker(ticker, quandlCode, description, exchange);
                 tickerList.add(st);
             }
             
@@ -1534,34 +1743,8 @@ public class StockDataHandler {
         }
     }
     
-    private void getAllFundamentalsData(String stockTicker) throws Exception {
-                
-        String[] fundamentalsArray = {"NET_INCOME", 
-            "TOTAL_ASSETS", "ACCOUNTS_PAYABLE", "RETAINED_EARNINGS_ACCUMULATED_DEFICIT", "TOTAL_LIABILITIES_SHAREHOLDERS_EQUITY", 
-            "NET_INCOME_STARTING_LINE", "DEPRECIATION_DEPLETION", "CASH_FROM_OPERATING_ACTIVITIES", "CASH_FROM_FINANCING_ACTIVITIES", 
-            "NET_CHANGE_IN_CASH", "CASH_FROM_INVESTING_ACTIVITIES"};
-
-        Date lastDt;
-        String queryString = "";
-        String responseData = "";
-        for (String fundamentalIndicator : fundamentalsArray) {
-
-            stockTicker = "IBM";
-            
-            //Find the last updated date
-            lastDt = getStockFundamentals_UpdateDate(stockTicker, fundamentalIndicator);
-
-            //Retrieve the data
-            queryString = "RAYMOND/" + stockTicker + "_" + fundamentalIndicator + "_Q";
-            responseData = downloadData(queryString, lastDt);
-            
-            //Insert the data
-            insertStockFundamentalsIntoDB(stockTicker, fundamentalIndicator, responseData);
-        }
-    }
-    
     public void downloadAllStockData() throws Exception {
-
+/*
         //Mortgage Rates
         Date lastDt;
         lastDt = get30YrMortgageRates_UpdateDate();
@@ -1660,6 +1843,18 @@ public class StockDataHandler {
         Quarter qtr = getBEA_UpdateDate();
         String jsonGDP = downloadBEAData(qtr);
         insertGDPDataIntoDB(jsonGDP, qtr);
+  */      
+        //Fundamentals 
+        MorningstarData mstar = new MorningstarData();
+        List<StockTicker> listOfAllStocks = getAllStockTickers(false);
+        List<StockFundamentals> listStockFund = new ArrayList<>();
+        for (StockTicker st : listOfAllStocks) {
+            StockFundamentals fundamentals = mstar.getStockFundamentals(st);
+            listStockFund.add(fundamentals);
+            insertStockFundamentalsIntoDB(listStockFund);
+        }
+        insertStockFundamentalsIntoDB(listStockFund);
+        
         
         //Remove bad data
         removeAllBadData();

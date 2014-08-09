@@ -12,13 +12,19 @@ public class StockTicker {
     private String ticker;
     private String quandlCode;
     private String description;
+    private String exchange;
     
-    public StockTicker(String ticker, String quandlCode, String description) {
+    public StockTicker(String ticker, String quandlCode, String description, String exchange) {
         this.ticker = ticker;
         this.quandlCode = quandlCode;
         this.description = description;
+        this.exchange = exchange;
     }
 
+    public String getExchange() {
+        return exchange;
+    }
+    
     public String getTicker() {
         return ticker;
     }
