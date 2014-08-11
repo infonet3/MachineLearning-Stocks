@@ -10,7 +10,7 @@ package ML_Formulas;
  */
 public class LinearRegFormulas {
     
-    private static final double ALPHA = 0.03;
+    private static final double ALPHA = 0.01;
     
     public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
         double sum = 0.0;

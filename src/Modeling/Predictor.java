@@ -74,7 +74,6 @@ public class Predictor {
 
                 curDates[i] = Calendar.getInstance();
                 curDates[i].setTime(dt);
-                System.out.println("Cur Dt: " + curDates[i].getTime());
                 
                 double[] normalizedRow = MatrixValues.meanNormalization(row, avg, range);
                 f = new Features(dt, normalizedRow);
@@ -111,7 +110,6 @@ public class Predictor {
             for (int i = 0; i < listSize; i++) {
                 BigDecimal bd = new BigDecimal(hypothesisValues[i]);
                 PredictionValues val = new PredictionValues(ticker.getTicker(), curDates[i].getTime(), targetDates[i].getTime(), MODEL_TYPE.toString(), bd);
-                System.out.println("Ticker: " + ticker.getTicker() + ", CurDt: " + curDates[i].getTime() + ", tgtDt: " + targetDates[i].getTime() + ", Model: " + MODEL_TYPE + ", EstVal: " + bd);
                 listPredictions.add(val);
             }
 
@@ -124,8 +122,6 @@ public class Predictor {
     }
     
     public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
-
-        System.out.println("Backtesting Stocks: From: " + FROM_DATE + ", To: " + TO_DATE);
 
         //Commissions
         final BigDecimal TRADING_COST = new BigDecimal("10.00");
@@ -187,8 +183,6 @@ public class Predictor {
                         break Prices;
                     }
                             
-                    System.out.println("BUY: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
-
                     capital = capital.add(TRADING_COST.negate());
                     sharesOwned = capital.divide(curPrice, 0, RoundingMode.DOWN).intValue();
                     BigDecimal cost = pred.getActualValue().multiply(new BigDecimal(sharesOwned));
@@ -199,8 +193,6 @@ public class Predictor {
                     
                     sellFlag = false;
                 
-                    System.out.println("SELL: Ticker: " + ticker.getTicker() + ", at Price: " + curPrice + ", Date: " + pred.getDate());
-
                     BigDecimal proceeds = curPrice.multiply(new BigDecimal(sharesOwned));
                     capital = capital.add(proceeds);
                     capital = capital.add(TRADING_COST.negate());

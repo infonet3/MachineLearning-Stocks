@@ -1406,6 +1406,36 @@ public class StockDataHandler {
 
                     stmt.addBatch();
                 }
+                
+                //Return on Assets
+                BigDecimal[] roa = fund.getFinancials_ReturnOnAssets();
+                for (int j = 0; j < roa.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-RETURN-ON-ASSETS");
+                    stmt.setBigDecimal(4, roa[j]);
+
+                    stmt.addBatch();
+                }
+
+                //Return on Equity
+                BigDecimal[] roe = fund.getFinancials_ReturnOnEquity();
+                for (int j = 0; j < roe.length; j++) {
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    stmt.setString(3, "ANNUAL-RETURN-ON-EQUITY");
+                    stmt.setBigDecimal(4, roe[j]);
+
+                    stmt.addBatch();
+                }
             }
             
             stmt.executeBatch();
@@ -1419,9 +1449,6 @@ public class StockDataHandler {
     
     public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
 
-        //Overwrite argument for now
-        isJustDow = false;
-        
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers(?)}")) {
@@ -1744,7 +1771,7 @@ public class StockDataHandler {
     }
     
     public void downloadAllStockData() throws Exception {
-/*
+
         //Mortgage Rates
         Date lastDt;
         lastDt = get30YrMortgageRates_UpdateDate();
@@ -1830,31 +1857,29 @@ public class StockDataHandler {
         lastDt = getInterestRates_UpdateDate();
         String primeRates = downloadData("FRED/DPRIME", lastDt);
         insertInterestRatesIntoDB(primeRates);
-      
+  
+        //GDP
+        Quarter qtr = getBEA_UpdateDate();
+        String jsonGDP = downloadBEAData(qtr);
+        insertGDPDataIntoDB(jsonGDP, qtr);
+  
         //Stock Quotes
-        List<StockTicker> listOfAllStocks = getAllStockTickers(false);
+        List<StockTicker> listOfAllStocks = getAllStockTickers(true);
         for (StockTicker st : listOfAllStocks) {
             lastDt = getStockQuote_UpdateDate(st.getTicker());
             String stockValues = downloadData(st.getQuandlCode(), lastDt);
             insertStockPricesIntoDB(st.getTicker(), stockValues);
         }
-        
-        //GDP
-        Quarter qtr = getBEA_UpdateDate();
-        String jsonGDP = downloadBEAData(qtr);
-        insertGDPDataIntoDB(jsonGDP, qtr);
-  */      
+  
         //Fundamentals 
         MorningstarData mstar = new MorningstarData();
-        List<StockTicker> listOfAllStocks = getAllStockTickers(false);
         List<StockFundamentals> listStockFund = new ArrayList<>();
         for (StockTicker st : listOfAllStocks) {
             StockFundamentals fundamentals = mstar.getStockFundamentals(st);
-            listStockFund.add(fundamentals);
-            insertStockFundamentalsIntoDB(listStockFund);
+            if (fundamentals != null)
+                listStockFund.add(fundamentals);
         }
         insertStockFundamentalsIntoDB(listStockFund);
-        
         
         //Remove bad data
         removeAllBadData();

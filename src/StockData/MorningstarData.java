@@ -10,8 +10,10 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 /**
  *
@@ -20,118 +22,136 @@ import java.util.Date;
 public class MorningstarData {
     public StockFundamentals getStockFundamentals(StockTicker ticker) throws Exception {
         
-        String[] responseArray = getDataFromMorningstar(ticker);
-        String tenYrData = responseArray[0];
-        String tenQtrData = responseArray[1];
-        
-        StockFundamentals stockFundBasics = parse10YrData(ticker.getTicker(), tenYrData);
+        String tenYrData = getDataFromMorningstar(ticker);
+
+        StockFundamentals stockFundBasics = null;
+        try {
+            stockFundBasics = parse10YrData(ticker.getTicker(), tenYrData);
+        } catch (Exception exc) {
+            System.out.println("Method: getStockFundamentals, Ticker: " + ticker + ", Error Parsing Data!");
+        }
         return stockFundBasics;
-        
-        
-        
-        
     }
     
-    private StockFundamentals parse10YrData(String ticker, String input) {
+    private StockFundamentals parse10YrData(String ticker, String input) throws Exception {
 
         StockFundamentals stockFund = new StockFundamentals(ticker);
 
         try(BufferedReader r = new BufferedReader(new StringReader(input))) {
 
-            final int MAX_ROWS = 18;
             String line;
-            String[] rows = new String[MAX_ROWS];
+            List<String> rowList = new ArrayList<>();
 
-            for (int i = 0; i < MAX_ROWS; i++) {
+            for (;;) {
                 line = r.readLine();
                 if (line == null)
                     break;
                 
-                rows[i] = line;
+                rowList.add(line);
             }
+            
+            //Sanity Check
+            if (rowList.size() <= 1)
+                throw new Exception("No data returned from Morningstar!");
 
+            //Convert to Array from List
+            String[] rows = rowList.toArray(new String[rowList.size()]);
+            
             //Dates
             String[] financialsDates = rows[2].split(",");
             Date[] financialsDatesDt = convertToDates(financialsDates);
             stockFund.setFinancials_Dates(financialsDatesDt);
+
+            final int NUM_DATES = financialsDatesDt.length;
             
             //Revenue
             String[] financialsRevenue = processString(rows[3]).split(",");
-            BigDecimal[] financialsRevenueBD = convertToBD(financialsRevenue);
+            BigDecimal[] financialsRevenueBD = convertToBD(financialsRevenue, NUM_DATES);
             stockFund.setFinancials_Revenue(financialsRevenueBD);
 
             //Gross Margin
             String[] financialsGrossMargin = processString(rows[4]).split(",");
-            BigDecimal[] financialsGrossMarginBD = convertToBD(financialsGrossMargin);
+            BigDecimal[] financialsGrossMarginBD = convertToBD(financialsGrossMargin, NUM_DATES);
             stockFund.setFinancials_GrossMargin(financialsGrossMarginBD);
             
             //Operating Income
             String[] financialsOperIncome = processString(rows[5]).split(",");
-            BigDecimal[] financialsOperIncomeBD = convertToBD(financialsOperIncome);
+            BigDecimal[] financialsOperIncomeBD = convertToBD(financialsOperIncome, NUM_DATES);
             stockFund.setFinancials_OperIncome(financialsOperIncomeBD);
             
             //Operating Margin
             String[] financialsOperMargin = processString(rows[6]).split(",");
-            BigDecimal[] financialsOperMarginBD = convertToBD(financialsOperMargin);
+            BigDecimal[] financialsOperMarginBD = convertToBD(financialsOperMargin, NUM_DATES);
             stockFund.setFinancials_OperMargin(financialsOperMarginBD);
             
             //Net Income
             String[] financialsNetIncome = processString(rows[7]).split(",");
-            BigDecimal[] financialsNetIncomeBD = convertToBD(financialsNetIncome);
+            BigDecimal[] financialsNetIncomeBD = convertToBD(financialsNetIncome, NUM_DATES);
             stockFund.setFinancials_NetIncome(financialsNetIncomeBD);
             
             //EPS
             String[] financialsEPS = processString(rows[8]).split(",");
-            BigDecimal[] financialsEPSBD = convertToBD(financialsEPS);
+            BigDecimal[] financialsEPSBD = convertToBD(financialsEPS, NUM_DATES);
             stockFund.setFinancials_EPS(financialsEPSBD);
             
             //Dividends
             String[] financialsDividends = processString(rows[9]).split(",");
-            BigDecimal[] financialsDividendsBD = convertToBD(financialsDividends);
+            BigDecimal[] financialsDividendsBD = convertToBD(financialsDividends, NUM_DATES);
             stockFund.setFinancials_Dividends(financialsDividendsBD);
             
             //Payout Ratio
             String[] financialsPayoutRatio = processString(rows[10]).split(",");
-            BigDecimal[] financialsPayoutRatioBD = convertToBD(financialsPayoutRatio);
+            BigDecimal[] financialsPayoutRatioBD = convertToBD(financialsPayoutRatio, NUM_DATES);
             stockFund.setFinancials_PayoutRatio(financialsPayoutRatioBD);
             
             //Num Shares
             String[] financialsSharesMil = processString(rows[11]).split(",");
-            BigDecimal[] financialsSharesMilBD = convertToBD(financialsSharesMil);
+            BigDecimal[] financialsSharesMilBD = convertToBD(financialsSharesMil, NUM_DATES);
             stockFund.setFinancials_SharesMil(financialsSharesMilBD);
 
             //Book Value Per Share
             String[] financialsBookValPerShare = processString(rows[12]).split(",");
-            BigDecimal[] financialsBookValPerShareBD = convertToBD(financialsBookValPerShare);
+            BigDecimal[] financialsBookValPerShareBD = convertToBD(financialsBookValPerShare, NUM_DATES);
             stockFund.setFinancials_BookValPerShare(financialsBookValPerShareBD);
             
             //Operating Cash Flow
             String[] financialsOperCashFlow = processString(rows[13]).split(",");
-            BigDecimal[] financialsOperCashFlowBD = convertToBD(financialsOperCashFlow);
+            BigDecimal[] financialsOperCashFlowBD = convertToBD(financialsOperCashFlow, NUM_DATES);
             stockFund.setFinancials_OperCashFlow(financialsOperCashFlowBD);
             
             //Cap Spending
             String[] financialsCapSpending = processString(rows[14]).split(",");
-            BigDecimal[] financialsCapSpendingBD = convertToBD(financialsCapSpending);
+            BigDecimal[] financialsCapSpendingBD = convertToBD(financialsCapSpending, NUM_DATES);
             stockFund.setFinancials_CapSpending(financialsCapSpendingBD);
             
             //Free Cash Flow
             String[] financialsFreeCashFlow = processString(rows[15]).split(",");
-            BigDecimal[] financialsFreeCashFlowBD = convertToBD(financialsFreeCashFlow);
+            BigDecimal[] financialsFreeCashFlowBD = convertToBD(financialsFreeCashFlow, NUM_DATES);
             stockFund.setFinancials_FreeCashFlow(financialsFreeCashFlowBD);
             
             //Free Cash Flow Per Share
             String[] financialsFreeCashFlowPerShare = processString(rows[16]).split(",");
-            BigDecimal[] financialsFreeCashFlowPerShareBD = convertToBD(financialsFreeCashFlowPerShare);
+            BigDecimal[] financialsFreeCashFlowPerShareBD = convertToBD(financialsFreeCashFlowPerShare, NUM_DATES);
             stockFund.setFinancials_FreeCashFlowPerShare(financialsFreeCashFlowPerShareBD);
             
             //Working Capital
             String[] financialsWorkingCap = processString(rows[17]).split(",");
-            BigDecimal[] financialsWorkingCapBD = convertToBD(financialsWorkingCap);
+            BigDecimal[] financialsWorkingCapBD = convertToBD(financialsWorkingCap, NUM_DATES);
             stockFund.setFinancials_WorkingCap(financialsWorkingCapBD);
             
+            //Return on Assets
+            String[] financialsROA = processString(rows[35]).split(",");
+            BigDecimal[] financialsROABD = convertToBD(financialsROA, NUM_DATES);
+            stockFund.setFinancials_ReturnOnAssets(financialsROABD);
+            
+            //Return on Equity
+            String[] financialsROE = processString(rows[37]).split(",");
+            BigDecimal[] financialsROEBD = convertToBD(financialsROE, NUM_DATES);
+            stockFund.setFinancials_ReturnOnEquity(financialsROEBD);
+            
         } catch (Exception exc) {
-            System.out.println(exc);
+            System.out.println("Method: parse10YrData, Desc: Ticker = " + ticker + ", " + input);
+            throw exc;
         }
         
         return stockFund;
@@ -167,10 +187,19 @@ public class MorningstarData {
         return sb.toString();
     }
     
-    private static BigDecimal[] convertToBD(String[] strArray) {
-        BigDecimal[] bdArray = new BigDecimal[strArray.length - 1];
+    private static BigDecimal[] convertToBD(String[] strArray, final int NUM_DATES) {
+        
+        //Check to ensure that empty strings still generate 0.0 values
+        if (strArray.length < NUM_DATES + 1) {
+            strArray = new String[NUM_DATES + 1];
+            for (int i  = 0; i < strArray.length; i++) {
+                strArray[i] = new String();
+            }
+        }
         
         //Skip first column as it has text values
+        BigDecimal[] bdArray = new BigDecimal[strArray.length - 1];
+
         for (int i = 0; i < bdArray.length; i++) {
             if (!strArray[i + 1].isEmpty())
                 bdArray[i] = new BigDecimal(strArray[i + 1]);
@@ -208,32 +237,33 @@ public class MorningstarData {
 
     
     //Returns two elements: 0 = 10 Year Financial Data, 1 = 10 Quarter Income Statment Data
-    private String[] getDataFromMorningstar(StockTicker ticker) throws Exception {
+    private String getDataFromMorningstar(StockTicker ticker) throws Exception {
 
-        //Slow down execution
-        Thread.sleep((int)(30000.0 * Math.random()));
-        
         URL urlTenYrData = null;
-        URL urlTenQtrData = null;
+        //URL urlTenQtrData = null;
 
         switch(ticker.getExchange().toUpperCase()) {
             case "NYSE":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             case "NASDAQ":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             case "AMEX":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                break;
+            case "BATS":
+                urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=BATS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
+                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=BATS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             default:
-                throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found!");
+                throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
         System.out.println(urlTenYrData);
-        System.out.println(urlTenQtrData);
+        //System.out.println(urlTenQtrData);
         
         //Pull back the Financial Data
         int c;
@@ -249,24 +279,7 @@ public class MorningstarData {
             }
         }
 
-        //Pull back the Income Statement
-        StringBuilder sbIncomeStmt = new StringBuilder();
-        URLConnection conxnIncomeStmt = urlTenQtrData.openConnection();
-        try(InputStream is = conxnIncomeStmt.getInputStream()) {
-            for (;;) {
-                c = is.read();
-                if (c == -1)
-                    break;
-
-                sbIncomeStmt.append((char) c);
-            }
-        }
-        System.out.println(sbIncomeStmt);
-
         //Compose the response
-        String[] response = new String[2];
-        response[0] =sbBasic.toString();
-        response[1] = sbIncomeStmt.toString();
-        return response;
+        return sbBasic.toString();
     }
 }

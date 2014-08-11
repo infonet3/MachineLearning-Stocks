@@ -20,16 +20,16 @@ import java.util.List;
 public class Main {
     public static void main(String... args) throws Exception {
 
-        final int DAYS_IN_FUTURE = 1;
+        final int DAYS_IN_FUTURE = 7;
         final ModelTypes LIN_REG = ModelTypes.LINEAR_REG;
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
 
         StockDataHandler sdh = new StockDataHandler();
-        sdh.downloadAllStockData();
+        //sdh.downloadAllStockData();
 
         final int DAYS_BACK = 0;
-        sdh.computeMovingAverages(DAYS_BACK);
-        sdh.computeStockQuoteSlopes(DAYS_BACK);
+        //sdh.computeMovingAverages(DAYS_BACK);
+        //sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         //Run Linear Regression
         RunModels models = new RunModels();

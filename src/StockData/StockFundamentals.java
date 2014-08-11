@@ -29,6 +29,8 @@ public class StockFundamentals {
     private BigDecimal[] financials_FreeCashFlow;
     private BigDecimal[] financials_FreeCashFlowPerShare;
     private BigDecimal[] financials_WorkingCap;
+    private BigDecimal[] financials_ReturnOnAssets;
+    private BigDecimal[] financials_ReturnOnEquity;
 
     public StockFundamentals(String ticker) {
         this.ticker = ticker;
@@ -168,6 +170,22 @@ public class StockFundamentals {
 
     public void setFinancials_WorkingCap(BigDecimal[] financials_WorkingCap) {
         this.financials_WorkingCap = financials_WorkingCap;
+    }
+
+    public BigDecimal[] getFinancials_ReturnOnAssets() {
+        return financials_ReturnOnAssets;
+    }
+
+    public void setFinancials_ReturnOnAssets(BigDecimal[] financials_ReturnOnAssets) {
+        this.financials_ReturnOnAssets = financials_ReturnOnAssets;
+    }
+
+    public BigDecimal[] getFinancials_ReturnOnEquity() {
+        return financials_ReturnOnEquity;
+    }
+
+    public void setFinancials_ReturnOnEquity(BigDecimal[] financials_ReturnOnEquity) {
+        this.financials_ReturnOnEquity = financials_ReturnOnEquity;
     }
 
 }

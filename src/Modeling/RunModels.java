@@ -132,9 +132,11 @@ public class RunModels {
                     costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
             } //End switch
+       
             
             //Test Check
-            if (i > 7000) {
+            final int MAX_ITERATIONS = 13000;
+            if (i > MAX_ITERATIONS) {
                 throw new Exception("Problem with Gradient Descent================================================");
             }
             
@@ -142,8 +144,9 @@ public class RunModels {
             if (oldCostFunction < costFunction)
                 throw new Exception("Learning Rate ALPHA is too high!");
             
-            //See if the variance has been met and also ensure at least 1000 iterations have taken place
-            if (oldCostFunction - costFunction < MAX_VARIANCE && i >= 1000) 
+            //See if the variance has been met and also ensure at least 3000 iterations have taken place
+            final int MIN_ITERATIONS = 3000;
+            if (oldCostFunction - costFunction < MAX_VARIANCE && i >= MIN_ITERATIONS) 
                 break;
             
             oldCostFunction = costFunction;

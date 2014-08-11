@@ -80,7 +80,7 @@ public class MatrixValues {
         return newValues;
     }
     
-    public MatrixValues(double[][] featureValues, double[] outputValues) {
+    public MatrixValues(double[][] featureValues, double[] outputValues) throws Exception {
         
         this.features = featureValues;
         this.outputs = outputValues;
@@ -214,7 +214,7 @@ public class MatrixValues {
         return ranges;
     }
 
-    public static double[] meanNormalization(double[] features, double[] avgValues, double[] rangeValues) {
+    public static double[] meanNormalization(double[] features, double[] avgValues, double[] rangeValues) throws Exception {
         
         int cols = features.length;
         double[] normalizedFeatures = new double[cols];
@@ -224,19 +224,28 @@ public class MatrixValues {
             if (i == 0) {
                 normalizedFeatures[i] = features[i]; //Skip x0
             } else {
+                //Protect against a feature that is 0
+                if (features[i] == 0.0)
+                    normalizedFeatures[i] = 0.0;
                 //Protect against a feature that is constant for all training examples
-                if (rangeValues[i] == 0.0)
-                    normalizedFeatures[i] = features[i] / avgValues[i]; //Will set constant feature to 1
+                else if (rangeValues[i] == 0.0)
+                    normalizedFeatures[i] = 1.0; 
+                //Normal Case
                 else
                     normalizedFeatures[i] = (features[i] - avgValues[i]) / rangeValues[i];
             }
+            
+            //Sanity Check
+            if (normalizedFeatures[i] == Double.NaN)
+                throw new Exception("Method: meanNormalization, Desc: Value is NaN!");
+
         }
         
         return normalizedFeatures;
     }
 
     
-    private void meanNormalization() {
+    private void meanNormalization() throws Exception {
 
         averages = getAverages();
         ranges = getRanges();
@@ -251,12 +260,20 @@ public class MatrixValues {
                 if (i == 0) {
                     normalizedMatrix[j][i] = features[j][i]; //Skip x0
                 } else {
+                    //Protect against a feature that is 0
+                    if (features[j][i] == 0.0)
+                        normalizedMatrix[j][i] = 0.0;
                     //Protect against a feature that is constant for all training examples
-                    if (ranges[i] == 0.0)
-                        normalizedMatrix[j][i] = features[j][i] / averages[i]; //Will set constant feature to 1
+                    else if (ranges[i] == 0.0)
+                        normalizedMatrix[j][i] = 1.0; 
+                    //Normal Case
                     else
                         normalizedMatrix[j][i] = (features[j][i] - averages[i]) / ranges[i];
                 }
+                
+                //Sanity Check
+                if (normalizedMatrix[j][i] == Double.NaN)
+                    throw new Exception("Method: meanNormalization, Desc: Value is NaN!");
             }
         }
         
