@@ -5,6 +5,7 @@
 package MatrixOps;
 
 import Modeling.ModelTypes;
+import StockData.Features;
 import java.io.BufferedReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import StockData.StockDataHandler;
+import java.util.Date;
 
 /**
  *
@@ -22,11 +24,11 @@ import StockData.StockDataHandler;
 public class Matrix {
 
     //Output - y column is always the last element in the row
-    public static MatrixValues loadMatrixFromDB(final String STOCK_TICKER, final int DAYS_IN_FUTURE, ModelTypes approach) throws Exception {
+    public static MatrixValues loadMatrixFromDB(final String STOCK_TICKER, final int DAYS_IN_FUTURE, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
 
         //Pull the data from the DB
         StockDataHandler sdh = new StockDataHandler();
-        List<double[]> stockData = sdh.getAllStockFeaturesFromDB(STOCK_TICKER, DAYS_IN_FUTURE, approach);
+        List<Features> stockData = sdh.getAllStockFeaturesFromDB(STOCK_TICKER, DAYS_IN_FUTURE, false, approach, fromDt, toDt);
 
         //Now load the Lists with data
         List<double[]> rowList = new ArrayList<>();
@@ -34,9 +36,10 @@ public class Matrix {
 
         //Process the values - first element is x0 = 1, last element is y
         double[] featuresRow;
-        int rowWidth = stockData.get(0).length - 1;
-        for (double[] row : stockData) {
-
+        int rowWidth = stockData.get(0).getFeatureValues().length - 1;
+        for (int i = 0; i < stockData.size(); i++) {
+            double[] row = stockData.get(i).getFeatureValues();
+            
             //Parse out the features from the output value
             featuresRow = new double[rowWidth];
             for (int j = 0; j < row.length; j++) {

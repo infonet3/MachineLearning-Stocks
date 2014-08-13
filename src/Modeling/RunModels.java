@@ -17,7 +17,7 @@ import java.util.List;
  *
  * @author Matt Jones
  */
-public class RunModels {
+public class RunModels implements Runnable {
 
     //Methods
     public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
@@ -38,6 +38,10 @@ public class RunModels {
         return theta;
     }
     
+    public void run() {
+        
+    }
+    
     //Run through all stock and determine optimal values of theta for prediction
     private void testAllStocks(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
         
@@ -51,10 +55,11 @@ public class RunModels {
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         MatrixValues matrixValues;
-        for (StockTicker ticker : stockList) {
-            
+        for (int i = 0; i < stockList.size(); i++) {
+            StockTicker ticker = stockList.get(i);
+
             //Pull data for this stock from the DB and save to class field
-            matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL);
+            matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
             double[] averages = matrixValues.getOriginalFeatureAverages();
             double[] ranges = matrixValues.getOriginalFeatureRanges();
             
@@ -102,7 +107,7 @@ public class RunModels {
         return smallestCostIndex;
     }
     
-    private double[] getThetaForModel(final MatrixValues MATRIX_VAL, final ModelTypes MOD_APPR, final String TICKER, final int DAYS_IN_FUTURE, double lambda) throws Exception {
+    double[] getThetaForModel(final MatrixValues MATRIX_VAL, final ModelTypes MOD_APPR, final String TICKER, final int DAYS_IN_FUTURE, double lambda) throws Exception {
         //Get values from the MatrixValues object
         final RecordType REC_TYPE = RecordType.TRAINING;
         double[][] trainingMatrix = MATRIX_VAL.getFeatures(REC_TYPE);
@@ -115,8 +120,22 @@ public class RunModels {
     }
 
     private double[] runGradientDescent(ModelTypes approach, double[][] trainingMatrix, double[] results, double[] theta, double lambda) throws Exception {
+
         //Run Gradient Descent until there is less than a 0.001 variance
-        final double MAX_VARIANCE = 0.001;
+        final double maxVariance;
+        switch (approach) {
+            case LOGIST_REG:
+                maxVariance = 0.00001;
+                break;
+            
+            case LINEAR_REG:
+                maxVariance = 0.001;
+                break;
+                
+            default:
+                throw new Exception("Method: runGradientDescent, Desc: Invalid Model Type!");
+        }
+
         double oldCostFunction = Double.MAX_VALUE;
         double costFunction = 0.0;
 
@@ -135,22 +154,22 @@ public class RunModels {
        
             
             //Test Check
-            final int MAX_ITERATIONS = 13000;
+            final int MAX_ITERATIONS = 4000;
             if (i > MAX_ITERATIONS) {
                 throw new Exception("Problem with Gradient Descent================================================");
             }
-            
+
             //Learning Rate ALPHA Check
             if (oldCostFunction < costFunction)
                 throw new Exception("Learning Rate ALPHA is too high!");
-            
-            //See if the variance has been met and also ensure at least 3000 iterations have taken place
-            final int MIN_ITERATIONS = 3000;
-            if (oldCostFunction - costFunction < MAX_VARIANCE && i >= MIN_ITERATIONS) 
+
+            //See if the variance has been met
+            if (oldCostFunction - costFunction < maxVariance) 
                 break;
-            
+
             oldCostFunction = costFunction;
         }
+
         System.out.println("Cost Function = " + costFunction + ", Iterations = " + i);
 
         return theta;

@@ -35,6 +35,8 @@ public class MatrixValues {
         if (degree <= 1)
             throw new Exception("Method: featureMapping, Description: degree must be greater than 1.");
         
+        System.out.println("Feature Mapping to degree = " + degree);
+        
         int numRows = features.length;
         int numFeatures = features[0].length - 1; //Remove x0
         int newNumFeatures = (numFeatures * degree) + 1; //Add x0 back in
@@ -107,6 +109,9 @@ public class MatrixValues {
             }
         }
 
+        //Feature Mapping
+        //featureMapping(3);
+        
         //Normalize the features
         meanNormalization();
     }

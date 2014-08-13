@@ -369,49 +369,6 @@ public class StockDataHandler {
         }
     }
 
-    public List<Features> getFeatures(String ticker, Date fromDate, Date toDate) throws Exception {
-        
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Features(?, ?, ?)}")) {
-            
-            stmt.setString(1, ticker);
-            
-            java.sql.Date fromDt = new java.sql.Date(fromDate.getTime());
-            stmt.setDate(2, fromDt);
-
-            java.sql.Date toDt = new java.sql.Date(toDate.getTime());
-            stmt.setDate(3, toDt);
-
-            ResultSet rs = stmt.executeQuery();
-            ResultSetMetaData md = rs.getMetaData();
-            int columns = md.getColumnCount() - 1; //First column is the date
-            
-            //Prepare the return values
-            List<Features> featureList = new ArrayList<>();
-            double[] values;
-            Features f;
-            Date dt;
-            while (rs.next()) {
-
-                dt = rs.getDate(1);
-                
-                values = new double[columns];
-                for (int i = 0; i < columns; i++) {
-                    values[i] = rs.getDouble(i + 2);
-                }
-                
-                f = new Features(dt, values);
-                featureList.add(f);
-            }
-
-            return featureList;
-            
-        } catch(Exception exc) {
-            System.out.println("Exception in getFeatures");
-            throw exc;
-        }
-    }
-    
     public List<Weight> getWeights(String ticker, ModelTypes modelType) throws Exception {
         
         try (Connection conxn = getDBConnection();
@@ -461,9 +418,9 @@ public class StockDataHandler {
         return stockPrices;
     }
     
-    public List<double[]> getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach) throws Exception {
+    public List<Features> getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, boolean truncateOutputColumn, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
         
-        List<double[]> stockFeatureMatrix = new ArrayList<>();
+        List<Features> stockFeatureMatrix = new ArrayList<>();
 
         try (Connection conxn = getDBConnection()) {
 
@@ -473,12 +430,26 @@ public class StockDataHandler {
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
                     break;
                 case LOGIST_REG:
-                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?)}");
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?, ?, ?)}");
                     break;
             }
             
             stmt.setString(1, stockTicker);
             stmt.setInt(2, daysInFuture);
+            
+            if (fromDt == null)
+                stmt.setNull(3, java.sql.Types.DATE);
+            else {
+                java.sql.Date fromDate = new java.sql.Date(fromDt.getTime());
+                stmt.setDate(3, fromDate);
+            }
+
+            if (toDt == null)
+                stmt.setNull(4, java.sql.Types.DATE);
+            else {
+                java.sql.Date toDate = new java.sql.Date(toDt.getTime());
+                stmt.setDate(4, toDate);
+            }
 
             ResultSet rs = stmt.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();
@@ -487,13 +458,21 @@ public class StockDataHandler {
             System.out.println("Method - getAllStockFeaturesFromDB: Stock: " + stockTicker + ", Feature Count = " + colCount);
             
             double[] featureArray;
+            Date dt;
             while(rs.next()) {
-                featureArray = new double[colCount];
-                for (int i = 0; i < colCount; i++) {
-                    featureArray[i] = rs.getDouble(i + 1);
-                }
+                dt = rs.getDate(1);
                 
-                stockFeatureMatrix.add(featureArray);
+                if (truncateOutputColumn) 
+                    featureArray = new double[colCount - 2]; //Account for Date value and output column
+                else 
+                    featureArray = new double[colCount - 1]; //Account for Date value 
+
+                for (int i = 0; i < featureArray.length; i++) {
+                    featureArray[i] = rs.getDouble(i + 2);
+                }
+
+                Features f = new Features(dt, featureArray);
+                stockFeatureMatrix.add(f);
             }
         } catch(Exception exc) {
             System.out.println("Exception in getAllStockFeaturesFromDB");

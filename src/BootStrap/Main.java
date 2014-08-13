@@ -33,7 +33,7 @@ public class Main {
 
         //Run Linear Regression
         RunModels models = new RunModels();
-        models.runModels(LIN_REG, DAYS_IN_FUTURE);
+        //models.runModels(LIN_REG, DAYS_IN_FUTURE);
 
         //Run Logistic Regression
         models.runModels(LOG_REG, DAYS_IN_FUTURE);
@@ -44,11 +44,11 @@ public class Main {
         fromDate.set(2000, 0, 1);
 
         Predictor pred = new Predictor();
-        pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         
         //Backtesting
-        pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
+        //pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
         pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());
     }
 }

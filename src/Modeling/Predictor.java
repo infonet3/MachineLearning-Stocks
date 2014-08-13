@@ -36,7 +36,7 @@ public class Predictor {
         for (StockTicker ticker : stockList) {
 
             //Get Features for the selected dates
-            List<Features> featureList = sdh.getFeatures(ticker.getTicker(), fromDate, toDate);
+            List<Features> featureList = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, true, MODEL_TYPE, fromDate, toDate);
 
             //If features are unavailable for this date then skip it
             if (featureList.isEmpty()) {
@@ -49,7 +49,8 @@ public class Predictor {
             int numWeights = listWeights.size();
             
             //Sanity Check
-            if (featureList.get(0).getFeatureValues().length != numWeights) {
+            int featureSize = featureList.get(0).getFeatureValues().length;
+            if (featureSize != numWeights) {
                 throw new Exception("Method: predictAllStocks, Desc: Number of features != Number of weights."); 
             }
             
