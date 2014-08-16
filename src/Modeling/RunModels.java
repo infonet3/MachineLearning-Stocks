@@ -55,9 +55,17 @@ public class RunModels implements Runnable {
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         MatrixValues matrixValues;
+        boolean isSkip = true;
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
 
+            if (isSkip) {
+                if (ticker.getTicker().equals("APAM")) //Not running for some reason???
+                    isSkip = false;
+
+                continue;
+            }
+            
             //Pull data for this stock from the DB and save to class field
             matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
             double[] averages = matrixValues.getOriginalFeatureAverages();
@@ -90,6 +98,8 @@ public class RunModels implements Runnable {
 
             //Save values to DB
             sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, thetaValues, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
+            
+            System.gc();
         }
     }
 
