@@ -20,22 +20,37 @@ import java.util.List;
  * @author Matt Jones
  */
 public class MorningstarData {
-    public StockFundamentals getStockFundamentals(StockTicker ticker) throws Exception {
+/*
+    public StockFundamentals_Quarterly getStockFundamentals_Quarterly(StockTicker ticker) throws Exception {
         
-        String tenYrData = getDataFromMorningstar(ticker);
+        String tenQtrData = getDataFromMorningstar_Quarterly(ticker);
 
-        StockFundamentals stockFundBasics = null;
+        StockFundamentals_Quarterly stockFundBasics = null;
+        try {
+            stockFundBasics = parse10QtrData(ticker.getTicker(), tenQtrData);
+        } catch (Exception exc) {
+            System.out.println("Method: getStockFundamentals_Quarterly, Ticker: " + ticker + ", Error Parsing Data!");
+        }
+        return stockFundBasics;
+    }
+*/
+    
+    public StockFundamentals_Annual getStockFundamentals_Annual(StockTicker ticker) throws Exception {
+        
+        String tenYrData = getDataFromMorningstar_Annual(ticker);
+
+        StockFundamentals_Annual stockFundBasics = null;
         try {
             stockFundBasics = parse10YrData(ticker.getTicker(), tenYrData);
         } catch (Exception exc) {
-            System.out.println("Method: getStockFundamentals, Ticker: " + ticker + ", Error Parsing Data!");
+            System.out.println("Method: getStockFundamentals_Annual, Ticker: " + ticker + ", Error Parsing Data!");
         }
         return stockFundBasics;
     }
     
-    private StockFundamentals parse10YrData(String ticker, String input) throws Exception {
+    private StockFundamentals_Annual parse10YrData(String ticker, String input) throws Exception {
 
-        StockFundamentals stockFund = new StockFundamentals(ticker);
+        StockFundamentals_Annual stockFund = new StockFundamentals_Annual(ticker);
 
         try(BufferedReader r = new BufferedReader(new StringReader(input))) {
 
@@ -235,35 +250,67 @@ public class MorningstarData {
         return dtArray;
     }
 
+    private String getDataFromMorningstar_Quarterly(StockTicker ticker) throws Exception {
+        URL urlTenQtrData = null;
+
+        switch(ticker.getExchange().toUpperCase()) {
+            case "NYSE":
+                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                break;
+            case "NASDAQ":
+                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                break;
+            case "AMEX":
+                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                break;
+            case "BATS":
+                urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=BATS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
+                break;
+            default:
+                throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
+        }
+        System.out.println(urlTenQtrData);
+        
+        //Pull back the Financial Data
+        int c;
+        StringBuilder sbBasic = new StringBuilder();
+        URLConnection conxnBasic = urlTenQtrData.openConnection();
+        try(InputStream is = conxnBasic.getInputStream()) {
+            for (;;) {
+                c = is.read();
+                if (c == -1)
+                    break;
+
+                sbBasic.append((char) c);
+            }
+        }
+
+        //Compose the response
+        return sbBasic.toString();
+    }
     
     //Returns two elements: 0 = 10 Year Financial Data, 1 = 10 Quarter Income Statment Data
-    private String getDataFromMorningstar(StockTicker ticker) throws Exception {
+    private String getDataFromMorningstar_Annual(StockTicker ticker) throws Exception {
 
         URL urlTenYrData = null;
-        //URL urlTenQtrData = null;
 
         switch(ticker.getExchange().toUpperCase()) {
             case "NYSE":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNYS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             case "NASDAQ":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XNAS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             case "AMEX":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=XASE:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             case "BATS":
                 urlTenYrData = new URL("http://financials.morningstar.com/ajax/exportKR2CSV.html?&callback=?&t=BATS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&order=ASC");
-                //urlTenQtrData = new URL("http://financials.morningstar.com/ajax/ReportProcess4CSV.html?&t=BATS:" + ticker.getTicker() + "&region=usa&culture=en-US&cur=USD&reportType=is&period=3&dataType=A&order=asc&columnYear=10&rounding=3&view=raw&denominatorView=raw&number=3");
                 break;
             default:
                 throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
         System.out.println(urlTenYrData);
-        //System.out.println(urlTenQtrData);
         
         //Pull back the Financial Data
         int c;

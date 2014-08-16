@@ -1145,7 +1145,7 @@ public class StockDataHandler {
         }
     }
 
-    private void insertStockFundamentalsIntoDB(List<StockFundamentals> listStockFund) throws Exception {
+    private void insertStockFundamentalsIntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
 
         String row;
         java.sql.Date sqlDt;
@@ -1158,7 +1158,7 @@ public class StockDataHandler {
             
             for (i = 0; i < listStockFund.size(); i++) {
 
-                StockFundamentals fund = listStockFund.get(i);
+                StockFundamentals_Annual fund = listStockFund.get(i);
                 Date[] dates = fund.getFinancials_Dates();
 
                 //Save Revenue
@@ -1503,19 +1503,19 @@ public class StockDataHandler {
     }
 
     
-    private void insertStockFundamentals_Annual_IntoDB(List<StockFundamentals> listStockFund) throws Exception {
+    private void insertStockFundamentals_Annual_IntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
         
         String row;
         java.sql.Date sqlDt;
        
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Annual (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Annual (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
             
             conxn.setAutoCommit(false);
             
             for (int i = 0; i < listStockFund.size(); i++) {
 
-                StockFundamentals fund = listStockFund.get(i);
+                StockFundamentals_Annual fund = listStockFund.get(i);
 
                 //Loop through the dates
                 Date[] dates = fund.getFinancials_Dates();
@@ -1527,55 +1527,55 @@ public class StockDataHandler {
                     sqlDt = new java.sql.Date(dates[j].getTime());
                     stmt.setDate(2, sqlDt);
 
-                    bdArray = fund.getFinancials_Revenue();
+                    bdArray = fund.getFinancials_BookValPerShare();
                     stmt.setBigDecimal(3, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_GrossMargin();
+
+                    bdArray = fund.getFinancials_CapSpending();
                     stmt.setBigDecimal(4, bdArray[j]);
                     
-                    bdArray = fund.getFinancials_OperIncome();
-                    stmt.setBigDecimal(5, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_OperMargin();
-                    stmt.setBigDecimal(6, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_NetIncome();
-                    stmt.setBigDecimal(7, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_EPS();
-                    stmt.setBigDecimal(8, bdArray[j]);
-                    
                     bdArray = fund.getFinancials_Dividends();
+                    stmt.setBigDecimal(5, bdArray[j]);
+
+                    bdArray = fund.getFinancials_EPS();
+                    stmt.setBigDecimal(6, bdArray[j]);
+
+                    bdArray = fund.getFinancials_FreeCashFlow();
+                    stmt.setBigDecimal(7, bdArray[j]);
+
+                    bdArray = fund.getFinancials_FreeCashFlowPerShare();
+                    stmt.setBigDecimal(8, bdArray[j]);
+
+                    bdArray = fund.getFinancials_GrossMargin();
                     stmt.setBigDecimal(9, bdArray[j]);
                     
-                    bdArray = fund.getFinancials_PayoutRatio();
+                    bdArray = fund.getFinancials_NetIncome();
                     stmt.setBigDecimal(10, bdArray[j]);
-                    
+
                     bdArray = fund.getFinancials_SharesMil();
                     stmt.setBigDecimal(11, bdArray[j]);
-
-                    bdArray = fund.getFinancials_BookValPerShare();
+                    
+                    bdArray = fund.getFinancials_OperCashFlow();
                     stmt.setBigDecimal(12, bdArray[j]);
 
-                    bdArray = fund.getFinancials_OperCashFlow();
+                    bdArray = fund.getFinancials_OperMargin();
                     stmt.setBigDecimal(13, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_CapSpending();
-                    stmt.setBigDecimal(14, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_FreeCashFlow();
-                    stmt.setBigDecimal(15, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_FreeCashFlow();
-                    stmt.setBigDecimal(16, bdArray[j]);
 
-                    bdArray = fund.getFinancials_WorkingCap();
-                    stmt.setBigDecimal(17, bdArray[j]);
+                    bdArray = fund.getFinancials_PayoutRatio();
+                    stmt.setBigDecimal(14, bdArray[j]);
 
                     bdArray = fund.getFinancials_ReturnOnAssets();
-                    stmt.setBigDecimal(18, bdArray[j]);
+                    stmt.setBigDecimal(15, bdArray[j]);
 
                     bdArray = fund.getFinancials_ReturnOnEquity();
+                    stmt.setBigDecimal(16, bdArray[j]);
+                                        
+                    bdArray = fund.getFinancials_Revenue();
+                    stmt.setBigDecimal(17, bdArray[j]);
+
+                    bdArray = fund.getFinancials_WorkingCap();
+                    stmt.setBigDecimal(18, bdArray[j]);
+                    
+                    bdArray = fund.getFinancials_OperIncome();
                     stmt.setBigDecimal(19, bdArray[j]);
                     
                     stmt.addBatch();
@@ -1843,7 +1843,7 @@ public class StockDataHandler {
     }
     
     public void downloadAllStockData() throws Exception {
-
+/*
         //Mortgage Rates
         Date lastDt;
         lastDt = get30YrMortgageRates_UpdateDate();
@@ -1942,16 +1942,26 @@ public class StockDataHandler {
             String stockValues = downloadData(st.getQuandlCode(), lastDt);
             insertStockPricesIntoDB(st.getTicker(), stockValues);
         }
-  
-        //Fundamentals 
+  */
+        //Fundamentals - Annual
+        List<StockTicker> listOfAllStocks = getAllStockTickers(true);
         MorningstarData mstar = new MorningstarData();
-        List<StockFundamentals> listStockFund = new ArrayList<>();
+        List<StockFundamentals_Annual> listStockFundAnnual = new ArrayList<>();
         for (StockTicker st : listOfAllStocks) {
-            StockFundamentals fundamentals = mstar.getStockFundamentals(st);
-            if (fundamentals != null)
-                listStockFund.add(fundamentals);
+            StockFundamentals_Annual fundamentals = mstar.getStockFundamentals_Annual(st);
+            if (fundamentals != null) 
+                listStockFundAnnual.add(fundamentals);
         }
-        insertStockFundamentals_Annual_IntoDB(listStockFund);
+        insertStockFundamentals_Annual_IntoDB(listStockFundAnnual);
+
+        //Fundamentals - Quarterly
+        List<StockFundamentals_Annual> listStockFundQtr = new ArrayList<>();
+        for (StockTicker st : listOfAllStocks) {
+            StockFundamentals_Annual fundamentals = mstar.getStockFundamentals_Annual(st);
+            if (fundamentals != null) 
+                listStockFundQtr.add(fundamentals);
+        }
+        //insertStockFundamentals_Quarterly_IntoDB(listStockFundQtr);
         
         //Remove bad data
         removeAllBadData();

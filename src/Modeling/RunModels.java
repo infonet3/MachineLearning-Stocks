@@ -58,9 +58,9 @@ public class RunModels implements Runnable {
         boolean isSkip = true;
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
-
+            
             if (isSkip) {
-                if (ticker.getTicker().equals("APAM")) //Not running for some reason???
+                if (ticker.getTicker().equals("BNNY"))
                     isSkip = false;
 
                 continue;

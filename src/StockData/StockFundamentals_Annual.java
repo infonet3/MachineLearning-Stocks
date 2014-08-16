@@ -11,7 +11,7 @@ import java.util.Date;
  *
  * @author Matt Jones
  */
-public class StockFundamentals {
+public class StockFundamentals_Annual {
     private String ticker;
     private Date[] financials_Dates;
     private BigDecimal[] financials_Revenue;
@@ -32,7 +32,7 @@ public class StockFundamentals {
     private BigDecimal[] financials_ReturnOnAssets;
     private BigDecimal[] financials_ReturnOnEquity;
 
-    public StockFundamentals(String ticker) {
+    public StockFundamentals_Annual(String ticker) {
         this.ticker = ticker;
     }
 
