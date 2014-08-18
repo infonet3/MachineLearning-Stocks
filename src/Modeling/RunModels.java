@@ -55,16 +55,8 @@ public class RunModels implements Runnable {
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         MatrixValues matrixValues;
-        boolean isSkip = true;
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
-            
-            if (isSkip) {
-                if (ticker.getTicker().equals("BNNY"))
-                    isSkip = false;
-
-                continue;
-            }
             
             //Pull data for this stock from the DB and save to class field
             matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
@@ -135,7 +127,7 @@ public class RunModels implements Runnable {
         final double maxVariance;
         switch (approach) {
             case LOGIST_REG:
-                maxVariance = 0.00001;
+                maxVariance = 0.0001;
                 break;
             
             case LINEAR_REG:
@@ -161,7 +153,6 @@ public class RunModels implements Runnable {
                     costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
             } //End switch
-       
             
             //Test Check
             final int MAX_ITERATIONS = 4000;

@@ -13,19 +13,21 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
  * @author Matt Jones
  */
 public class MorningstarData {
-/*
-    public StockFundamentals_Quarterly getStockFundamentals_Quarterly(StockTicker ticker) throws Exception {
+
+    public StockFundamentals_Quarter getStockFundamentals_Quarterly(StockTicker ticker) throws Exception {
         
         String tenQtrData = getDataFromMorningstar_Quarterly(ticker);
 
-        StockFundamentals_Quarterly stockFundBasics = null;
+        StockFundamentals_Quarter stockFundBasics = null;
         try {
             stockFundBasics = parse10QtrData(ticker.getTicker(), tenQtrData);
         } catch (Exception exc) {
@@ -33,7 +35,6 @@ public class MorningstarData {
         }
         return stockFundBasics;
     }
-*/
     
     public StockFundamentals_Annual getStockFundamentals_Annual(StockTicker ticker) throws Exception {
         
@@ -171,7 +172,296 @@ public class MorningstarData {
         
         return stockFund;
     }
+
+    private Map<IncomeStmt_Items, Integer> getRowIndexes(String[] rows) {
+        
+        Map<IncomeStmt_Items, Integer> map = new HashMap<>();
+        String label;
+        int index;
+        boolean isEPS = false;
+        boolean isWeightedShares = false;
+        for (int i = 0; i < rows.length; i++) {
+            index = rows[i].indexOf(",");
+            if (index == -1)
+                label = rows[i];
+            else
+                label = rows[i].substring(0, index).replaceAll("\"", "");
+            
+            switch (label) {
+                case "Revenue":
+                    map.put(IncomeStmt_Items.REVENUE, i);
+                    break;
+                case "Cost of revenue":
+                    map.put(IncomeStmt_Items.COST_OF_REVENUE, i);
+                    break;
+                case "Gross profit":
+                    map.put(IncomeStmt_Items.GROSS_PROFIT, i);
+                    break;
+                case "Research and development":
+                    map.put(IncomeStmt_Items.R_AND_D, i);
+                    break;
+                case "Sales":
+                    map.put(IncomeStmt_Items.SALES_GEN_ADMIN, i);
+                    break;
+                case "Total operating expenses":
+                    map.put(IncomeStmt_Items.TOTAL_OP_EXP, i);
+                    break;
+                case "Operating income":
+                    map.put(IncomeStmt_Items.OPER_INC, i);
+                    break;
+                case "Interest Expense":
+                    map.put(IncomeStmt_Items.INT_EXP, i);
+                    break;
+                case "Other income (expense)":
+                    map.put(IncomeStmt_Items.OTHER_INC, i);
+                    break;
+                case "Income before taxes":
+                    map.put(IncomeStmt_Items.INC_BEF_TAX, i);
+                    break;
+                case "Provision for income taxes":
+                    map.put(IncomeStmt_Items.PROV_INC_TAX, i);
+                    break;
+                case "Net income from continuing operations":
+                    map.put(IncomeStmt_Items.NET_INC_CONT_OP, i);
+                    break;
+                case "Net income from discontinuing ops":
+                    map.put(IncomeStmt_Items.NET_INC_DISCONT_OP, i);
+                    break;
+                case "Net income":
+                    map.put(IncomeStmt_Items.NET_INCOME, i);
+                    break;
+                case "Net income available to common shareholders":
+                    map.put(IncomeStmt_Items.NET_INCOME_CMN_SHR, i);
+                    break;
+                case "Earnings per share":
+                    isEPS = true;
+                    break;
+                case "Weighted average shares outstanding":
+                    isWeightedShares = true;
+                    break;
+                case "Basic":
+                    if (isEPS && !isWeightedShares)
+                        map.put(IncomeStmt_Items.EPS_BASIC, i);
+                    else if (isEPS && isWeightedShares)
+                        map.put(IncomeStmt_Items.SHR_OUT_BASIC, i);
+                    break;
+                case "Diluted":
+                    if (isEPS && !isWeightedShares)
+                        map.put(IncomeStmt_Items.EPS_DILUTED, i);
+                    else if (isEPS && isWeightedShares)
+                        map.put(IncomeStmt_Items.SHR_OUT_DILUTED, i);
+                    break;
+                case "EBITDA":
+                    map.put(IncomeStmt_Items.EBITDA, i);
+                    break;
+            }
+        }
+        
+        return map;
+    }
     
+    private StockFundamentals_Quarter parse10QtrData(String ticker, String input) throws Exception {
+
+        StockFundamentals_Quarter stockFund = new StockFundamentals_Quarter(ticker);
+
+        try(BufferedReader r = new BufferedReader(new StringReader(input))) {
+
+            String line;
+            List<String> rowList = new ArrayList<>();
+
+            for (;;) {
+                line = r.readLine();
+                if (line == null)
+                    break;
+                
+                rowList.add(line);
+            }
+            
+            //Sanity Check
+            if (rowList.size() <= 1)
+                throw new Exception("No data returned from Morningstar!");
+
+            //Convert to Array from List
+            String[] rows = rowList.toArray(new String[rowList.size()]);
+            
+            //Dates
+            String[] financialsDates = rows[1].split(",");
+            Date[] financialsDatesDt = convertToDates(financialsDates);
+            stockFund.setFinancials_Dates(financialsDatesDt);
+
+            final int NUM_DATES = financialsDatesDt.length;
+            
+            //Determine row indexes for fundamental items
+            Map<IncomeStmt_Items, Integer> map = getRowIndexes(rows);
+            
+            //Revenue
+            Integer index = map.get(IncomeStmt_Items.REVENUE);
+            if (index != null) {
+                String[] financialsRevenue = processString(rows[index]).split(",");
+                BigDecimal[] financialsRevenueBD = convertToBD(financialsRevenue, NUM_DATES);
+                stockFund.setFinancials_Revenue(financialsRevenueBD);
+            }
+
+            //Cost of Revenue
+            index = map.get(IncomeStmt_Items.COST_OF_REVENUE);
+            if (index != null) {
+                String[] financialsCostRevenue = processString(rows[index]).split(",");
+                BigDecimal[] financialsCostRevenueBD = convertToBD(financialsCostRevenue, NUM_DATES);
+                stockFund.setFinancials_CostOfRev(financialsCostRevenueBD);
+            }
+            
+            //Gross Profit
+            index = map.get(IncomeStmt_Items.GROSS_PROFIT);
+            if (index != null) {
+                String[] financialsGrossProfit = processString(rows[index]).split(",");
+                BigDecimal[] financialsGrossProfitBD = convertToBD(financialsGrossProfit, NUM_DATES);
+                stockFund.setFinancials_GrossProfit(financialsGrossProfitBD);
+            }
+            
+            //R&D
+            index = map.get(IncomeStmt_Items.R_AND_D);
+            if (index != null) {
+                String[] financialsRandD = processString(rows[index]).split(",");
+                BigDecimal[] financialsRandDBD = convertToBD(financialsRandD, NUM_DATES);
+                stockFund.setFinancials_RandD(financialsRandDBD);
+            }
+            
+            //Sales Gen and Admin
+            index = map.get(IncomeStmt_Items.SALES_GEN_ADMIN);
+            if (index != null) {
+                String[] financialsSalesGenAdmin = processString(rows[index]).split(",");
+                BigDecimal[] financialsSalesGenAdminBD = convertToBD(financialsSalesGenAdmin, NUM_DATES);
+                stockFund.setFinancials_SalesGenAdmin(financialsSalesGenAdminBD);
+            }
+            
+            //Total Operating Expenses
+            index = map.get(IncomeStmt_Items.TOTAL_OP_EXP);
+            if (index != null) {
+                String[] financialsTotalOpExp = processString(rows[index]).split(",");
+                BigDecimal[] financialsTotalOpExpBD = convertToBD(financialsTotalOpExp, NUM_DATES);
+                stockFund.setFinancials_TotalOpExp(financialsTotalOpExpBD);
+            }
+            
+            //Operating Income
+            index = map.get(IncomeStmt_Items.OPER_INC);
+            if (index != null) {
+                String[] financialsOpInc = processString(rows[index]).split(",");
+                BigDecimal[] financialsOpIncBD = convertToBD(financialsOpInc, NUM_DATES);
+                stockFund.setFinancials_OperIncome(financialsOpIncBD);
+            }
+            
+            //Interest Expense
+            index = map.get(IncomeStmt_Items.INT_EXP);
+            if (index != null) {
+                String[] financialsIntExp = processString(rows[index]).split(",");
+                BigDecimal[] financialsIntExpBD = convertToBD(financialsIntExp, NUM_DATES);
+                stockFund.setFinancials_IntExp(financialsIntExpBD);
+            }
+            
+            //Other Income
+            index = map.get(IncomeStmt_Items.OTHER_INC);
+            if (index != null) {
+                String[] financialsOtherInc = processString(rows[index]).split(",");
+                BigDecimal[] financialsOtherIncBD = convertToBD(financialsOtherInc, NUM_DATES);
+                stockFund.setFinancials_OtherIncome(financialsOtherIncBD);
+            }
+            
+            //Income Before Taxes
+            index = map.get(IncomeStmt_Items.INC_BEF_TAX);
+            if (index != null) {
+                String[] financialsIncBefTaxes = processString(rows[index]).split(",");
+                BigDecimal[] financialsIncBefTaxesBD = convertToBD(financialsIncBefTaxes, NUM_DATES);
+                stockFund.setFinancials_IncomeBeforeTax(financialsIncBefTaxesBD);
+            }
+            
+            //Provision for Income Taxes
+            index = map.get(IncomeStmt_Items.PROV_INC_TAX);
+            if (index != null) {
+                String[] financialsProvIncTax = processString(rows[index]).split(",");
+                BigDecimal[] financialsProvIncTaxBD = convertToBD(financialsProvIncTax, NUM_DATES);
+                stockFund.setFinancials_ProvForIncTax(financialsProvIncTaxBD);
+            }
+            
+            //Net Income Continuing Operations
+            index = map.get(IncomeStmt_Items.NET_INC_CONT_OP);
+            if (index != null) {
+                String[] financialsNetIncContOp = processString(rows[index]).split(",");
+                BigDecimal[] financialsNetIncContOpBD = convertToBD(financialsNetIncContOp, NUM_DATES);
+                stockFund.setFinancials_NetIncomeContOp(financialsNetIncContOpBD);
+            }
+            
+            //Net Income Discontinuing Operations
+            index = map.get(IncomeStmt_Items.NET_INC_DISCONT_OP);
+            if (index != null) {
+                String[] financialsNetIncDiscontOp = processString(rows[index]).split(",");
+                BigDecimal[] financialsNetIncDiscontOpBD = convertToBD(financialsNetIncDiscontOp, NUM_DATES);
+                stockFund.setFinancials_NetIncomeDiscontOp(financialsNetIncDiscontOpBD);
+            }
+            
+            //Net Income
+            index = map.get(IncomeStmt_Items.NET_INCOME);
+            if (index != null) {
+                String[] financialsNetInc = processString(rows[index]).split(",");
+                BigDecimal[] financialsNetIncBD = convertToBD(financialsNetInc, NUM_DATES);
+                stockFund.setFinancials_NetIncome(financialsNetIncBD);
+            }
+            
+            //Net Income Availble to Common Shareholders
+            index = map.get(IncomeStmt_Items.NET_INCOME_CMN_SHR);
+            if (index != null) {
+                String[] financialsNetIncCmnShr = processString(rows[index]).split(",");
+                BigDecimal[] financialsNetIncCmnShrBD = convertToBD(financialsNetIncCmnShr, NUM_DATES);
+                stockFund.setFinancials_NetIncomeCommonShareholders(financialsNetIncCmnShrBD);
+            }
+            
+            //EPS-Basic
+            index = map.get(IncomeStmt_Items.EPS_BASIC);
+            if (index != null) {
+                String[] financialsEPSBasic = processString(rows[index]).split(",");
+                BigDecimal[] financialsEPSBasicBD = convertToBD(financialsEPSBasic, NUM_DATES);
+                stockFund.setFinancials_EPS_Basic(financialsEPSBasicBD);
+            }
+            
+            //EPS-Diluted
+            index = map.get(IncomeStmt_Items.EPS_DILUTED);
+            if (index != null) {
+                String[] financialsEPSDiluted = processString(rows[index]).split(",");
+                BigDecimal[] financialsEPSDilutedBD = convertToBD(financialsEPSDiluted, NUM_DATES);
+                stockFund.setFinancials_EPS_Diluted(financialsEPSDilutedBD);
+            }
+
+            //Average Shares Basic
+            index = map.get(IncomeStmt_Items.SHR_OUT_BASIC);
+            if (index != null) {
+                String[] financialsAvgShrBasic = processString(rows[index]).split(",");
+                BigDecimal[] financialsAvgShrBasicBD = convertToBD(financialsAvgShrBasic, NUM_DATES);
+                stockFund.setFinancials_AvgSharesOutstanding_Basic(financialsAvgShrBasicBD);
+            }
+            
+            //Average Shares Diluted
+            index = map.get(IncomeStmt_Items.SHR_OUT_DILUTED);
+            if (index != null) {
+                String[] financialsAvgShrDiluted = processString(rows[index]).split(",");
+                BigDecimal[] financialsAvgShrDilutedBD = convertToBD(financialsAvgShrDiluted, NUM_DATES);
+                stockFund.setFinancials_AvgSharesOutstanding_Diluted(financialsAvgShrDilutedBD);
+            }
+            
+            //EBITDA
+            index = map.get(IncomeStmt_Items.EBITDA);
+            if (index != null) {
+                String[] financialsEBITDA = processString(rows[index]).split(",");
+                BigDecimal[] financialsEBITDABD = convertToBD(financialsEBITDA, NUM_DATES);
+                stockFund.setFinancials_EBITDA(financialsEBITDABD);
+            }
+            
+        } catch (Exception exc) {
+            System.out.println("Method: parse10QtrData, Desc: Ticker = " + ticker + ", " + input);
+            throw exc;
+        }
+        
+        return stockFund;
+    }
+
     //Go through string and eliminate un-necessary commas
     private static String processString(String input) {
         char ch;

@@ -1520,7 +1520,7 @@ public class StockDataHandler {
                 //Loop through the dates
                 Date[] dates = fund.getFinancials_Dates();
                 BigDecimal[] bdArray;
-                for (int j = 0; j < dates.length; j++) {
+                for (int j = 0; j < dates.length - 1; j++) { //Skip TTM
 
                     stmt.setString(1, fund.getTicker());
                     
@@ -1590,9 +1590,168 @@ public class StockDataHandler {
             System.out.println("Method: insertStockFundamentals_Annual_IntoDB, Description: " + exc);
             throw exc;
         }
+    }
+
+    private void insertStockFundamentals_Quarter_IntoDB(List<StockFundamentals_Quarter> listStockFund) throws Exception {
+        
+        String row;
+        java.sql.Date sqlDt;
+       
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Quarter (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            
+            for (int i = 0; i < listStockFund.size(); i++) {
+
+                StockFundamentals_Quarter fund = listStockFund.get(i);
+
+                //Loop through the dates
+                Date[] dates = fund.getFinancials_Dates();
+                BigDecimal[] bdArray;
+                for (int j = 0; j < dates.length - 1; j++) { //Skip TTM
+
+                    stmt.setString(1, fund.getTicker());
+                    
+                    sqlDt = new java.sql.Date(dates[j].getTime());
+                    stmt.setDate(2, sqlDt);
+
+                    bdArray = fund.getFinancials_Revenue();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(3, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(3, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_CostOfRev();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(4, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(4, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_GrossProfit();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(5, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(5, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_RandD();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(6, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(6, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_SalesGenAdmin();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(7, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(7, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_TotalOpExp();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(8, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(8, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_OperIncome();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(9, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(9, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_IntExp();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(10, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(10, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_OtherIncome();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(11, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(11, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_IncomeBeforeTax();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(12, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(12, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_ProvForIncTax();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(13, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(13, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_NetIncomeContOp();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(14, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(14, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_NetIncomeDiscontOp();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(15, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(15, new BigDecimal("0.0"));
+
+                    bdArray = fund.getFinancials_NetIncome();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(16, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(16, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_NetIncomeCommonShareholders();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(17, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(17, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_EPS_Basic();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(18, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(18, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_EPS_Diluted();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(19, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(19, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_AvgSharesOutstanding_Basic();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(20, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(20, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_AvgSharesOutstanding_Diluted();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(21, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(21, new BigDecimal("0.0"));
+                    
+                    bdArray = fund.getFinancials_EBITDA();
+                    if (bdArray != null)
+                        stmt.setBigDecimal(22, bdArray[j]);
+                    else
+                        stmt.setBigDecimal(22, new BigDecimal("0.0"));
+                    
+                    stmt.addBatch();
+                }
+            }
+            
+            //Save to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
+        } catch(Exception exc) {
+            System.out.println("Method: insertStockFundamentals_Quarter_IntoDB, Description: " + exc);
+            throw exc;
+        }
 
     }
 
+    
     public Date get30YrMortgageRates_UpdateDate() throws Exception {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_30yr_MortgageRates_LastUpdate ()}")) {
@@ -1843,7 +2002,7 @@ public class StockDataHandler {
     }
     
     public void downloadAllStockData() throws Exception {
-/*
+
         //Mortgage Rates
         Date lastDt;
         lastDt = get30YrMortgageRates_UpdateDate();
@@ -1942,9 +2101,8 @@ public class StockDataHandler {
             String stockValues = downloadData(st.getQuandlCode(), lastDt);
             insertStockPricesIntoDB(st.getTicker(), stockValues);
         }
-  */
+
         //Fundamentals - Annual
-        List<StockTicker> listOfAllStocks = getAllStockTickers(true);
         MorningstarData mstar = new MorningstarData();
         List<StockFundamentals_Annual> listStockFundAnnual = new ArrayList<>();
         for (StockTicker st : listOfAllStocks) {
@@ -1955,13 +2113,13 @@ public class StockDataHandler {
         insertStockFundamentals_Annual_IntoDB(listStockFundAnnual);
 
         //Fundamentals - Quarterly
-        List<StockFundamentals_Annual> listStockFundQtr = new ArrayList<>();
+        List<StockFundamentals_Quarter> listStockFundQtr = new ArrayList<>();
         for (StockTicker st : listOfAllStocks) {
-            StockFundamentals_Annual fundamentals = mstar.getStockFundamentals_Annual(st);
+            StockFundamentals_Quarter fundamentals = mstar.getStockFundamentals_Quarterly(st);
             if (fundamentals != null) 
                 listStockFundQtr.add(fundamentals);
         }
-        //insertStockFundamentals_Quarterly_IntoDB(listStockFundQtr);
+        insertStockFundamentals_Quarter_IntoDB(listStockFundQtr);
         
         //Remove bad data
         removeAllBadData();

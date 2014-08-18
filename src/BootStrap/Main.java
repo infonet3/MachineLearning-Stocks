@@ -41,7 +41,7 @@ public class Main {
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();
         Calendar fromDate = Calendar.getInstance();
-        fromDate.set(2000, 0, 1);
+        fromDate.set(2004, 7, 1);
 
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
