@@ -1428,7 +1428,7 @@ public class StockDataHandler {
     
     public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
 
-        isJustDow = false;
+        isJustDow = true;
         
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
@@ -1959,7 +1959,7 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
+
     public Date getStockQuote_UpdateDate(String stockQuote) throws Exception {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockQuotes_LastUpdate (?)}")) {
@@ -1977,6 +1977,19 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             System.out.println("Exception in getStockQuote_UpdateDate");
+            throw exc;
+        }
+    }
+
+    
+    public void setStockFundamentals_Quarter_ValidDates() throws Exception {
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_Stock_Fundamentals_Quarter_ValidDates ()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            System.out.println("Exception in setStockFundamentals_Quarter_ValidDates");
             throw exc;
         }
     }
@@ -2120,6 +2133,7 @@ public class StockDataHandler {
                 listStockFundQtr.add(fundamentals);
         }
         insertStockFundamentals_Quarter_IntoDB(listStockFundQtr);
+        setStockFundamentals_Quarter_ValidDates();
         
         //Remove bad data
         removeAllBadData();

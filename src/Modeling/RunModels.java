@@ -127,7 +127,7 @@ public class RunModels implements Runnable {
         final double maxVariance;
         switch (approach) {
             case LOGIST_REG:
-                maxVariance = 0.0001;
+                maxVariance = 0.00001;
                 break;
             
             case LINEAR_REG:
@@ -155,7 +155,7 @@ public class RunModels implements Runnable {
             } //End switch
             
             //Test Check
-            final int MAX_ITERATIONS = 4000;
+            final int MAX_ITERATIONS = 10000;
             if (i > MAX_ITERATIONS) {
                 throw new Exception("Problem with Gradient Descent================================================");
             }
