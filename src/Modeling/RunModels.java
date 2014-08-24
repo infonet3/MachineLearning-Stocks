@@ -6,12 +6,14 @@ package Modeling;
 
 import ML_Formulas.LinearRegFormulas;
 import ML_Formulas.LogisticRegFormulas;
+import ML_Formulas.SVM;
 import MatrixOps.Matrix;
 import MatrixOps.MatrixValues;
 import MatrixOps.RecordType;
 import StockData.StockDataHandler;
 import StockData.StockTicker;
 import java.util.List;
+import libsvm.svm_model;
 
 /**
  *
@@ -60,20 +62,23 @@ public class RunModels implements Runnable {
             
             //Pull data for this stock from the DB and save to class field
             matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
-            double[] averages = matrixValues.getOriginalFeatureAverages();
-            double[] ranges = matrixValues.getOriginalFeatureRanges();
             
             //Calculate costs for different sizes of lambda
             double trainingCost = 0.0;
             double crossValCost = 0.0;
             double testCost = 0.0;
             double finalLambda = 0.0;
-
-            double[] thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
+            double[] thetaValues = null;
 
             switch (MODEL) {
+                case SVM:
+                    svm_model model = SVM.createModel(matrixValues);
+                    break;
+                
                 case LINEAR_REG:
                     //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                    thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
+                    
                     trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
                     crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
                     testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
@@ -81,6 +86,8 @@ public class RunModels implements Runnable {
                     break;
                 case LOGIST_REG:
                     //Save cost values for all 3 datasets (Training, Cross Val, Test)
+                    thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
+                    
                     trainingCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
                     crossValCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
                     testCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
@@ -89,6 +96,8 @@ public class RunModels implements Runnable {
             }
 
             //Save values to DB
+            double[] averages = matrixValues.getOriginalFeatureAverages();
+            double[] ranges = matrixValues.getOriginalFeatureRanges();
             sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, thetaValues, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
             
             System.gc();

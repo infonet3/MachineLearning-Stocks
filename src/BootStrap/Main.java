@@ -23,6 +23,7 @@ public class Main {
         final int DAYS_IN_FUTURE = 7;
         final ModelTypes LIN_REG = ModelTypes.LINEAR_REG;
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
+        final ModelTypes SVM = ModelTypes.SVM;
 
         StockDataHandler sdh = new StockDataHandler();
         //sdh.downloadAllStockData();
@@ -37,6 +38,7 @@ public class Main {
 
         //Run Logistic Regression
         models.runModels(LOG_REG, DAYS_IN_FUTURE);
+        //models.runModels(SVM, DAYS_IN_FUTURE);
 
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();

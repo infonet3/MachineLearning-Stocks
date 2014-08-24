@@ -10,6 +10,10 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -26,6 +30,7 @@ public class MorningstarData {
     public StockFundamentals_Quarter getStockFundamentals_Quarterly(StockTicker ticker) throws Exception {
         
         String tenQtrData = getDataFromMorningstar_Quarterly(ticker);
+        //String tenQtrData = getDataFromMorningstar_Quarterly_FromFile(ticker);
 
         StockFundamentals_Quarter stockFundBasics = null;
         try {
@@ -540,6 +545,27 @@ public class MorningstarData {
         return dtArray;
     }
 
+    private String getDataFromMorningstar_Quarterly_FromFile(StockTicker ticker) throws Exception {
+
+        StringBuilder sbBasic = new StringBuilder();
+        Path p = Paths.get("C:\\Java\\Quarterlys\\" + ticker.getTicker() + " Income Statement.csv");
+        try (BufferedReader r = Files.newBufferedReader(p, Charset.defaultCharset())) {
+
+            String line = null;
+            for (;;) {
+                line = r.readLine();
+                if (line == null)
+                    break;
+                
+                sbBasic.append(line);
+                sbBasic.append("\n");
+            }
+        }
+        
+        //Compose the response
+        return sbBasic.toString();
+    }
+    
     private String getDataFromMorningstar_Quarterly(StockTicker ticker) throws Exception {
         URL urlTenQtrData = null;
 

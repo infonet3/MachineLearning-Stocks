@@ -430,6 +430,7 @@ public class StockDataHandler {
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
                     break;
                 case LOGIST_REG:
+                case SVM:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?, ?, ?)}");
                     break;
             }
@@ -1428,7 +1429,7 @@ public class StockDataHandler {
     
     public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
 
-        isJustDow = true;
+        isJustDow = false;
         
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
