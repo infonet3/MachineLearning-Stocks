@@ -169,6 +169,7 @@ public class Predictor {
                     if (buyFlag && sharesOwned == 0 && waitDays == 0) {
 
                         buyFlag = false;
+                        waitDays = 5; //Must hold the stock for a week, since we predicted the prices one week out
 
                         //Broke Test
                         if (capital.doubleValue() < 1000) {
@@ -183,10 +184,10 @@ public class Predictor {
                         numTrades++;
                     }
                     //Sell Stock
-                    else if (sellFlag && sharesOwned > 0) {
+                    else if (sellFlag && sharesOwned > 0 && waitDays == 0) {
 
                         sellFlag = false;
-                        waitDays = 3; //Due to Free Ride restrictions in Roth IRA, THIS HURTS PERFORMANCE BAD
+                        waitDays = 3; //Due to Free Ride restrictions in Roth IRA, THIS HURTS PERFORMANCE BAD!!!
 
                         BigDecimal proceeds = curOpenPrice.multiply(new BigDecimal(sharesOwned));
                         capital = capital.add(proceeds);
