@@ -356,8 +356,9 @@ public class StockDataHandler {
             
             List<PredictionValues> listVals = new ArrayList<>();
             PredictionValues val;
+            //pred.pk_DateID, pred.pk_ProjectedDateID, pred.EstimatedValue, curQuotes.Close, futureQuotes.Close, curQuotes.Open
             while(rs.next()) {
-                val = new PredictionValues(ticker, rs.getDate(1), rs.getDate(2), modelType, rs.getBigDecimal(3), rs.getBigDecimal(4)); 
+                val = new PredictionValues(ticker, rs.getDate(1), rs.getDate(2), modelType, rs.getBigDecimal(3), rs.getBigDecimal(4), rs.getBigDecimal(5), rs.getBigDecimal(6)); 
                 listVals.add(val);
             }
                 

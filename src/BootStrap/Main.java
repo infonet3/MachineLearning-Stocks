@@ -37,7 +37,7 @@ public class Main {
         //models.runModels(LIN_REG, DAYS_IN_FUTURE);
 
         //Run Logistic Regression
-        models.runModels(LOG_REG, DAYS_IN_FUTURE);
+        //models.runModels(LOG_REG, DAYS_IN_FUTURE);
         //models.runModels(SVM, DAYS_IN_FUTURE);
 
         //Generate Predictions
@@ -47,7 +47,7 @@ public class Main {
 
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
-        pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         
         //Backtesting
         //pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());

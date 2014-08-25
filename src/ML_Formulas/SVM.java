@@ -56,14 +56,17 @@ public class SVM {
         
         //Define model parameters
         svm_parameter param = new svm_parameter();
-        param.svm_type = svm_parameter.ONE_CLASS;
+        param.svm_type = 0;
         param.kernel_type = svm_parameter.RBF;
         param.degree = 3;
-        param.gamma = 0;
+        
+        //Model fitting params
+        param.gamma = 0; //Gamma = 1 / (2 * sigma^2)
+        param.C = 0.1;
+        
         param.coef0 = 0;
         param.nu = 0.5;
         param.cache_size = 40;
-        param.C = 0.1;
         param.eps = 1e-5;
         param.p = 0.1;
         param.shrinking = 0;
