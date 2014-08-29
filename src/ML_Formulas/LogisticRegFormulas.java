@@ -10,7 +10,7 @@ package ML_Formulas;
  */
 public class LogisticRegFormulas {
 
-    private static final double ALPHA = 0.003;
+    private static final double ALPHA = 0.006;
 
     public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
         double sum = 0.0;

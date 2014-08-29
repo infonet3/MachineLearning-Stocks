@@ -146,6 +146,7 @@ public class Predictor {
                 boolean buyFlag = false;
                 boolean sellFlag = false;
                 int waitDays = 0;
+                Date projectedDate = null;
                 
                 //Used for Buy and Hold values
                 boolean isFirstDate = true;
@@ -169,7 +170,7 @@ public class Predictor {
                     if (buyFlag && sharesOwned == 0 && waitDays == 0) {
 
                         buyFlag = false;
-                        waitDays = 5; //Must hold the stock for a week, since we predicted the prices one week out
+                        projectedDate = pred.getProjectedDate(); //Must hold the stock until the projected date
 
                         //Broke Test
                         if (capital.doubleValue() < 1000) {
@@ -184,7 +185,7 @@ public class Predictor {
                         numTrades++;
                     }
                     //Sell Stock
-                    else if (sellFlag && sharesOwned > 0 && waitDays == 0) {
+                    else if (sellFlag && sharesOwned > 0 && pred.getDate().getTime() >= projectedDate.getTime()) {
 
                         sellFlag = false;
                         waitDays = 3; //Due to Free Ride restrictions in Roth IRA, THIS HURTS PERFORMANCE BAD!!!

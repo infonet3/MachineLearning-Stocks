@@ -26,18 +26,18 @@ public class Main {
         final ModelTypes SVM = ModelTypes.SVM;
 
         StockDataHandler sdh = new StockDataHandler();
-        //sdh.downloadAllStockData();
+        sdh.downloadAllStockData();
 
         final int DAYS_BACK = 0;
-        //sdh.computeMovingAverages(DAYS_BACK);
-        //sdh.computeStockQuoteSlopes(DAYS_BACK);
+        sdh.computeMovingAverages(DAYS_BACK);
+        sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         //Run Linear Regression
         RunModels models = new RunModels();
         //models.runModels(LIN_REG, DAYS_IN_FUTURE);
 
         //Run Logistic Regression
-        //models.runModels(LOG_REG, DAYS_IN_FUTURE);
+        models.runModels(LOG_REG, DAYS_IN_FUTURE);
         //models.runModels(SVM, DAYS_IN_FUTURE);
 
         //Generate Predictions
@@ -47,7 +47,7 @@ public class Main {
 
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
-        //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         
         //Backtesting
         //pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
