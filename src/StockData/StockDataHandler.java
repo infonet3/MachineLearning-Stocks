@@ -31,8 +31,10 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Queue;
+import java.util.Set;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
 
@@ -821,82 +823,68 @@ public class StockDataHandler {
         }
     }
 
-    private void insertGDPDataIntoDB(String jsonData, Quarter qtr) throws Exception {
+    private void insertGDPDataIntoDB(List<BEA_Data> listData) throws Exception {
 
         try (Connection conxn = getDBConnection();
-            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?)}")) {
+            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
             conxn.setAutoCommit(false);
-            
-            JsonParser parser = Json.createParser(new StringReader(jsonData));
-            String seriesCode = null;
-            String lineDesc = null;
-            String timePeriod = null;
-            String dataValue = null;
-            while(parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                if (event == JsonParser.Event.KEY_NAME) {
-                    switch(parser.getString()) {
-                        case "SeriesCode":
-                            parser.next();
-                            seriesCode = parser.getString();
-                            break;
-                        case "LineDescription":
-                            parser.next();
-                            lineDesc = parser.getString();
-                            break;
-                        case "TimePeriod":
-                            parser.next();
-                            timePeriod = parser.getString();
-                            break;
-                        case "DataValue":
-                            parser.next();
-                            dataValue = parser.getString().replaceAll(",", "");
-                            break;
-                    } //End Switch
-                } //End If
 
-                //Save record to DB if we have all elements
-                if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
-                    short year = Short.parseShort(timePeriod.substring(0, 4));
-                    byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
+            for (BEA_Data e : listData) {
+                
+                int year = e.getYear();
+                int quarter = e.getQuarter();
 
-                    //Move one quarter forward
-                    if (quarter >= 1 && quarter <= 3) {
-                        quarter++;
-                    }
-                    else if (quarter == 4) {
-                        quarter = 1;
-                        year++;
-                    }
+                //Move one quarter forward
+                if (quarter >= 1 && quarter <= 3) {
+                    quarter++;
+                }
+                else if (quarter == 4) {
+                    quarter = 1;
+                    year++;
+                }
 
-                    //Ensure we haven't already saved this quarter
-                    if (qtr != null && !(year > qtr.getYear() || (year == qtr.getYear() && quarter > qtr.getQuarter()))) {
-                        continue;
-                    }
+                //Insert values into DB
+                stmt.setShort(1, (short)e.getYear());
+                stmt.setByte(2, (byte)e.getQuarter());
+                stmt.setBigDecimal(3, e.getGrossPrivDomInv());
+                stmt.setBigDecimal(4, e.getFixInvestment());
+                stmt.setBigDecimal(5, e.getNonResidential());
+                stmt.setBigDecimal(6, e.getResidential());
+                stmt.setBigDecimal(7, e.getChgPrivInventories());
+                stmt.setBigDecimal(8, e.getNetExportsGoodsAndSvc());
+                stmt.setBigDecimal(9, e.getGDP());
+                stmt.setBigDecimal(10, e.getGoods1());
+                stmt.setBigDecimal(11, e.getGoods2());
+                stmt.setBigDecimal(12, e.getGoods3());
+                stmt.setBigDecimal(13, e.getServices1());
+                stmt.setBigDecimal(14, e.getServices2());
+                stmt.setBigDecimal(15, e.getServices3());
+                stmt.setBigDecimal(16, e.getGovConsExpAndGrossInv());
+                stmt.setBigDecimal(17, e.getFederal());
+                stmt.setBigDecimal(18, e.getNatDefense());
+                stmt.setBigDecimal(19, e.getNonDefense());
+                stmt.setBigDecimal(20, e.getStateAndLocal());
+                stmt.setBigDecimal(21, e.getStructures());
+                stmt.setBigDecimal(22, e.getExports());
+                stmt.setBigDecimal(23, e.getImports());
+                stmt.setBigDecimal(24, e.getDurableGoods());
+                stmt.setBigDecimal(25, e.getNonDurGoods());
+                stmt.setBigDecimal(26, e.getPersConsExp());
+                stmt.setBigDecimal(27, e.getIntPropProducts());
+                stmt.setBigDecimal(28, e.getEquipment());
 
-                    System.out.println("Series: " + seriesCode + ", Time: " + timePeriod + ", Value: " + dataValue + ", Desc: " + lineDesc);
-
-                    //Insert the record into the DB
-                    stmt.setString(1, seriesCode);
-                    stmt.setShort(2, year);
-                    stmt.setByte(3, quarter);
-                    stmt.setString(4, lineDesc);
-                    stmt.setBigDecimal(5, new BigDecimal(dataValue));
-                    stmt.addBatch();
-                    
-                    //Reset the values
-                    seriesCode = lineDesc = timePeriod = dataValue = null;
-
-                } //End If
-
-            } //End While
+                stmt.addBatch();
+            }
 
             //Send Commands to DB
             stmt.executeBatch();
             conxn.commit();
             
-        } //End Try
+        } catch(Exception exc) {
+            System.out.println("Method: insertGDPDataIntoDB, Desc:" + exc);
+            throw exc;
+        }
     }
     
     private void insertUnemploymentRatesIntoDB(String unemploymentRates) throws Exception {
@@ -2099,16 +2087,23 @@ public class StockDataHandler {
         String nikeiiIndex = downloadData("NIKKEI/INDEX", lastDt);
         insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
 
-        //Interest Rates
+        //Interest Rates - Prime
         lastDt = getInterestRates_UpdateDate();
         String primeRates = downloadData("FRED/DPRIME", lastDt);
         insertInterestRatesIntoDB(primeRates);
   
+        //FRED/DFF Eff Fed Funds Rate
+        //FRED/DTB6 6 Month T Bill
+        //FRED/DGS5 5 Year T Rate
+        //FRED/TERMCBCCALLNS Credit Cards
+        //FMAC/ARM5YR 5 Year ARM Mortgage Rates
+        //FRED/USD6MTD156N 6 Month LIBOR
+        //FRED/DSWP5 5 Year Swap Rate
+
         //GDP
-        Quarter qtr = getBEA_UpdateDate();
-        String jsonGDP = downloadBEAData(qtr);
-        insertGDPDataIntoDB(jsonGDP, qtr);
-  
+        List<BEA_Data> listBEAData = downloadBEAData();
+        insertGDPDataIntoDB(listBEAData);
+
         //Stock Quotes
         List<StockTicker> listOfAllStocks = getAllStockTickers(true);
         for (StockTicker st : listOfAllStocks) {
@@ -2141,18 +2136,21 @@ public class StockDataHandler {
         removeAllBadData();
     }
 
-    private String downloadBEAData(Quarter qtr) throws Exception {
+    private List<BEA_Data> downloadBEAData() throws Exception {
         
+        Quarter qtr = getBEA_UpdateDate();
+
         String yearStr;
         if (qtr == null)
             yearStr = "X";
         else {
             int year = qtr.getYear();
             yearStr = String.valueOf(year);
-            yearStr = "2015";
         }
         
         StringBuilder sb = new StringBuilder();
+        List<BEA_Data> list = new ArrayList<>();
+
         try {
             URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=5&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
@@ -2170,19 +2168,156 @@ public class StockDataHandler {
                     sb.append((char)c);
                 }
             }
+           
+            //Now parse the JSON
+            JsonParser parser = Json.createParser(new StringReader(sb.toString()));
+            String seriesCode = null;
+            String lineDesc = null;
+            String timePeriod = null;
+            String dataValue = null;
+            Map<String, BEA_Data> map = new HashMap<>();
             
+            while(parser.hasNext()) {
+                JsonParser.Event event = parser.next();
+                if (event == JsonParser.Event.KEY_NAME) {
+                    switch(parser.getString()) {
+                        case "SeriesCode":
+                            parser.next();
+                            seriesCode = parser.getString();
+                            break;
+                        case "LineDescription":
+                            parser.next();
+                            lineDesc = parser.getString();
+                            break;
+                        case "TimePeriod":
+                            parser.next();
+                            timePeriod = parser.getString();
+                            break;
+                        case "DataValue":
+                            parser.next();
+                            dataValue = parser.getString().replaceAll(",", "");
+                            break;
+                    } //End Switch
+                } //End If
+
+                //Save record to DB if we have all elements
+                if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
+                    
+                    //See if this time period exists in the Hash Map
+                    BEA_Data data = null;
+                    if (map.get(timePeriod) == null) {
+                        short year = Short.parseShort(timePeriod.substring(0, 4));
+                        byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
+
+                        data = new BEA_Data(year, quarter);
+                        map.put(timePeriod, data);
+                    }
+                    else {
+                        data = map.get(timePeriod);
+                    }
+                    
+                    //Now save the data to the correct field
+                    BigDecimal val = new BigDecimal(dataValue);
+                    switch (seriesCode) {
+                        case "A014RC": //Change in private inventories	
+                            data.setChgPrivInventories(val);
+                            break;
+                        case "DDURRC": //Durable goods
+                            data.setDurableGoods(val);
+                            break;
+                        case "Y033RC": //Equipment
+                            data.setEquipment(val);
+                            break;
+                        case "B020RC": //Exports
+                            data.setExports(val);
+                            break;
+                        case "A823RC": //Federal
+                            data.setFederal(val);
+                            break;
+                        case "A007RC": //Fixed investment
+                            data.setFixInvestment(val);
+                            break;
+                        case "A253RC": //Goods1
+                            data.setGoods1(val);
+                            break;
+                        case "A255RC": //Goods2
+                            data.setGoods2(val);
+                            break;
+                        case "DGDSRC": //Goods3
+                            data.setGoods3(val);
+                            break;
+                        case "A822RC": //Government consumption expenditures and gross investment	
+                            data.setGovConsExpAndGrossInv(val);
+                            break;
+                        case "A191RC": //Gross domestic product	
+                            data.setGDP(val);
+                            break;
+                        case "A006RC": //Gross private domestic investment	
+                            data.setGrossPrivDomInv(val);
+                            break;
+                        case "B021RC": //Imports	
+                            data.setImports(val);
+                            break;
+                        case "Y001RC": //Intellectual property products	
+                            data.setIntPropProducts(val);
+                            break;
+                        case "A824RC": //National defense	
+                            data.setNatDefense(val);
+                            break;
+                        case "A019RC": //Net exports of goods and services
+                            data.setNetExportsGoodsAndSvc(val);
+                            break;
+                        case "A825RC": //Nondefense
+                            data.setNonDefense(val);
+                            break;
+                        case "DNDGRC": //Nondurable goods	
+                            data.setNonDurGoods(val);
+                            break;
+                        case "A008RC": //Nonresidential	
+                            data.setNonResidential(val);
+                            break;
+                        case "DPCERC": //Personal consumption expenditures	
+                            data.setPersConsExp(val);
+                            break;
+                        case "A011RC": //Residential	
+                            data.setResidential(val);
+                            break;
+                        case "A646RC": //Services1
+                            data.setServices1(val);
+                            break;
+                        case "B656RC": //Services2	
+                            data.setServices2(val);
+                            break;
+                        case "DSERRC": //Services3	
+                            data.setServices3(val);
+                            break;
+                        case "A829RC": //State and local	
+                            data.setStateAndLocal(val);
+                            break;
+                        case "B009RC": //Structures	
+                            data.setStructures(val);
+                            break;
+                    } //End case
+                } //End If
+            } //End parsing loop
+            
+            //Now extract out a list
+            Set<Entry<String, BEA_Data>> set = map.entrySet();
+            for (Entry<String, BEA_Data> entry : set) {
+                list.add(entry.getValue());
+            }
+
         } catch(Exception exc) {
             System.out.println(exc);
         }
-
-        return sb.toString();
+        
+        return list;
     }
     
     public void setModelValues(String ticker, String modelType, int daysForecast, double[] weights, double[] valAvg, double[] valRange, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
-        BigDecimal theta;
-        BigDecimal valAvgBD;
-        BigDecimal valRangeBD;
-        BigDecimal lambdaBD;
+        double thetaVal;
+        double valAvgVal;
+        double valRangeVal;
         BigDecimal trainingCostBD;
         BigDecimal crossValCostBD;
         BigDecimal testCostBD;
@@ -2194,9 +2329,9 @@ public class StockDataHandler {
 
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
-                theta = new BigDecimal(weights[i]);
-                valAvgBD = new BigDecimal(valAvg[i]);
-                valRangeBD = new BigDecimal(valRange[i]);
+                thetaVal = weights[i];
+                valAvgVal = valAvg[i];
+                valRangeVal = valRange[i];
                 
                 //Insert theta records into the DB
                 stmtWeights.setString(1, ticker);
@@ -2204,21 +2339,19 @@ public class StockDataHandler {
                 stmtWeights.setString(3, modelType);
                 stmtWeights.setInt(4, daysForecast);
                 stmtWeights.setInt(5, i);
-                stmtWeights.setBigDecimal(6, theta);
-                stmtWeights.setBigDecimal(7, valAvgBD);
-                stmtWeights.setBigDecimal(8, valRangeBD);
+                stmtWeights.setDouble(6, thetaVal);
+                stmtWeights.setDouble(7, valAvgVal);
+                stmtWeights.setDouble(8, valRangeVal);
                 stmtWeights.executeUpdate();
             }
             
             //Now insert lambda
-            lambdaBD = new BigDecimal(lambda);
-            
             stmtWeights.setString(1, ticker);
             stmtWeights.setDate(2, dt);
             stmtWeights.setString(3, modelType);
             stmtWeights.setInt(4, daysForecast);
             stmtWeights.setInt(5, -1);
-            stmtWeights.setBigDecimal(6, lambdaBD);
+            stmtWeights.setDouble(6, lambda);
             stmtWeights.executeUpdate();
             
             //Now insert the model cost

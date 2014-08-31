@@ -10,8 +10,8 @@ package ML_Formulas;
  */
 public class LogisticRegFormulas {
 
-    private static final double ALPHA = 0.006;
-
+    private static final double ALPHA = 0.006; //Use for linear hypothesis
+    
     public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
         double sum = 0.0;
         for (int i = 0; i < inputMatrix.length; i++) {

@@ -51,6 +51,9 @@ public class MatrixValues {
             System.arraycopy(polynomialTerms, 0, newFeatureMatrix[i], 0, newNumFeatures);
         }
 
+        int newNumRows = newFeatureMatrix[0].length;
+        System.out.println("New Features = " + newNumRows);
+        
         features = newFeatureMatrix;
     }
     
@@ -110,7 +113,7 @@ public class MatrixValues {
         }
 
         //Feature Mapping
-        //featureMapping(3);
+        //featureMapping(2);
         
         //Normalize the features
         meanNormalization();
