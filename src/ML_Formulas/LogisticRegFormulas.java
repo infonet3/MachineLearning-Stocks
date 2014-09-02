@@ -12,10 +12,22 @@ public class LogisticRegFormulas {
 
     private static final double ALPHA = 0.006; //Use for linear hypothesis
     
-    public static double costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
+    public static CostResults costFunction(double[][] inputMatrix, double[] theta, double[] result, double lambda) {
+        
+        int numExamples = inputMatrix.length;
+        int numCorrectPredictions = 0;
         double sum = 0.0;
-        for (int i = 0; i < inputMatrix.length; i++) {
-            sum += (result[i] * Math.log(hypothesis(inputMatrix[i], theta))) + ((1 - result[i]) * Math.log(1 - hypothesis(inputMatrix[i], theta)));
+        for (int i = 0; i < numExamples; i++) {
+
+            double curHypothesis = hypothesis(inputMatrix[i], theta);
+
+            //Sum the cost of errors
+            sum += (result[i] * Math.log(curHypothesis)) + ((1 - result[i]) * Math.log(1 - curHypothesis));
+            
+            //Add up the number of correct predictions
+            if ((curHypothesis >= 0.50 && result[i] == 1) || (curHypothesis < 0.50 && result[i] == 0)) {
+                numCorrectPredictions++;
+            }
         }
         
         //Add in regularization if needed, skip x0
@@ -24,7 +36,11 @@ public class LogisticRegFormulas {
             regularization += Math.pow(theta[i], 2);
         }
         
-        return -((1.0 / inputMatrix.length) * sum) + ((lambda / (2 * inputMatrix.length)) * regularization);
+        double cost = -((1.0 / inputMatrix.length) * sum) + ((lambda / (2 * inputMatrix.length)) * regularization);
+        double accuracy = (double)numCorrectPredictions / (double)numExamples;
+        
+        CostResults results = new CostResults(cost, accuracy);
+        return results;
     }
 
     //Sigmoid Function = 1 / (1 + e^-z)

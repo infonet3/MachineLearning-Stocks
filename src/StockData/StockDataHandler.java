@@ -4,6 +4,7 @@
  */
 package StockData;
 
+import ML_Formulas.CostResults;
 import Modeling.ModelTypes;
 import java.io.InputStream;
 import java.net.URL;
@@ -845,8 +846,8 @@ public class StockDataHandler {
                 }
 
                 //Insert values into DB
-                stmt.setShort(1, (short)e.getYear());
-                stmt.setByte(2, (byte)e.getQuarter());
+                stmt.setShort(1, (short)year);
+                stmt.setByte(2, (byte)quarter);
                 stmt.setBigDecimal(3, e.getGrossPrivDomInv());
                 stmt.setBigDecimal(4, e.getFixInvestment());
                 stmt.setBigDecimal(5, e.getNonResidential());
@@ -930,7 +931,7 @@ public class StockDataHandler {
         }
     }
     
-    private void insertInterestRatesIntoDB(String primeRates) throws Exception {
+    private void insertInterestRatesIntoDB(final String RATE_TYPE, String primeRates) throws Exception {
         String[] rows = primeRates.split("\n");
 
         String row;
@@ -941,7 +942,7 @@ public class StockDataHandler {
 
         int i = 0;
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_InterestRates (?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_InterestRates (?, ?, ?)}")) {
             
             conxn.setAutoCommit(false);
             
@@ -961,11 +962,12 @@ public class StockDataHandler {
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
-                    stmt.setBigDecimal(2, rate);
+                    stmt.setString(2, RATE_TYPE);
+                    stmt.setBigDecimal(3, rate);
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    System.out.println("Method: insertInterestRatesIntoDB, Row: " + i);
+                    System.out.println("Method: insertInterestRatesIntoDB, Row: " + i + ", Desc: " + exc);
                 }
             } //End For
             
@@ -1888,10 +1890,12 @@ public class StockDataHandler {
         }
     }
 
-    public Date getInterestRates_UpdateDate() throws Exception {
+    public Date getInterestRates_UpdateDate(final String INT_RATE_TYPE) throws Exception {
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_InterestRates_LastUpdate ()}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_InterestRates_LastUpdate (?)}")) {
 
+            stmt.setString(1, INT_RATE_TYPE);
+            
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next())
@@ -2088,18 +2092,53 @@ public class StockDataHandler {
         insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
 
         //Interest Rates - Prime
-        lastDt = getInterestRates_UpdateDate();
+        final String PRIME = "PRIME";
+        lastDt = getInterestRates_UpdateDate(PRIME);
         String primeRates = downloadData("FRED/DPRIME", lastDt);
-        insertInterestRatesIntoDB(primeRates);
-  
-        //FRED/DFF Eff Fed Funds Rate
-        //FRED/DTB6 6 Month T Bill
-        //FRED/DGS5 5 Year T Rate
-        //FRED/TERMCBCCALLNS Credit Cards
-        //FMAC/ARM5YR 5 Year ARM Mortgage Rates
-        //FRED/USD6MTD156N 6 Month LIBOR
-        //FRED/DSWP5 5 Year Swap Rate
+        insertInterestRatesIntoDB(PRIME, primeRates);
 
+        //Interest Rates - Effective Funds Rate
+        final String EFF_FUNDS_RT = "EF_FNDS_RT";
+        lastDt = getInterestRates_UpdateDate(EFF_FUNDS_RT);
+        String effFundsRate = downloadData("FRED/DFF", lastDt);
+        insertInterestRatesIntoDB(EFF_FUNDS_RT, effFundsRate);
+
+        //Interest Rates - 6 Month T Bill
+        final String SIX_MO_T_BILL = "6_MO_TBILL";
+        lastDt = getInterestRates_UpdateDate(SIX_MO_T_BILL);
+        String sixMoTBillRates = downloadData("FRED/DTB6", lastDt);
+        insertInterestRatesIntoDB(SIX_MO_T_BILL, sixMoTBillRates);
+
+        //Interest Rates - 5 Year T Rates
+        final String FIVE_YR_T_RT = "5_YR_T_RT";
+        lastDt = getInterestRates_UpdateDate(FIVE_YR_T_RT);
+        String fiveYrTRates = downloadData("FRED/DGS5", lastDt);
+        insertInterestRatesIntoDB(FIVE_YR_T_RT, fiveYrTRates);
+
+        //Interest Rates - Credit Card Rates
+        final String CREDIT_CARD_RT = "CREDIT_CRD";
+        lastDt = getInterestRates_UpdateDate(CREDIT_CARD_RT);
+        String cardRates = downloadData("FRED/TERMCBCCALLNS", lastDt);
+        insertInterestRatesIntoDB(CREDIT_CARD_RT, cardRates);
+        
+        //Interest Rates - 5 Year ARM Rates
+        final String FIVE_YR_ARM_RT = "5_YR_ARM";
+        lastDt = getInterestRates_UpdateDate(FIVE_YR_ARM_RT);
+        String fiveYrARM = downloadData("FMAC/ARM5YR", lastDt);
+        insertInterestRatesIntoDB(FIVE_YR_ARM_RT, fiveYrARM);
+
+        //Interest Rates - 6 Months LIBOR
+        final String SIX_MO_LIBOR = "6_MO_LIBOR";
+        lastDt = getInterestRates_UpdateDate(SIX_MO_LIBOR);
+        String sixMoLIBOR = downloadData("FRED/USD6MTD156N", lastDt);
+        insertInterestRatesIntoDB(SIX_MO_LIBOR, sixMoLIBOR);
+        
+        //Interest Rates - 5 Year Swaps
+        final String FIVE_YR_SWAP = "5_YR_SWAP";
+        lastDt = getInterestRates_UpdateDate(FIVE_YR_SWAP);
+        String fiveYrSwaps = downloadData("FRED/DSWP5", lastDt);
+        insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
+        
         //GDP
         List<BEA_Data> listBEAData = downloadBEAData();
         insertGDPDataIntoDB(listBEAData);
@@ -2314,7 +2353,8 @@ public class StockDataHandler {
         return list;
     }
     
-    public void setModelValues(String ticker, String modelType, int daysForecast, double[] weights, double[] valAvg, double[] valRange, double lambda, double trainingCost, double crossValCost, double testCost) throws Exception {
+    public void setModelValues(String ticker, String modelType, int daysForecast, double[] weights, double[] valAvg, double[] valRange, double lambda, 
+            CostResults trainingCost, CostResults crossValCost, CostResults testCost) throws Exception {
         double thetaVal;
         double valAvgVal;
         double valRangeVal;
@@ -2325,7 +2365,7 @@ public class StockDataHandler {
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?, ?)}");
-             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?, ?)}")) {
+             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
@@ -2355,9 +2395,9 @@ public class StockDataHandler {
             stmtWeights.executeUpdate();
             
             //Now insert the model cost
-            trainingCostBD = new BigDecimal(trainingCost);
-            crossValCostBD = new BigDecimal(crossValCost);
-            testCostBD = new BigDecimal(testCost);
+            trainingCostBD = new BigDecimal(trainingCost.getCost());
+            crossValCostBD = new BigDecimal(crossValCost.getCost());
+            testCostBD = new BigDecimal(testCost.getCost());
 
             stmtModel.setString(1, ticker);
             stmtModel.setDate(2, dt);
@@ -2366,6 +2406,9 @@ public class StockDataHandler {
             stmtModel.setBigDecimal(5, trainingCostBD);
             stmtModel.setBigDecimal(6, crossValCostBD);
             stmtModel.setBigDecimal(7, testCostBD);
+            stmtModel.setDouble(8, trainingCost.getAccuracy());
+            stmtModel.setDouble(9, crossValCost.getAccuracy());
+            stmtModel.setDouble(10, testCost.getAccuracy());
             stmtModel.executeUpdate();
 
         } catch(Exception exc) {

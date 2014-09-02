@@ -196,7 +196,10 @@ public class Predictor {
                         sharesOwned = 0;
                         numTrades++;
                     }
-
+                    //Hold for another week
+                    else if (buyFlag && sharesOwned > 0 && pred.getDate().getTime() >= projectedDate.getTime()) {
+                        projectedDate = pred.getProjectedDate(); //Must hold the stock until the projected date
+                    }
                     
                     //Evaluate Models for Buy and Sell decisions
                     switch (MODEL_TYPE) {

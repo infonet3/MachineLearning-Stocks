@@ -4,6 +4,7 @@
  */
 package Modeling;
 
+import ML_Formulas.CostResults;
 import ML_Formulas.LinearRegFormulas;
 import ML_Formulas.LogisticRegFormulas;
 import ML_Formulas.SVM;
@@ -68,9 +69,9 @@ public class RunModels implements Runnable {
                 matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
 
                 //Calculate costs for different sizes of lambda
-                double trainingCost = 0.0;
-                double crossValCost = 0.0;
-                double testCost = 0.0;
+                CostResults trainingCost = null;
+                CostResults crossValCost = null;
+                CostResults testCost = null;
                 double finalLambda = 0.0;
                 double[] thetaValues = null;
 
@@ -83,9 +84,9 @@ public class RunModels implements Runnable {
                         //Save cost values for all 3 datasets (Training, Cross Val, Test)
                         thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
 
-                        trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
-                        crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
-                        testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
+                        //trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
+                        //crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
+                        //testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
 
                         break;
                     case LOGIST_REG:
@@ -165,15 +166,17 @@ public class RunModels implements Runnable {
 
         int i;
         final int MAX_ITERATIONS = 12000;
+        CostResults costResults = null;
         for (i = 0; ; i++) {
             switch(approach) {
                 case LINEAR_REG:
-                    LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
-                    costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
+                    //LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
+                    //costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
                     break;
                 case LOGIST_REG:
                     LogisticRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
-                    costFunction = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
+                    costResults = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
+                    costFunction = costResults.getCost();
                     break;
             } //End switch
             

@@ -93,25 +93,32 @@ public class MatrixValues {
 
         //Split up the training, cross validation, and test data sets
         double rand;
+        int trainingExamples = 0;
+        int cvExamples = 0;
+        int testExamples = 0;
         for (int i = 0; i < recordTypes.length; i++) {
             rand = Math.random();
 
             //Andrew's recommendation is 60% training, 20% CV, and 20% Test
             
-            //70% Training
-            if (rand <= 0.70) {
+            //80% Training
+            if (rand <= 0.80) {
                 recordTypes[i] = RecordType.TRAINING;
+                trainingExamples++;
             }
-            //15% Cross Validation
-            else if (rand > 0.70 && rand <= 0.85) {
+            //10% Cross Validation
+            else if (rand > 0.80 && rand <= 0.90) {
                 recordTypes[i] = RecordType.CROSS_VALIDATION;
+                cvExamples++;
             }
-            //15% Test Data
+            //10% Test Data
             else {
                 recordTypes[i] = RecordType.TEST;
+                testExamples++;
             }
         }
-
+        System.out.printf("Training Examples = %d, CV Examples = %d, Test Examples = %d %n", trainingExamples, cvExamples, testExamples);
+        
         //Feature Mapping
         //featureMapping(2);
         
