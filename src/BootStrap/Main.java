@@ -7,6 +7,7 @@ package BootStrap;
 import Modeling.ModelTypes;
 import Modeling.Predictor;
 import Modeling.RunModels;
+import StockData.BEA_Data;
 import StockData.PredictionValues;
 import StockData.StockDataHandler;
 import java.util.Calendar;
@@ -20,17 +21,21 @@ import java.util.List;
 public class Main {
     public static void main(String... args) throws Exception {
 
-        final int DAYS_IN_FUTURE = 1;
+        final int DAYS_IN_FUTURE = 5;
         final ModelTypes LIN_REG = ModelTypes.LINEAR_REG;
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
         final ModelTypes SVM = ModelTypes.SVM;
 
         StockDataHandler sdh = new StockDataHandler();
-        sdh.downloadAllStockData();
+        //sdh.downloadAllStockData();
+
+        //COMPLETE THIS
+        String output = sdh.downloadCensusData();
+        
 
         final int DAYS_BACK = 0;
-        sdh.computeMovingAverages(DAYS_BACK);
-        sdh.computeStockQuoteSlopes(DAYS_BACK);
+        //sdh.computeMovingAverages(DAYS_BACK);
+        //sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         //Run Linear Regression
         RunModels models = new RunModels();

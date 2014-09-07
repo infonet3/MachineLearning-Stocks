@@ -25,10 +25,6 @@ import java.util.List;
 public class Predictor {
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate) throws Exception {
-
-        if (!(DAYS_IN_FUTURE == 1 || (DAYS_IN_FUTURE % 7) == 0)) {
-            throw new Exception("Method: predictAllStocks, Desc: Can only predict 1 day out or a multiple of 7!" );
-        }
  
         //Loop through all stocks for the given day
         StockDataHandler sdh = new StockDataHandler();

@@ -18,8 +18,6 @@ public class BEA_Data {
     private BigDecimal fixInvestment;
     private BigDecimal nonResidential;
     private BigDecimal residential;
-    private BigDecimal chgPrivInventories;
-    private BigDecimal netExportsGoodsAndSvc;
     private BigDecimal GDP;
     private BigDecimal goods1;
     private BigDecimal goods2;
@@ -93,22 +91,6 @@ public class BEA_Data {
 
     public void setResidential(BigDecimal residential) {
         this.residential = residential;
-    }
-
-    public BigDecimal getChgPrivInventories() {
-        return chgPrivInventories;
-    }
-
-    public void setChgPrivInventories(BigDecimal chgPrivInventories) {
-        this.chgPrivInventories = chgPrivInventories;
-    }
-
-    public BigDecimal getNetExportsGoodsAndSvc() {
-        return netExportsGoodsAndSvc;
-    }
-
-    public void setNetExportsGoodsAndSvc(BigDecimal netExportsGoodsAndSvc) {
-        this.netExportsGoodsAndSvc = netExportsGoodsAndSvc;
     }
 
     public BigDecimal getGDP() {

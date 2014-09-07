@@ -827,7 +827,7 @@ public class StockDataHandler {
     private void insertGDPDataIntoDB(List<BEA_Data> listData) throws Exception {
 
         try (Connection conxn = getDBConnection();
-            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
             conxn.setAutoCommit(false);
 
@@ -836,6 +836,10 @@ public class StockDataHandler {
                 int year = e.getYear();
                 int quarter = e.getQuarter();
 
+                //Minimal Date
+                if (year < 1990)
+                    continue;
+                
                 //Move one quarter forward
                 if (quarter >= 1 && quarter <= 3) {
                     quarter++;
@@ -852,28 +856,26 @@ public class StockDataHandler {
                 stmt.setBigDecimal(4, e.getFixInvestment());
                 stmt.setBigDecimal(5, e.getNonResidential());
                 stmt.setBigDecimal(6, e.getResidential());
-                stmt.setBigDecimal(7, e.getChgPrivInventories());
-                stmt.setBigDecimal(8, e.getNetExportsGoodsAndSvc());
-                stmt.setBigDecimal(9, e.getGDP());
-                stmt.setBigDecimal(10, e.getGoods1());
-                stmt.setBigDecimal(11, e.getGoods2());
-                stmt.setBigDecimal(12, e.getGoods3());
-                stmt.setBigDecimal(13, e.getServices1());
-                stmt.setBigDecimal(14, e.getServices2());
-                stmt.setBigDecimal(15, e.getServices3());
-                stmt.setBigDecimal(16, e.getGovConsExpAndGrossInv());
-                stmt.setBigDecimal(17, e.getFederal());
-                stmt.setBigDecimal(18, e.getNatDefense());
-                stmt.setBigDecimal(19, e.getNonDefense());
-                stmt.setBigDecimal(20, e.getStateAndLocal());
-                stmt.setBigDecimal(21, e.getStructures());
-                stmt.setBigDecimal(22, e.getExports());
-                stmt.setBigDecimal(23, e.getImports());
-                stmt.setBigDecimal(24, e.getDurableGoods());
-                stmt.setBigDecimal(25, e.getNonDurGoods());
-                stmt.setBigDecimal(26, e.getPersConsExp());
-                stmt.setBigDecimal(27, e.getIntPropProducts());
-                stmt.setBigDecimal(28, e.getEquipment());
+                stmt.setBigDecimal(7, e.getGDP());
+                stmt.setBigDecimal(8, e.getGoods1());
+                stmt.setBigDecimal(9, e.getGoods2());
+                stmt.setBigDecimal(10, e.getGoods3());
+                stmt.setBigDecimal(11, e.getServices1());
+                stmt.setBigDecimal(12, e.getServices2());
+                stmt.setBigDecimal(13, e.getServices3());
+                stmt.setBigDecimal(14, e.getGovConsExpAndGrossInv());
+                stmt.setBigDecimal(15, e.getFederal());
+                stmt.setBigDecimal(16, e.getNatDefense());
+                stmt.setBigDecimal(17, e.getNonDefense());
+                stmt.setBigDecimal(18, e.getStateAndLocal());
+                stmt.setBigDecimal(19, e.getStructures());
+                stmt.setBigDecimal(20, e.getExports());
+                stmt.setBigDecimal(21, e.getImports());
+                stmt.setBigDecimal(22, e.getDurableGoods());
+                stmt.setBigDecimal(23, e.getNonDurGoods());
+                stmt.setBigDecimal(24, e.getPersConsExp());
+                stmt.setBigDecimal(25, e.getIntPropProducts());
+                stmt.setBigDecimal(26, e.getEquipment());
 
                 stmt.addBatch();
             }
@@ -1975,7 +1977,6 @@ public class StockDataHandler {
         }
     }
 
-    
     public void setStockFundamentals_Quarter_ValidDates() throws Exception {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_Stock_Fundamentals_Quarter_ValidDates ()}")) {
@@ -1984,6 +1985,30 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             System.out.println("Exception in setStockFundamentals_Quarter_ValidDates");
+            throw exc;
+        }
+    }
+
+    public void setStockFundamentals_Annual_PctChg() throws Exception {
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_AnnualFundamentals_PctChg ()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            System.out.println("Exception in setStockFundamentals_Annual_PctChg");
+            throw exc;
+        }
+    }
+    
+    public void setStockFundamentals_Quarter_PctChg() throws Exception {
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_QuarterlyFundamentals_PctChg ()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            System.out.println("Exception in setStockFundamentals_Quarter_PctChg");
             throw exc;
         }
     }
@@ -2160,6 +2185,7 @@ public class StockDataHandler {
                 listStockFundAnnual.add(fundamentals);
         }
         insertStockFundamentals_Annual_IntoDB(listStockFundAnnual);
+        setStockFundamentals_Annual_PctChg();
 
         //Fundamentals - Quarterly
         List<StockFundamentals_Quarter> listStockFundQtr = new ArrayList<>();
@@ -2170,7 +2196,8 @@ public class StockDataHandler {
         }
         insertStockFundamentals_Quarter_IntoDB(listStockFundQtr);
         setStockFundamentals_Quarter_ValidDates();
-        
+        setStockFundamentals_Quarter_PctChg();
+
         //Remove bad data
         removeAllBadData();
     }
@@ -2191,7 +2218,7 @@ public class StockDataHandler {
         List<BEA_Data> list = new ArrayList<>();
 
         try {
-            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=5&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
+            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
             System.out.println(url);
@@ -2219,7 +2246,8 @@ public class StockDataHandler {
             while(parser.hasNext()) {
                 JsonParser.Event event = parser.next();
                 if (event == JsonParser.Event.KEY_NAME) {
-                    switch(parser.getString()) {
+                    String tokenStr = parser.getString();
+                    switch(tokenStr) {
                         case "SeriesCode":
                             parser.next();
                             seriesCode = parser.getString();
@@ -2258,85 +2286,83 @@ public class StockDataHandler {
                     //Now save the data to the correct field
                     BigDecimal val = new BigDecimal(dataValue);
                     switch (seriesCode) {
-                        case "A014RC": //Change in private inventories	
-                            data.setChgPrivInventories(val);
-                            break;
-                        case "DDURRC": //Durable goods
+                        case "DDURRL": //Durable goods
                             data.setDurableGoods(val);
                             break;
-                        case "Y033RC": //Equipment
+                        case "Y033RL": //Equipment
                             data.setEquipment(val);
                             break;
-                        case "B020RC": //Exports
+                        case "A020RL": //Exports
                             data.setExports(val);
                             break;
-                        case "A823RC": //Federal
+                        case "A823RL": //Federal
                             data.setFederal(val);
                             break;
-                        case "A007RC": //Fixed investment
+                        case "A007RL": //Fixed investment
                             data.setFixInvestment(val);
                             break;
-                        case "A253RC": //Goods1
+                        case "DGDSRL": //Goods1
                             data.setGoods1(val);
                             break;
-                        case "A255RC": //Goods2
+                        case "A255RL": //Goods2
                             data.setGoods2(val);
                             break;
-                        case "DGDSRC": //Goods3
+                        case "A253RL": //Goods3
                             data.setGoods3(val);
                             break;
-                        case "A822RC": //Government consumption expenditures and gross investment	
+                        case "A822RL": //Government consumption expenditures and gross investment	
                             data.setGovConsExpAndGrossInv(val);
                             break;
-                        case "A191RC": //Gross domestic product	
+                        case "A191RL": //Gross domestic product	
                             data.setGDP(val);
                             break;
-                        case "A006RC": //Gross private domestic investment	
+                        case "A006RL": //Gross private domestic investment	
                             data.setGrossPrivDomInv(val);
                             break;
-                        case "B021RC": //Imports	
+                        case "A021RL": //Imports	
                             data.setImports(val);
                             break;
-                        case "Y001RC": //Intellectual property products	
+                        case "Y001RL": //Intellectual property products	
                             data.setIntPropProducts(val);
                             break;
-                        case "A824RC": //National defense	
+                        case "A824RL": //National defense	
                             data.setNatDefense(val);
                             break;
-                        case "A019RC": //Net exports of goods and services
-                            data.setNetExportsGoodsAndSvc(val);
-                            break;
-                        case "A825RC": //Nondefense
+                        case "A825RL": //Nondefense
                             data.setNonDefense(val);
                             break;
-                        case "DNDGRC": //Nondurable goods	
+                        case "DNDGRL": //Nondurable goods	
                             data.setNonDurGoods(val);
                             break;
-                        case "A008RC": //Nonresidential	
+                        case "A008RL": //Nonresidential	
                             data.setNonResidential(val);
                             break;
-                        case "DPCERC": //Personal consumption expenditures	
+                        case "DPCERL": //Personal consumption expenditures	
                             data.setPersConsExp(val);
                             break;
-                        case "A011RC": //Residential	
+                        case "A011RL": //Residential	
                             data.setResidential(val);
                             break;
-                        case "A646RC": //Services1
+                        case "DSERRL": //Services1
                             data.setServices1(val);
                             break;
-                        case "B656RC": //Services2	
+                        case "A646RL": //Services2	
                             data.setServices2(val);
                             break;
-                        case "DSERRC": //Services3	
+                        case "A656RL": //Services3	
                             data.setServices3(val);
                             break;
-                        case "A829RC": //State and local	
+                        case "A829RL": //State and local	
                             data.setStateAndLocal(val);
                             break;
-                        case "B009RC": //Structures	
+                        case "A009RL": //Structures	
                             data.setStructures(val);
                             break;
                     } //End case
+                
+                    //Reset Values
+                    seriesCode = lineDesc = timePeriod = dataValue = null;
+
                 } //End If
             } //End parsing loop
             
@@ -2417,6 +2443,40 @@ public class StockDataHandler {
         }
     }
     
+    public String downloadCensusData() {
+
+        String key = "aff69a193c409c1d534e2e03c908e7a7ce06cb78";
+        String retailTradeAndFoodSvc = "http://api.census.gov/data/eits/mrts?get=cell_value&for=us:*&category_code=44X72&data_type_code=SM&time=from+2004-08&key=" + key;
+        String housingStarts = "http://api.census.gov/data/eits/resconst?get=cell_value&for=us:*&category_code=STARTS&data_type_code=TOTAL&time=from+2004-08&key=" + key;
+        String manuTradeInvAndSales = "http://api.census.gov/data/eits/mtis?get=cell_value&for=us:*&category_code=TOTBUS&data_type_code=IM&time=from+2004-08&key=" + key;
+        
+        StringBuilder responseStr = new StringBuilder();
+
+        try {
+            URL url = new URL(manuTradeInvAndSales);
+            URLConnection conxn = url.openConnection();
+
+            System.out.println("Downloading: " + manuTradeInvAndSales);
+            
+            //Pull back the data as CSV
+            try (InputStream is = conxn.getInputStream()) {
+                
+                int b;
+                for(;;) {
+                    b = is.read();
+                    if (b == -1)
+                        break;
+                    
+                    responseStr.append((char) b);
+                }
+            }
+            
+        } catch(Exception exc) {
+            System.out.println(exc);
+        }
+
+        return responseStr.toString();
+    }
     
     private String downloadData(final String QUANDL_CODE, final Date fromDt) {
 
