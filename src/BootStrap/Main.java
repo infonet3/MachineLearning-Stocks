@@ -27,15 +27,15 @@ public class Main {
         final ModelTypes SVM = ModelTypes.SVM;
 
         StockDataHandler sdh = new StockDataHandler();
-        //sdh.downloadAllStockData();
+        sdh.downloadAllStockData();
 
         //COMPLETE THIS
         String output = sdh.downloadCensusData();
         
 
         final int DAYS_BACK = 0;
-        //sdh.computeMovingAverages(DAYS_BACK);
-        //sdh.computeStockQuoteSlopes(DAYS_BACK);
+        sdh.computeMovingAverages(DAYS_BACK);
+        sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         //Run Linear Regression
         RunModels models = new RunModels();

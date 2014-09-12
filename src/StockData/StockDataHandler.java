@@ -1420,15 +1420,15 @@ public class StockDataHandler {
         }
     }
     
-    public List<StockTicker> getAllStockTickers(boolean isJustDow) throws Exception {
+    public List<StockTicker> getAllStockTickers(boolean isJustSP100) throws Exception {
 
-        isJustDow = false;
+        isJustSP100 = true;
         
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers(?)}")) {
 
-            stmt.setBoolean(1, isJustDow);
+            stmt.setBoolean(1, isJustSP100);
             
             ResultSet rs = stmt.executeQuery();
             
@@ -2163,7 +2163,7 @@ public class StockDataHandler {
         lastDt = getInterestRates_UpdateDate(FIVE_YR_SWAP);
         String fiveYrSwaps = downloadData("FRED/DSWP5", lastDt);
         insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
-        
+      
         //GDP
         List<BEA_Data> listBEAData = downloadBEAData();
         insertGDPDataIntoDB(listBEAData);
