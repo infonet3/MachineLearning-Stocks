@@ -25,22 +25,26 @@ public class Main {
         final ModelTypes LIN_REG = ModelTypes.LINEAR_REG;
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
         final ModelTypes SVM = ModelTypes.SVM;
+        final ModelTypes RND_FOR = ModelTypes.RANDOM_FORREST;
 
         StockDataHandler sdh = new StockDataHandler();
-        sdh.downloadAllStockData();
+        //sdh.downloadAllStockData();
 
         //COMPLETE THIS
-        String output = sdh.downloadCensusData();
+        //String output = sdh.downloadCensusData();
         
 
         final int DAYS_BACK = 0;
-        sdh.computeMovingAverages(DAYS_BACK);
-        sdh.computeStockQuoteSlopes(DAYS_BACK);
+        //sdh.computeMovingAverages(DAYS_BACK);
+        //sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         //Run Linear Regression
         RunModels models = new RunModels();
         //models.runModels(LIN_REG, DAYS_IN_FUTURE);
 
+        //Run Random Forrest
+        models.runModels(RND_FOR, DAYS_IN_FUTURE);
+        
         //Run Logistic Regression
         models.runModels(LOG_REG, DAYS_IN_FUTURE);
         //models.runModels(SVM, DAYS_IN_FUTURE);

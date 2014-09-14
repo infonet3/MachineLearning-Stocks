@@ -435,6 +435,7 @@ public class StockDataHandler {
                     break;
                 case LOGIST_REG:
                 case SVM:
+                case RANDOM_FORREST:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?, ?, ?)}");
                     break;
             }

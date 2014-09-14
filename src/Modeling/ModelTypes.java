@@ -9,5 +9,5 @@ package Modeling;
  * @author Matt Jones
  */
 public enum ModelTypes {
-    LINEAR_REG, LOGIST_REG, NEURAL_NET, SVM;
+    LINEAR_REG, LOGIST_REG, NEURAL_NET, SVM, RANDOM_FORREST;
 }

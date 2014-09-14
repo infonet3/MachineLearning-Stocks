@@ -5,8 +5,8 @@
 package Modeling;
 
 import ML_Formulas.CostResults;
-import ML_Formulas.LinearRegFormulas;
 import ML_Formulas.LogisticRegFormulas;
+import ML_Formulas.RandomForrest;
 import ML_Formulas.SVM;
 import MatrixOps.Matrix;
 import MatrixOps.MatrixValues;
@@ -17,20 +17,22 @@ import StockData.StockDataHandler;
 import StockData.StockTicker;
 import java.util.List;
 import libsvm.svm_model;
+import org.apache.mahout.classifier.df.DecisionForest;
+import org.apache.mahout.classifier.df.builder.DefaultTreeBuilder;
+import org.apache.mahout.classifier.df.data.*;
+import org.apache.mahout.classifier.df.ref.SequentialBuilder;
+import org.apache.mahout.common.RandomUtils;
 
 /**
  *
  * @author Matt Jones
  */
-public class RunModels implements Runnable {
+public class RunModels {
 
     //Methods
     public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
 
         testAllStocks(MODEL, DAYS_IN_FUTURE);
-    }
-
-    private void getModelError(RecordType type) {
     }
     
     private double[] initializeTheta(int size) {
@@ -41,10 +43,6 @@ public class RunModels implements Runnable {
         }
 
         return theta;
-    }
-    
-    public void run() {
-        
     }
     
     //Run through all stock and determine optimal values of theta for prediction
@@ -76,6 +74,11 @@ public class RunModels implements Runnable {
                 double[] thetaValues = null;
 
                 switch (MODEL) {
+                    case RANDOM_FORREST:
+                        RandomForrest rf = new RandomForrest();
+                        rf.createRandomForrest(matrixValues, ticker.getTicker());
+                        break;
+                    
                     case SVM:
                         svm_model model = SVM.createModel(matrixValues);
                         break;
