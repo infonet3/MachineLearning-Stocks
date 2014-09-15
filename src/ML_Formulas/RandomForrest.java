@@ -34,51 +34,48 @@ public class RandomForrest {
         String[] strArray = new String[rows];
         for (int i = 0; i < rows; i++) {
             
-            String newRow = String.valueOf(results[i]); //Set first item to the result
+            StringBuilder newRow = new StringBuilder();
+            newRow.append(results[i]); //Set first item to the result
             
             for (int j = 0; j < cols; j++) {
-                newRow += "," + String.valueOf(inputMatrix[i][j]);
+                newRow.append(",");
+                newRow.append(String.valueOf(inputMatrix[i][j]));
             }
 
-            strArray[i] = newRow;
+            strArray[i] = newRow.toString();
         }
         
         return strArray;
     }
     
     private String buildDescriptor(int numCols) {
-        String descriptor = "";
+        StringBuilder descriptor = new StringBuilder();
         for (int i = 0; i < numCols; i++) {
             if (i == 0)
-                descriptor = "L";
+                descriptor.append("L");
             else
-                descriptor += " N";
+                descriptor.append(" N");
         }
 
-        return descriptor;
+        return descriptor.toString();
     }
     
-    public void createRandomForrest(final MatrixValues MATRIX_VALUES, final String TICKER) throws Exception {
+    public DecisionForest createRandomForrest(final MatrixValues MATRIX_VALUES, int numTrees) throws Exception {
 
+        //Create the String values
         double[][] trainValues = MATRIX_VALUES.getFeatures(RecordType.TRAINING);
         double[] trainResults = MATRIX_VALUES.getOutputValues(RecordType.TRAINING);
-
-        double[][] testValues = MATRIX_VALUES.getFeatures(RecordType.TEST);
-        double[] testResults = MATRIX_VALUES.getOutputValues(RecordType.TEST);
-
-        //Convert to Strings
         String[] trainStrValues = convertToStringArray(trainValues, trainResults);
-        String[] testStrValues = convertToStringArray(testValues, testResults);
         
         //Create the descriptor - Put the target label at the end
-        String descriptor = buildDescriptor(trainStrValues[0].split(",").length);
+        int cols = trainStrValues[0].split(",").length;
+        String descriptor = buildDescriptor(cols);
 
         //Now create the random forrest
-        int numberOfTrees = 100;
-        buildTree(numberOfTrees, trainStrValues, testStrValues, descriptor, TICKER, trainStrValues[0].split(",").length);
+        return buildTree(numTrees, trainStrValues, descriptor, cols);
     }
 
-    private void buildTree(int numberOfTrees, String[] trainDataValues, String[] testDataValues, String descriptor, String ticker, int cols) throws Exception {
+    private DecisionForest buildTree(int numberOfTrees, String[] trainDataValues, String descriptor, int cols) throws Exception {
         
         //Load the training data
         Dataset dataset = DataLoader.generateDataset(descriptor, false, trainDataValues); //2nd parameter is for regression
@@ -96,43 +93,154 @@ public class RandomForrest {
         treeBuilder.setM(m);  //number of random variables to select at each tree-node
         DecisionForest forest = forestBuilder.build(numberOfTrees);
 
-        //Save the model to the file system
+        return forest;
+    }
+    
+    public void saveForestToFile(DecisionForest forest, String ticker) throws Exception {
+
         String fileName = "C:\\Java\\RandomForrestModels\\" + ticker + ".txt";
         DataOutputStream dos = new DataOutputStream(new FileOutputStream(fileName));
         forest.write(dos);
-        
-        //Load the model back from the file system
+    }
+    
+    public DecisionForest loadForestFromFile(String ticker) throws Exception {
+
         Configuration config = new Configuration();
+
+        String fileName = "C:\\Java\\RandomForrestModels\\" + ticker + ".txt";
         Path path = new Path(fileName);
-        DecisionForest f2 = DecisionForest.load(null, path);
         
-        //Data test = DataLoader.loadData(data.getDataset(), testDataValues);
-        Data test = DataLoader.loadData(data.getDataset(), testDataValues);
-        int numberCorrect = 0;
-        int numberOfValues = 0;
+        DecisionForest df = DecisionForest.load(config, path);
+        return df;
+    }
+    
+    public double hypothesis(DecisionForest df, double[] row) throws Exception {
 
-        for (int i = 0; i < test.size(); i++) {
-            Instance oneSample = test.get(i);
+        //Create the String values
+        double[][] inputMatrix = new double[1][];
+        inputMatrix[0] = row;
+        
+        double[] result = new double[1];
+        
+        String[] strArray = convertToStringArray(inputMatrix, result);
+        
+        //Create the descriptor
+        int cols = strArray[0].split(",").length;
+        String descriptor = buildDescriptor(cols);
+
+        //Load the dataset
+        Dataset dataset = DataLoader.generateDataset(descriptor, false, strArray); //2nd parameter is for regression
+        Data test = DataLoader.loadData(dataset, strArray);
             
-            //Prediction
-            double classify = forest.classify(test.getDataset(), rng, oneSample);
-            String classifyStr = String.valueOf(classify);
-            int label = data.getDataset().valueOf(0, classifyStr);
-            
-            //Actual
-            double actualIndex = oneSample.get(0); 
-            String actualStr = String.valueOf(actualIndex);
-            int actualLabel = data.getDataset().valueOf(0, actualStr);
+        int numRows = test.size();
+        double[][] preds = new double[numRows][];
+        df.classify(test, preds);
 
-            //System.out.println("label = " + label + " actual = " + actualLabel);
-
-            if (label == actualLabel) {
-                numberCorrect++;
-            }
-            numberOfValues++;
+        //Loop through tree predictions
+        int posCount = 0;
+        int numTrees = preds[0].length;
+        for (int i = 0; i < numTrees; i++) {
+            if (preds[0][i] == 1.0)
+                posCount++;
         }
 
-        double percentageCorrect = numberCorrect * 100.0 / numberOfValues;
-        System.out.println("Number of trees: " + numberOfTrees + " -> Number correct: " + numberCorrect + " of " + numberOfValues + " (" + percentageCorrect + ")");
+        //If half or more trees say positive then vote positive
+        boolean isPositive = false;
+        if (posCount >= (numTrees / 2.0))
+            isPositive = true;
+
+        //Return value
+        if (isPositive)
+            return 1.0;
+        else
+            return 0.0;
+    }
+    
+    public CostResults testRandomForrest(DecisionForest df, double[][] features, double[] outputs, int numTrees) throws Exception {
+
+        double percentageCorrect = 0;
+        try {
+            //Create the String values
+            String[] testDataValues = convertToStringArray(features, outputs);
+
+            //Create the descriptor - Put the target label at the end
+            int cols = testDataValues[0].split(",").length;
+            String descriptor = buildDescriptor(cols);
+
+            //Load the dataset
+            Dataset dataset = DataLoader.generateDataset(descriptor, false, testDataValues); //2nd parameter is for regression
+            Data test = DataLoader.loadData(dataset, testDataValues);
+
+            int numberCorrect = 0;
+            int numberOfValues = test.size();
+            
+            int numRows = test.size();
+            double[][] preds = new double[numRows][];
+            df.classify(test, preds);
+            double[] row;
+
+            //Loop through the rows
+            for (int i = 0; i < numRows; i++) {
+                row = preds[i];
+                int posCount = 0;
+                
+                //Loop through the tree predictions
+                for (int j = 0; j < numTrees; j++) {
+                    if (row[j] == 1.0)
+                        posCount++;
+                }
+                
+                //If half or more trees say positive then vote positive
+                boolean isPositive = false;
+                if (posCount >= (numTrees / 2.0))
+                    isPositive = true;
+
+                //See if the prediction matches the actual values
+                if (isPositive && outputs[i] == 1.0 || !isPositive && outputs[i] == 0.0)
+                    numberCorrect++;
+            }
+            
+            percentageCorrect = numberCorrect * 100.0 / numberOfValues;
+            
+            /*
+            Random rng = RandomUtils.getRandom();
+            for (int i = 0; i < test.size(); i++) {
+                
+                Instance oneSample = test.get(i);
+                
+                //Prediction
+                int label = -1;
+                try {
+                    double classify = df.classify(test.getDataset(), rng, oneSample);
+                    String classifyStr = Double.toString(classify);
+                    label = test.getDataset().valueOf(0, classifyStr);
+                } catch (Exception exc) {
+                    System.out.println("Classify Problem: " + exc);
+                }
+
+                //Actual
+                double actualValue = oneSample.get(0); 
+                String actualStr = String.valueOf(actualValue);
+                int actualLabel = test.getDataset().valueOf(0, actualStr);
+                
+                //System.out.println("label = " + label + " actual = " + actualLabel);
+
+                if (label == actualLabel) {
+                    numberCorrect++;
+                }
+
+                numberOfValues++;
+            }
+
+            percentageCorrect = numberCorrect * 100.0 / numberOfValues;
+          */
+          
+        } catch(Exception exc) {
+            System.out.println("Method: testRandomForest, Desc: " + exc);
+            throw exc;
+        }
+        
+        CostResults results = new CostResults(0, percentageCorrect);
+        return results;
     }
 }

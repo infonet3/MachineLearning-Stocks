@@ -7,6 +7,7 @@ package Modeling;
 import StockData.PredictionValues;
 import ML_Formulas.LinearRegFormulas;
 import ML_Formulas.LogisticRegFormulas;
+import ML_Formulas.RandomForrest;
 import MatrixOps.MatrixValues;
 import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import org.apache.mahout.classifier.df.DecisionForest;
 
 /**
  *
@@ -78,6 +80,12 @@ public class Predictor {
                 featureList.set(i, f);
             }
             
+            //Load the Random Forest Model if needed                        
+            RandomForrest rf = new RandomForrest();
+            DecisionForest df = null;
+            if (MODEL_TYPE == ModelTypes.RAND_FORST)
+                df = rf.loadForestFromFile(ticker.getTicker());            
+            
             //Calculate the Hypothesis
             double[] hypothesisValues = new double[listSize];
             for (int i = 0; i < listSize; i++) {
@@ -88,6 +96,9 @@ public class Predictor {
                         break;
                     case LOGIST_REG:
                         hypothesisValues[i] = LogisticRegFormulas.hypothesis(featureList.get(i).getFeatureValues(), weights);
+                        break;
+                    case RAND_FORST:
+                        hypothesisValues[i] = rf.hypothesis(df, featureList.get(i).getFeatureValues());
                         break;
                 }
             }
@@ -210,6 +221,16 @@ public class Predictor {
                             break;
 
                         case LOGIST_REG:
+                            //Buy
+                            if (pred.getEstimatedValue().doubleValue() > 0.50) 
+                                buyFlag = true;
+                            //Sell
+                            else if (pred.getEstimatedValue().doubleValue() < 0.50) 
+                                sellFlag = true;
+
+                            break;
+                            
+                        case RAND_FORST: //Will only return 1.0 or 0.0
                             //Buy
                             if (pred.getEstimatedValue().doubleValue() > 0.50) 
                                 buyFlag = true;

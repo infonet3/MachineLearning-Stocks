@@ -435,7 +435,7 @@ public class StockDataHandler {
                     break;
                 case LOGIST_REG:
                 case SVM:
-                case RANDOM_FORREST:
+                case RAND_FORST:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?, ?, ?)}");
                     break;
             }
@@ -2394,6 +2394,11 @@ public class StockDataHandler {
              CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?, ?)}");
              CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
+            //Case for if the weights are null, this is used in the case of Random Forrest
+            if (weights == null) {
+                weights = new double[valAvg.length];
+            }
+            
             //First insert theta values
             for (int i = 0; i < weights.length; i++) {
                 thetaVal = weights[i];

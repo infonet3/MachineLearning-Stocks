@@ -74,9 +74,16 @@ public class RunModels {
                 double[] thetaValues = null;
 
                 switch (MODEL) {
-                    case RANDOM_FORREST:
+                    case RAND_FORST:
                         RandomForrest rf = new RandomForrest();
-                        rf.createRandomForrest(matrixValues, ticker.getTicker());
+                        int numTrees = 200;
+                        DecisionForest df = rf.createRandomForrest(matrixValues, numTrees);
+                        rf.saveForestToFile(df, ticker.getTicker());
+
+                        trainingCost = rf.testRandomForrest(df, matrixValues.getFeatures(TRAINING), matrixValues.getOutputValues(TRAINING), numTrees);
+                        crossValCost = rf.testRandomForrest(df, matrixValues.getFeatures(CROSS_VAL), matrixValues.getOutputValues(CROSS_VAL), numTrees);
+                        testCost = rf.testRandomForrest(df, matrixValues.getFeatures(TEST), matrixValues.getOutputValues(TEST), numTrees);
+                        System.gc();
                         break;
                     
                     case SVM:

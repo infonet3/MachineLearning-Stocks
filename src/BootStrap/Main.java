@@ -25,7 +25,7 @@ public class Main {
         final ModelTypes LIN_REG = ModelTypes.LINEAR_REG;
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
         final ModelTypes SVM = ModelTypes.SVM;
-        final ModelTypes RND_FOR = ModelTypes.RANDOM_FORREST;
+        final ModelTypes RND_FOR = ModelTypes.RAND_FORST;
 
         StockDataHandler sdh = new StockDataHandler();
         //sdh.downloadAllStockData();
@@ -43,10 +43,10 @@ public class Main {
         //models.runModels(LIN_REG, DAYS_IN_FUTURE);
 
         //Run Random Forrest
-        models.runModels(RND_FOR, DAYS_IN_FUTURE);
+        //models.runModels(RND_FOR, DAYS_IN_FUTURE);
         
         //Run Logistic Regression
-        models.runModels(LOG_REG, DAYS_IN_FUTURE);
+        //models.runModels(LOG_REG, DAYS_IN_FUTURE);
         //models.runModels(SVM, DAYS_IN_FUTURE);
 
         //Generate Predictions
@@ -56,10 +56,12 @@ public class Main {
 
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(LIN_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
-        pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         
         //Backtesting
         //pred.backtest(LIN_REG, fromDate.getTime(), toDate.getTime());
-        pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());
+        //pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());
+        pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());
     }
 }
