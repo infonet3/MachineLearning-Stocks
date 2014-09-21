@@ -984,6 +984,56 @@ public class StockDataHandler {
         }
     }
     
+    private void insertEconomicDataIntoDB(String indicator, String econData) throws Exception {
+        String[] rows = econData.split("\n");
+
+        String row;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date dt;
+        java.sql.Date sqlDt;
+        BigDecimal value;
+
+        int i = 0;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_EconomicData (?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            
+            for (i = 0; i < rows.length; i++) {
+                if (i == 0) //Skip the header row
+                    continue;
+
+                //Parse the record
+                try {
+                    row = rows[i];
+                    String[] cells = row.split(",");
+
+                    dt = sdf.parse(cells[0]);
+                    sqlDt = new java.sql.Date(dt.getTime());
+                    
+                    value = new BigDecimal(cells[1]);
+
+                    //Insert the record into the DB
+                    stmt.setDate(1, sqlDt);
+                    stmt.setString(2, indicator);
+                    stmt.setBigDecimal(3, value);
+                    stmt.addBatch();
+                    
+                } catch(Exception exc) {
+                    System.out.println("Method: insertEconomicDataIntoDB, Row: " + i);
+                }
+            } //End For
+            
+            //Send Commands to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
+        } catch(Exception exc) {
+            System.out.println("Method: insertEconomicDataIntoDB, Description: " + exc);
+            throw exc;
+        }
+    }
+    
     private void insertMortgageDataIntoDB(String thirtyYrMtgRates) throws Exception {
         String[] rows = thirtyYrMtgRates.split("\n");
 
@@ -1806,7 +1856,28 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
+
+    public Date getEconomicData_UpdateDate(String econInd) throws Exception {
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_EconomicData_LastUpdate (?)}")) {
+            
+            stmt.setString(1, econInd);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next())
+                return rs.getDate(1);
+            else {
+                Calendar c = GregorianCalendar.getInstance();
+                c.set(1990, 1, 1);
+                return c.getTime();
+            }
+            
+        } catch (Exception exc) {
+            System.out.println("Exception in getEconomicData_UpdateDate");
+            throw exc;
+        }
+    }
+
     public Date getCurrencyRatios_UpdateDate(String currencyCode) throws Exception {
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Currency_Ratios_LastUpdate (?)}")) {
@@ -2036,8 +2107,14 @@ public class StockDataHandler {
     
     public void downloadAllStockData() throws Exception {
 
-        //Mortgage Rates
+        //M2 - Money Supply
         Date lastDt;
+        final String M2 = "M2-Vel";
+        lastDt = getEconomicData_UpdateDate(M2);
+        String m2Data = downloadData("FRED/M2V", lastDt);
+        insertEconomicDataIntoDB(M2, m2Data);
+        
+        //Mortgage Rates
         lastDt = get30YrMortgageRates_UpdateDate();
         String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
         insertMortgageDataIntoDB(thirtyYrMtgRates);

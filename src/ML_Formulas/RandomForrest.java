@@ -78,7 +78,7 @@ public class RandomForrest {
     private DecisionForest buildTree(int numberOfTrees, String[] trainDataValues, String descriptor, int cols) throws Exception {
         
         //Load the training data
-        Dataset dataset = DataLoader.generateDataset(descriptor, false, trainDataValues); //2nd parameter is for regression
+        Dataset dataset = DataLoader.generateDataset(descriptor, false, trainDataValues); //Classification
         Data data = DataLoader.loadData(dataset, trainDataValues);
         
         //Make this log base 2

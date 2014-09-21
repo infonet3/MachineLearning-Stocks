@@ -101,17 +101,17 @@ public class MatrixValues {
 
             //Andrew's recommendation is 60% training, 20% CV, and 20% Test
             
-            //80% Training
-            if (rand <= 0.80) {
+            //70% Training
+            if (rand <= 0.70) {
                 recordTypes[i] = RecordType.TRAINING;
                 trainingExamples++;
             }
-            //10% Cross Validation
-            else if (rand > 0.80 && rand <= 0.90) {
+            //15% Cross Validation
+            else if (rand > 0.70 && rand <= 0.85) {
                 recordTypes[i] = RecordType.CROSS_VALIDATION;
                 cvExamples++;
             }
-            //10% Test Data
+            //15% Test Data
             else {
                 recordTypes[i] = RecordType.TEST;
                 testExamples++;

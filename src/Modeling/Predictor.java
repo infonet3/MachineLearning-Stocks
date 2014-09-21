@@ -125,6 +125,8 @@ public class Predictor {
             //Save Predictions to DB - Save all predictions for one stock at a time
             sdh.setStockPredictions(listPredictions);
 
+            System.gc();
+            
         } //End For Loop
         
     }
