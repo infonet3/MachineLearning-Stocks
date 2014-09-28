@@ -10,6 +10,7 @@ import Modeling.RunModels;
 import StockData.BEA_Data;
 import StockData.PredictionValues;
 import StockData.StockDataHandler;
+import Trading.TradeAction;
 import Trading.TradeEngine;
 import java.util.Calendar;
 import java.util.Date;
@@ -22,12 +23,7 @@ import java.util.List;
 public class Main {
     public static void main(String... args) throws Exception {
 
-        TradeEngine trade = new TradeEngine();
-        trade.authenticate();
-        
-        System.exit(0);
-        
-        final int DAYS_IN_FUTURE = 5;
+        final int DAYS_IN_FUTURE = 10; //Business Days
         final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
         final ModelTypes RND_FOR = ModelTypes.RAND_FORST;
 
@@ -50,9 +46,16 @@ public class Main {
         Calendar fromDate = Calendar.getInstance();
         fromDate.set(2004, 7, 1);
 
+        //Historical Prediction
+        final String PRED_TYPE_BACKTEST = "BACKTEST";
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
-        pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
+        pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+
+        //Get Current Prediction for Today
+        final String PRED_TYPE_CURRENT = "CURRENT";
+        Calendar today = Calendar.getInstance();
+        //pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
         
         //Backtesting
         //pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());

@@ -15,6 +15,7 @@ public class PredictionValues {
     private String ticker;
     private Date date;
     private Date projectedDate;
+    private String predType;
     private String modelType;
     private BigDecimal estimatedValue;
     private BigDecimal curCloseValue;
@@ -34,11 +35,12 @@ public class PredictionValues {
     }
 
     //ticker.getTicker(), curDates[i].getTime(), targetDates[i].getTime(), MODEL_TYPE.toString(), bd
-    public PredictionValues(String ticker, Date date, Date projectedDate, String modelType, BigDecimal estimatedValue) {
+    public PredictionValues(String ticker, Date date, Date projectedDate, String modelType, String predType, BigDecimal estimatedValue) {
         this.ticker = ticker;
         this.date = date;
         this.projectedDate = projectedDate;
         this.modelType = modelType;
+        this.predType = predType;
         this.estimatedValue = estimatedValue;
     }
     
@@ -72,6 +74,10 @@ public class PredictionValues {
 
     public BigDecimal getCurOpenValue() {
         return curOpenValue;
+    }
+
+    public String getPredType() {
+        return predType;
     }
     
 }

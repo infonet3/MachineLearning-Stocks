@@ -245,10 +245,10 @@ public class StockDataHandler {
         }
     }
     
-    public void setStockPredictions(List<PredictionValues> predictionList) throws Exception {
+    public void insertStockPredictions(List<PredictionValues> predictionList) throws Exception {
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Set_StockPrediction(?, ?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockPrediction(?, ?, ?, ?, ?, ?)}")) {
 
             conxn.setAutoCommit(false);
             
@@ -272,7 +272,8 @@ public class StockDataHandler {
                 stmt.setDate(2, dt);
                 stmt.setDate(3, projDt);
                 stmt.setString(4, p.getModelType());
-                stmt.setBigDecimal(5, p.getEstimatedValue());
+                stmt.setString(5, p.getPredType());
+                stmt.setBigDecimal(6, p.getEstimatedValue());
 
                 stmt.addBatch();
             }

@@ -26,13 +26,13 @@ import org.apache.mahout.classifier.df.DecisionForest;
  */
 public class Predictor {
     
-    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate) throws Exception {
+    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
  
         //Loop through all stocks for the given day
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
         for (StockTicker ticker : stockList) {
-
+            
             //Get Features for the selected dates
             List<Features> featureList = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, true, MODEL_TYPE, fromDate, toDate);
 
@@ -118,12 +118,12 @@ public class Predictor {
             List<PredictionValues> listPredictions = new ArrayList<>();
             for (int i = 0; i < listSize; i++) {
                 BigDecimal bd = new BigDecimal(hypothesisValues[i]);
-                PredictionValues val = new PredictionValues(ticker.getTicker(), curDates[i].getTime(), targetDates[i].getTime(), MODEL_TYPE.toString(), bd);
+                PredictionValues val = new PredictionValues(ticker.getTicker(), curDates[i].getTime(), targetDates[i].getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
                 listPredictions.add(val);
             }
 
             //Save Predictions to DB - Save all predictions for one stock at a time
-            sdh.setStockPredictions(listPredictions);
+            sdh.insertStockPredictions(listPredictions);
 
             System.gc();
             
