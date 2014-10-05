@@ -18,8 +18,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
-import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
 
@@ -49,30 +49,72 @@ public class Predictor {
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(); 
         for (StockTicker ticker : stockList) {
+
+            System.gc();
             
             //Get Features for the selected dates
             String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, fromDate, toDate);
 
             //Load the model
+            String modelPath;
+            StringReader sr;
+            Instances test;
+            List<PredictionValues> listPredictions;
             switch (MODEL_TYPE) {
                 case LINEAR_REG:
                     break;
                 case LOGIST_REG:
                     break;
-                case RAND_FORST:
-                    System.gc();
+                case M5P:
                     
-                    String modelPath = MODEL_PATH + "\\" + ticker.getTicker() + ".model";
-                    RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
+                    modelPath = MODEL_PATH + "\\" + ticker.getTicker() + "-M5P.model";
+                    M5P mp = (M5P)SerializationHelper.read(modelPath);
 
-                    StringReader sr = new StringReader(dataExamples);
-                    Instances test = new Instances(sr);
+                    sr = new StringReader(dataExamples);
+                    test = new Instances(sr);
                     sr.close();
                     
                     test.setClassIndex(test.numAttributes() - 1);
                     
                     // label instances
-                    List<PredictionValues> listPredictions = new ArrayList<>();
+                    listPredictions = new ArrayList<>();
+                    for (int i = 0; i < test.numInstances(); i++) {
+                        double clsLabel = mp.classifyInstance(test.instance(i));
+
+                        double[] array = test.instance(i).toDoubleArray();
+                        int year = (int)array[0];
+                        int month = (int)array[1];
+                        int date = (int)(int)array[2];
+                        
+                        Calendar curDate = Calendar.getInstance();
+                        curDate.set(year, month - 1, date);
+
+                        //Move the target day N business days out
+                        Calendar targetDate = getTargetDate(year, month, date, DAYS_IN_FUTURE);
+
+                        //Save Prediction
+                        BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
+                        PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
+                        listPredictions.add(val);
+                    }
+                    
+                    //Save Predictions to DB - Save all predictions for one stock at a time
+                    sdh.insertStockPredictions(listPredictions);
+                    break;
+
+                case RAND_FORST:
+                    
+                    modelPath = MODEL_PATH + "\\" + ticker.getTicker() + "-RandomForest.model";
+                    RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
+
+                    sr = new StringReader(dataExamples);
+                    test = new Instances(sr);
+                    sr.close();
+                    
+                    test.setClassIndex(test.numAttributes() - 1);
+                    
+                    // label instances
+                    listPredictions = new ArrayList<>();
                     for (int i = 0; i < test.numInstances(); i++) {
                         double clsLabel = rf.classifyInstance(test.instance(i));
 
@@ -85,23 +127,9 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = Calendar.getInstance();
-                        targetDate.set(year, month - 1, date);
-                        int daysInAdvance = 0;
-                        for (;;) {
-                            //Weekend
-                            if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
-                                targetDate.add(Calendar.DATE, 1);
-                            //Business Days
-                            else {
-                                targetDate.add(Calendar.DATE, 1);
-                                daysInAdvance++;
-                            }
-                            
-                            if (daysInAdvance == DAYS_IN_FUTURE)
-                                break;
-                        }
-                        
+                        Calendar targetDate = getTargetDate(year, month, date, DAYS_IN_FUTURE);
+
+                        //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
                         PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
                         listPredictions.add(val);
@@ -109,13 +137,40 @@ public class Predictor {
                     
                     //Save Predictions to DB - Save all predictions for one stock at a time
                     sdh.insertStockPredictions(listPredictions);
-            
                     break;
              }
 
         }
 
     }
+
+    private Calendar getTargetDate(final int YEAR, final int MONTH, final int DATE, final int DAYS_OUT) {
+
+        Calendar targetDate = Calendar.getInstance();
+        targetDate.set(YEAR, MONTH - 1, DATE);
+        int daysInAdvance = 0;
+
+        for (;;) {
+            //Weekend
+            if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
+                targetDate.add(Calendar.DATE, 1);
+            //Business Days
+            else {
+                targetDate.add(Calendar.DATE, 1);
+                daysInAdvance++;
+            }
+
+            if (daysInAdvance == DAYS_OUT)
+                break;
+        }
+        
+        return targetDate;
+    }
+    
+    public void topFiveBacktest() {
+        
+    }
+    
     
     public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
 
@@ -198,6 +253,7 @@ public class Predictor {
                     
                     //Evaluate Models for Buy and Sell decisions
                     switch (MODEL_TYPE) {
+                        case M5P:
                         case LINEAR_REG:
                             //Buy
                             if (pred.getEstimatedValue().doubleValue() > curOpenPrice.doubleValue()) 

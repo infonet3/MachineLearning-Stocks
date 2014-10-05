@@ -435,6 +435,7 @@ public class StockDataHandler {
             CallableStatement stmt = null;
             switch(approach) {
                 case LINEAR_REG:
+                case M5P:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?, ?, ?)}");
                     break;
                 case LOGIST_REG:
@@ -479,7 +480,7 @@ public class StockDataHandler {
 
                     if (approach == ModelTypes.LOGIST_REG || approach == ModelTypes.RAND_FORST)
                         s = "@ATTRIBUTE upDay {0.0, 1.0} \n";
-                    else if (approach == ModelTypes.LINEAR_REG)
+                    else if (approach == ModelTypes.LINEAR_REG || approach == ModelTypes.M5P)
                         s = "@ATTRIBUTE " + rs.getMetaData().getColumnLabel(i) + " NUMERIC \n";
                 }
 

@@ -25,6 +25,7 @@ public class Main {
 
         final int DAYS_IN_FUTURE = 10; //Business Days
         final ModelTypes RND_FOR = ModelTypes.RAND_FORST;
+        final ModelTypes M5P = ModelTypes.M5P;
 
         StockDataHandler sdh = new StockDataHandler();
         //sdh.downloadAllStockData();
@@ -38,6 +39,7 @@ public class Main {
 
         RunModels models = new RunModels();
         //models.runModels(RND_FOR, DAYS_IN_FUTURE);
+        models.runModels(M5P, DAYS_IN_FUTURE);
 
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();
@@ -47,14 +49,17 @@ public class Main {
         //Historical Prediction
         final String PRED_TYPE_BACKTEST = "BACKTEST";
         Predictor pred = new Predictor();
-        pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+        //pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+        pred.predictAllStocksForDates(M5P, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
 
         //Get Current Prediction for Today
         final String PRED_TYPE_CURRENT = "CURRENT";
         Calendar today = Calendar.getInstance();
-        pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
+        //pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
+        //pred.predictAllStocksForDates(M5P, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
         
         //Backtesting
-        pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());
+        //pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());
+        pred.backtest(M5P, fromDate.getTime(), toDate.getTime());
     }
 }

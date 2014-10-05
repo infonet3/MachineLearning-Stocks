@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import weka.classifiers.Evaluation;
+import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
@@ -55,19 +56,23 @@ public class RunModels {
             StockTicker ticker = stockList.get(i);
             long startTime = System.currentTimeMillis();
             
+            System.gc();
+            
             try {
                 //Pull data for this stock from the DB
                 String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
 
                 //Now Build the Models
                 double accuracy = 0.0;
+                StringReader sr;
+                Instances train;
+                Evaluation eval;
+                String newFileName;
                 switch (MODEL) {
                     case RAND_FORST:
-
-                        System.gc();
                         
-                        StringReader sr = new StringReader(dataExamples);
-                        Instances train = new Instances(sr);
+                        sr = new StringReader(dataExamples);
+                        train = new Instances(sr);
                         sr.close();
 
                         train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
@@ -75,17 +80,39 @@ public class RunModels {
                         RandomForest rf = new RandomForest();
                         rf.buildClassifier(train);
 
-                        Evaluation eval = new Evaluation(train);
+                        eval = new Evaluation(train);
                         eval.crossValidateModel(rf, train, 10, new Random(1));
                         
                         accuracy = eval.correct() / (eval.correct() + eval.incorrect());
                         System.out.println(eval.toSummaryString("\nResults\n========\n", true));
 
-                        String newFileName = MODEL_PATH + "\\" + ticker.getTicker() + ".model";
+                        newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-RandomForest.model";
                         SerializationHelper.write(newFileName, rf);
                         
                         break;
                     
+                    case M5P:
+
+                        sr = new StringReader(dataExamples);
+                        train = new Instances(sr);
+                        sr.close();
+
+                        train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
+        
+                        M5P mp = new M5P();
+                        mp.buildClassifier(train);
+
+                        eval = new Evaluation(train);
+                        eval.crossValidateModel(mp, train, 10, new Random(1));
+                        
+                        accuracy = eval.correlationCoefficient();
+                        System.out.println(eval.toSummaryString("\nResults\n========\n", true));
+
+                        newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-M5P.model";
+                        SerializationHelper.write(newFileName, mp);
+                        
+                        break;
+                        
                     case SVM:
                         break;
 
