@@ -24,7 +24,6 @@ public class Main {
     public static void main(String... args) throws Exception {
 
         final int DAYS_IN_FUTURE = 10; //Business Days
-        final ModelTypes LOG_REG = ModelTypes.LOGIST_REG;
         final ModelTypes RND_FOR = ModelTypes.RAND_FORST;
 
         StockDataHandler sdh = new StockDataHandler();
@@ -38,8 +37,7 @@ public class Main {
         //sdh.computeStockQuoteSlopes(DAYS_BACK);
 
         RunModels models = new RunModels();
-        models.runModels(RND_FOR, DAYS_IN_FUTURE);
-        //models.runModels(LOG_REG, DAYS_IN_FUTURE);
+        //models.runModels(RND_FOR, DAYS_IN_FUTURE);
 
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();
@@ -49,16 +47,14 @@ public class Main {
         //Historical Prediction
         final String PRED_TYPE_BACKTEST = "BACKTEST";
         Predictor pred = new Predictor();
-        //pred.predictAllStocksForDates(LOG_REG, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime());
         pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
 
         //Get Current Prediction for Today
         final String PRED_TYPE_CURRENT = "CURRENT";
         Calendar today = Calendar.getInstance();
-        //pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
+        pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
         
         //Backtesting
-        //pred.backtest(LOG_REG, fromDate.getTime(), toDate.getTime());
         pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());
     }
 }

@@ -4,8 +4,11 @@
  */
 package StockData;
 
-import ML_Formulas.CostResults;
+import Modeling.CostResults;
 import Modeling.ModelTypes;
+import static Modeling.ModelTypes.LOGIST_REG;
+import static Modeling.ModelTypes.RAND_FORST;
+import static Modeling.ModelTypes.SVM;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -88,7 +91,7 @@ public class StockDataHandler {
     }
 
     public void computeMovingAverages(final int DAYS_BACK) throws Exception {
-        List<StockTicker> tickers = getAllStockTickers(true); //FIX THIS LATER!!!
+        List<StockTicker> tickers = getAllStockTickers(); 
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
@@ -161,7 +164,7 @@ public class StockDataHandler {
     }
 
     public void computeStockQuoteSlopes(final int DAYS_BACK) throws Exception {
-        List<StockTicker> tickers = getAllStockTickers(true); //FIX THIS LATER!!!
+        List<StockTicker> tickers = getAllStockTickers(); 
         
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
@@ -423,16 +426,16 @@ public class StockDataHandler {
         return stockPrices;
     }
     
-    public List<Features> getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, boolean truncateOutputColumn, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
+    public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
         
-        List<Features> stockFeatureMatrix = new ArrayList<>();
+        StringBuilder dataExamples = new StringBuilder();
 
         try (Connection conxn = getDBConnection()) {
 
             CallableStatement stmt = null;
             switch(approach) {
                 case LINEAR_REG:
-                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?)}");
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?, ?, ?)}");
                     break;
                 case LOGIST_REG:
                 case SVM:
@@ -459,34 +462,55 @@ public class StockDataHandler {
             }
 
             ResultSet rs = stmt.executeQuery();
+            
             ResultSetMetaData metaData = rs.getMetaData();
             int colCount = metaData.getColumnCount();
-            
             System.out.println("Method - getAllStockFeaturesFromDB: Stock: " + stockTicker + ", Feature Count = " + colCount);
-            
-            double[] featureArray;
-            Date dt;
-            while(rs.next()) {
-                dt = rs.getDate(1);
-                
-                if (truncateOutputColumn) 
-                    featureArray = new double[colCount - 2]; //Account for Date value and output column
-                else 
-                    featureArray = new double[colCount - 1]; //Account for Date value 
 
-                for (int i = 0; i < featureArray.length; i++) {
-                    featureArray[i] = rs.getDouble(i + 2);
+            dataExamples.append("@RELATION stock-data \n");
+            
+            //Output column labels
+            for (int i = 1; i <= colCount; i++) {
+                String s = "";
+                if (i < colCount) {
+                    s = "@ATTRIBUTE " + rs.getMetaData().getColumnLabel(i) + " NUMERIC \n";
+                }
+                else if (i == colCount) { //Target Val
+
+                    if (approach == ModelTypes.LOGIST_REG || approach == ModelTypes.RAND_FORST)
+                        s = "@ATTRIBUTE upDay {0.0, 1.0} \n";
+                    else if (approach == ModelTypes.LINEAR_REG)
+                        s = "@ATTRIBUTE " + rs.getMetaData().getColumnLabel(i) + " NUMERIC \n";
                 }
 
-                Features f = new Features(dt, featureArray);
-                stockFeatureMatrix.add(f);
+                dataExamples.append(s);
             }
+            
+            //Output column values
+            dataExamples.append("@DATA \n");
+            while(rs.next()) {
+
+                String s;
+                for (int i = 1; i <= colCount; i++) {
+                    double d = rs.getDouble(i);
+                    
+                    if (i < colCount)
+                        s = String.valueOf(d) + ",";
+                    else
+                        s = String.valueOf(d);
+                    
+                    dataExamples.append(s);
+                }
+                dataExamples.append("\n");
+
+            }
+            
         } catch(Exception exc) {
             System.out.println("Exception in getAllStockFeaturesFromDB");
             throw exc;
         }
         
-        return stockFeatureMatrix;
+        return dataExamples.toString();
     }
     
     private void insertStockIndexDataIntoDB(String stockIndex, String indexPrices) throws Exception {
@@ -1472,15 +1496,11 @@ public class StockDataHandler {
         }
     }
     
-    public List<StockTicker> getAllStockTickers(boolean isJustSP100) throws Exception {
+    public List<StockTicker> getAllStockTickers() throws Exception {
 
-        isJustSP100 = true;
-        
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers(?)}")) {
-
-            stmt.setBoolean(1, isJustSP100);
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockTickers()}")) {
             
             ResultSet rs = stmt.executeQuery();
             
@@ -2106,153 +2126,227 @@ public class StockDataHandler {
         }
     }
     
+    private boolean isDataExpired(Date dt) {
+
+        Calendar lastRun = Calendar.getInstance();
+        lastRun.setTime(dt);
+        
+        Calendar today = Calendar.getInstance();
+        int year = today.get(Calendar.YEAR);
+        int month = today.get(Calendar.MONTH);
+        int date = today.get(Calendar.DATE);
+        today.set(year, month, date, 0, 0, 0); //Get rid of the Hour, Min, Sec
+        today.set(Calendar.MILLISECOND, 0); //Get rid of Millis
+        
+        if (today.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY) 
+            today.add(Calendar.DATE, -1); //Back to Friday
+
+        if (today.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) 
+            today.add(Calendar.DATE, -2); //Back to Friday
+
+        if (today.after(lastRun))
+            return true;
+        else
+            return false;
+    }
+    
     public void downloadAllStockData() throws Exception {
 
         //M2 - Money Supply
         Date lastDt;
         final String M2 = "M2-Vel";
         lastDt = getEconomicData_UpdateDate(M2);
-        String m2Data = downloadData("FRED/M2V", lastDt);
-        insertEconomicDataIntoDB(M2, m2Data);
+        if (isDataExpired(lastDt)) {
+            String m2Data = downloadData("FRED/M2V", lastDt);
+            insertEconomicDataIntoDB(M2, m2Data);
+        }
         
         //Mortgage Rates
         lastDt = get30YrMortgageRates_UpdateDate();
-        String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
-        insertMortgageDataIntoDB(thirtyYrMtgRates);
+        if (isDataExpired(lastDt)) {
+            String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
+            insertMortgageDataIntoDB(thirtyYrMtgRates);
+        }        
         
         //New Home Prices
         lastDt = getAvgNewHomePrices_UpdateDate();
-        String newHomePrices = downloadData("FRED/ASPNHSUS", lastDt);
-        insertNewHomePriceDataIntoDB(newHomePrices);
+        if (isDataExpired(lastDt)) {
+            String newHomePrices = downloadData("FRED/ASPNHSUS", lastDt);
+            insertNewHomePriceDataIntoDB(newHomePrices);
+        }
 
         //CPI
         lastDt = getCPI_UpdateDate();
-        String cpiInflation = downloadData("RATEINF/CPI_USA", lastDt);
-        insertInflationDataIntoDB(cpiInflation);
-
+        if (isDataExpired(lastDt)) {
+            String cpiInflation = downloadData("RATEINF/CPI_USA", lastDt);
+            insertInflationDataIntoDB(cpiInflation);
+        }
+        
         //Currency Ratios
         final String JAPAN = "JPY";
         lastDt = getCurrencyRatios_UpdateDate(JAPAN);
-        String usdJpy = downloadData("QUANDL/USDJPY", lastDt);
-        insertCurrencyRatiosIntoDB(JAPAN, usdJpy);
+        if (isDataExpired(lastDt)) {
+            String usdJpy = downloadData("QUANDL/USDJPY", lastDt);
+            insertCurrencyRatiosIntoDB(JAPAN, usdJpy);
+        }        
         
         final String AUSTRALIA = "AUD";
         lastDt = getCurrencyRatios_UpdateDate(AUSTRALIA);
-        String usdAud = downloadData("QUANDL/USDAUD", lastDt);
-        insertCurrencyRatiosIntoDB(AUSTRALIA, usdAud);
+        if (isDataExpired(lastDt)) {
+            String usdAud = downloadData("QUANDL/USDAUD", lastDt);
+            insertCurrencyRatiosIntoDB(AUSTRALIA, usdAud);
+        }        
         
         final String EURO = "EUR";
         lastDt = getCurrencyRatios_UpdateDate(EURO);
-        String usdEur = downloadData("QUANDL/USDEUR", lastDt);
-        insertCurrencyRatiosIntoDB(EURO, usdEur);
+        if (isDataExpired(lastDt)) {
+            String usdEur = downloadData("QUANDL/USDEUR", lastDt);
+            insertCurrencyRatiosIntoDB(EURO, usdEur);
+        }        
 
         //Energy Prices
         final String CRUDE_OIL = "CRUDE-OIL";
         lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
-        String crudeOilPrices = downloadData("OFDP/FUTURE_CL1", lastDt);
-        insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
+        if (isDataExpired(lastDt)) {
+            String crudeOilPrices = downloadData("OFDP/FUTURE_CL1", lastDt);
+            insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
+        }
 
         final String NATURAL_GAS = "NATURL-GAS";
         lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
-        String naturalGasPrices = downloadData("OFDP/FUTURE_NG1", lastDt);
-        insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
+        if (isDataExpired(lastDt)) {
+            String naturalGasPrices = downloadData("OFDP/FUTURE_NG1", lastDt);
+            insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
+        }
 
         //Precious Metals
         final String GOLD = "GOLD";
         lastDt = getPreciousMetals_UpdateDate(GOLD);
-        String goldPrices = downloadData("WGC/GOLD_DAILY_USD", lastDt);
-        //Backup Source FRED/GOLDPMGBD228NLBM - Federal Reserve
-        insertPreciousMetalsPricesIntoDB(GOLD, goldPrices);
+        if (isDataExpired(lastDt)) {
+            String goldPrices = downloadData("WGC/GOLD_DAILY_USD", lastDt);
+            //Backup Source FRED/GOLDPMGBD228NLBM - Federal Reserve
+            insertPreciousMetalsPricesIntoDB(GOLD, goldPrices);
+        }
         
         final String SILVER = "SILVER";
         lastDt = getPreciousMetals_UpdateDate(SILVER);
-        String silverPrices = downloadData("LBMA/SILVER", lastDt);
-        insertPreciousMetalsPricesIntoDB(SILVER, silverPrices);
+        if (isDataExpired(lastDt)) {
+            String silverPrices = downloadData("LBMA/SILVER", lastDt);
+            insertPreciousMetalsPricesIntoDB(SILVER, silverPrices);
+        }
 
         final String PLATINUM = "PLATINUM";
         lastDt = getPreciousMetals_UpdateDate(PLATINUM);
-        String platinumPrices = downloadData("LPPM/PLAT", lastDt);
-        insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
+        if (isDataExpired(lastDt)) {
+            String platinumPrices = downloadData("LPPM/PLAT", lastDt);
+            insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
+        }        
 
         //Global Stock Indexes
         final String SP500 = "S&P500";
         lastDt = getStockIndex_UpdateDate(SP500);
-        String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt);
-        insertStockIndexDataIntoDB(SP500, spIndex);
+        if (isDataExpired(lastDt)) {
+            String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt);
+            insertStockIndexDataIntoDB(SP500, spIndex);
+        }
 
         final String DAX = "DAX";
         lastDt = getStockIndex_UpdateDate(DAX);
-        String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt);
-        insertStockIndexDataIntoDB(DAX, daxIndex);
+        if (isDataExpired(lastDt)) {
+            String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt);
+            insertStockIndexDataIntoDB(DAX, daxIndex);
+        }        
 
         final String HANGSENG = "HANGSENG";
         lastDt = getStockIndex_UpdateDate(HANGSENG);
-        String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt);
-        insertStockIndexDataIntoDB(HANGSENG, hangSengIndex);
+        if (isDataExpired(lastDt)) {
+            String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt);
+            insertStockIndexDataIntoDB(HANGSENG, hangSengIndex);
+        }
 
         final String NIKEII = "NIKEII";
         lastDt = getStockIndex_UpdateDate(NIKEII);
-        String nikeiiIndex = downloadData("NIKKEI/INDEX", lastDt);
-        insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
+        if (isDataExpired(lastDt)) {
+            String nikeiiIndex = downloadData("NIKKEI/INDEX", lastDt);
+            insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
+        }        
 
         //Interest Rates - Prime
         final String PRIME = "PRIME";
         lastDt = getInterestRates_UpdateDate(PRIME);
-        String primeRates = downloadData("FRED/DPRIME", lastDt);
-        insertInterestRatesIntoDB(PRIME, primeRates);
+        if (isDataExpired(lastDt)) {
+            String primeRates = downloadData("FRED/DPRIME", lastDt);
+            insertInterestRatesIntoDB(PRIME, primeRates);
+        }        
 
         //Interest Rates - Effective Funds Rate
         final String EFF_FUNDS_RT = "EF_FNDS_RT";
         lastDt = getInterestRates_UpdateDate(EFF_FUNDS_RT);
-        String effFundsRate = downloadData("FRED/DFF", lastDt);
-        insertInterestRatesIntoDB(EFF_FUNDS_RT, effFundsRate);
+        if (isDataExpired(lastDt)) {
+            String effFundsRate = downloadData("FRED/DFF", lastDt);
+            insertInterestRatesIntoDB(EFF_FUNDS_RT, effFundsRate);
+        }        
 
         //Interest Rates - 6 Month T Bill
         final String SIX_MO_T_BILL = "6_MO_TBILL";
         lastDt = getInterestRates_UpdateDate(SIX_MO_T_BILL);
-        String sixMoTBillRates = downloadData("FRED/DTB6", lastDt);
-        insertInterestRatesIntoDB(SIX_MO_T_BILL, sixMoTBillRates);
+        if (isDataExpired(lastDt)) {
+            String sixMoTBillRates = downloadData("FRED/DTB6", lastDt);
+            insertInterestRatesIntoDB(SIX_MO_T_BILL, sixMoTBillRates);
+        }
 
         //Interest Rates - 5 Year T Rates
         final String FIVE_YR_T_RT = "5_YR_T_RT";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_T_RT);
-        String fiveYrTRates = downloadData("FRED/DGS5", lastDt);
-        insertInterestRatesIntoDB(FIVE_YR_T_RT, fiveYrTRates);
+        if (isDataExpired(lastDt)) {
+            String fiveYrTRates = downloadData("FRED/DGS5", lastDt);
+            insertInterestRatesIntoDB(FIVE_YR_T_RT, fiveYrTRates);
+        }
 
         //Interest Rates - Credit Card Rates
         final String CREDIT_CARD_RT = "CREDIT_CRD";
         lastDt = getInterestRates_UpdateDate(CREDIT_CARD_RT);
-        String cardRates = downloadData("FRED/TERMCBCCALLNS", lastDt);
-        insertInterestRatesIntoDB(CREDIT_CARD_RT, cardRates);
+        if (isDataExpired(lastDt)) {
+            String cardRates = downloadData("FRED/TERMCBCCALLNS", lastDt);
+            insertInterestRatesIntoDB(CREDIT_CARD_RT, cardRates);
+        }
         
         //Interest Rates - 5 Year ARM Rates
         final String FIVE_YR_ARM_RT = "5_YR_ARM";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_ARM_RT);
-        String fiveYrARM = downloadData("FMAC/ARM5YR", lastDt);
-        insertInterestRatesIntoDB(FIVE_YR_ARM_RT, fiveYrARM);
+        if (isDataExpired(lastDt)) {
+            String fiveYrARM = downloadData("FMAC/ARM5YR", lastDt);
+            insertInterestRatesIntoDB(FIVE_YR_ARM_RT, fiveYrARM);
+        }
 
         //Interest Rates - 6 Months LIBOR
         final String SIX_MO_LIBOR = "6_MO_LIBOR";
         lastDt = getInterestRates_UpdateDate(SIX_MO_LIBOR);
-        String sixMoLIBOR = downloadData("FRED/USD6MTD156N", lastDt);
-        insertInterestRatesIntoDB(SIX_MO_LIBOR, sixMoLIBOR);
+        if (isDataExpired(lastDt)) {
+            String sixMoLIBOR = downloadData("FRED/USD6MTD156N", lastDt);
+            insertInterestRatesIntoDB(SIX_MO_LIBOR, sixMoLIBOR);
+        }
         
         //Interest Rates - 5 Year Swaps
         final String FIVE_YR_SWAP = "5_YR_SWAP";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_SWAP);
-        String fiveYrSwaps = downloadData("FRED/DSWP5", lastDt);
-        insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
+        if (isDataExpired(lastDt)) {
+            String fiveYrSwaps = downloadData("FRED/DSWP5", lastDt);
+            insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
+        }
       
         //GDP
         List<BEA_Data> listBEAData = downloadBEAData();
         insertGDPDataIntoDB(listBEAData);
 
         //Stock Quotes
-        List<StockTicker> listOfAllStocks = getAllStockTickers(true);
+        List<StockTicker> listOfAllStocks = getAllStockTickers();
         for (StockTicker st : listOfAllStocks) {
             lastDt = getStockQuote_UpdateDate(st.getTicker());
-            String stockValues = downloadData(st.getQuandlCode(), lastDt);
-            insertStockPricesIntoDB(st.getTicker(), stockValues);
+            if (isDataExpired(lastDt)) {
+                String stockValues = downloadData(st.getQuandlCode(), lastDt);
+                insertStockPricesIntoDB(st.getTicker(), stockValues);
+            }        
         }
 
         //Fundamentals - Annual
@@ -2458,67 +2552,17 @@ public class StockDataHandler {
         return list;
     }
     
-    public void setModelValues(String ticker, String modelType, int daysForecast, double[] weights, double[] valAvg, double[] valRange, double lambda, 
-            CostResults trainingCost, CostResults crossValCost, CostResults testCost) throws Exception {
-        double thetaVal;
-        double valAvgVal;
-        double valRangeVal;
-        BigDecimal trainingCostBD;
-        BigDecimal crossValCostBD;
-        BigDecimal testCostBD;
+    public void setModelValues(String ticker, String modelType, int daysForecast, double accuracy) throws Exception {
+
         java.sql.Date dt = new java.sql.Date(new Date().getTime());
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmtWeights = conxn.prepareCall("{call sp_Insert_Weights (?, ?, ?, ?, ?, ?, ?, ?)}");
-             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
-
-            //Case for if the weights are null, this is used in the case of Random Forrest
-            if (weights == null) {
-                weights = new double[valAvg.length];
-            }
-            
-            //First insert theta values
-            for (int i = 0; i < weights.length; i++) {
-                thetaVal = weights[i];
-                valAvgVal = valAvg[i];
-                valRangeVal = valRange[i];
-                
-                //Insert theta records into the DB
-                stmtWeights.setString(1, ticker);
-                stmtWeights.setDate(2, dt);
-                stmtWeights.setString(3, modelType);
-                stmtWeights.setInt(4, daysForecast);
-                stmtWeights.setInt(5, i);
-                stmtWeights.setDouble(6, thetaVal);
-                stmtWeights.setDouble(7, valAvgVal);
-                stmtWeights.setDouble(8, valRangeVal);
-                stmtWeights.executeUpdate();
-            }
-            
-            //Now insert lambda
-            stmtWeights.setString(1, ticker);
-            stmtWeights.setDate(2, dt);
-            stmtWeights.setString(3, modelType);
-            stmtWeights.setInt(4, daysForecast);
-            stmtWeights.setInt(5, -1);
-            stmtWeights.setDouble(6, lambda);
-            stmtWeights.executeUpdate();
-            
-            //Now insert the model cost
-            trainingCostBD = new BigDecimal(trainingCost.getCost());
-            crossValCostBD = new BigDecimal(crossValCost.getCost());
-            testCostBD = new BigDecimal(testCost.getCost());
+             CallableStatement stmtModel = conxn.prepareCall("{call sp_Insert_Model_Runs (?, ?, ?, ?)}")) {
 
             stmtModel.setString(1, ticker);
-            stmtModel.setDate(2, dt);
-            stmtModel.setString(3, modelType);
-            stmtModel.setInt(4, daysForecast);
-            stmtModel.setBigDecimal(5, trainingCostBD);
-            stmtModel.setBigDecimal(6, crossValCostBD);
-            stmtModel.setBigDecimal(7, testCostBD);
-            stmtModel.setDouble(8, trainingCost.getAccuracy());
-            stmtModel.setDouble(9, crossValCost.getAccuracy());
-            stmtModel.setDouble(10, testCost.getAccuracy());
+            stmtModel.setString(2, modelType);
+            stmtModel.setInt(3, daysForecast);
+            stmtModel.setDouble(4, accuracy);
             stmtModel.executeUpdate();
 
         } catch(Exception exc) {

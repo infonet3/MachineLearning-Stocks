@@ -4,24 +4,19 @@
  */
 package Modeling;
 
-import ML_Formulas.CostResults;
-import ML_Formulas.LogisticRegFormulas;
-import ML_Formulas.RandomForrest;
-import ML_Formulas.SVM;
-import MatrixOps.Matrix;
-import MatrixOps.MatrixValues;
-import MatrixOps.RecordType;
 import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
 import StockData.StockDataHandler;
 import StockData.StockTicker;
+import java.io.FileInputStream;
+import java.io.StringReader;
 import java.util.List;
-import libsvm.svm_model;
-import org.apache.mahout.classifier.df.DecisionForest;
-import org.apache.mahout.classifier.df.builder.DefaultTreeBuilder;
-import org.apache.mahout.classifier.df.data.*;
-import org.apache.mahout.classifier.df.ref.SequentialBuilder;
-import org.apache.mahout.common.RandomUtils;
+import java.util.Properties;
+import java.util.Random;
+import weka.classifiers.Evaluation;
+import weka.classifiers.trees.RandomForest;
+import weka.core.Instances;
+import weka.core.SerializationHelper;
 
 /**
  *
@@ -29,91 +24,79 @@ import org.apache.mahout.common.RandomUtils;
  */
 public class RunModels {
 
+    final String CONF_FILE = "settings.conf";
+    final String MODEL_PATH;
+    
+    public RunModels() throws Exception {
+
+        //Load the file settings
+        Properties p = new Properties();
+        try (FileInputStream fis = new FileInputStream(CONF_FILE)) {
+            p.load(fis);
+            MODEL_PATH = p.getProperty("model_directory");
+        }
+
+    }
+    
     //Methods
     public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
 
         testAllStocks(MODEL, DAYS_IN_FUTURE);
     }
     
-    private double[] initializeTheta(int size) {
-
-        double[] theta = new double[size];
-        for (int i = 0; i < theta.length; i++) {
-            theta[i] = 1.0;
-        }
-
-        return theta;
-    }
-    
     //Run through all stock and determine optimal values of theta for prediction
     private void testAllStocks(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
         
-        //Model Settings
-        final RecordType TRAINING = RecordType.TRAINING;
-        final RecordType CROSS_VAL = RecordType.CROSS_VALIDATION;
-        final RecordType TEST = RecordType.TEST;
-        final double[] lambdas = {0, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 3, 10};
-
         //Run through all stock tickers
         StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
-        MatrixValues matrixValues;
+        List<StockTicker> stockList = sdh.getAllStockTickers();
+
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
             long startTime = System.currentTimeMillis();
             
             try {
-                //Pull data for this stock from the DB and save to class field
-                matrixValues = Matrix.loadMatrixFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
+                //Pull data for this stock from the DB
+                String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
 
-                //Calculate costs for different sizes of lambda
-                CostResults trainingCost = null;
-                CostResults crossValCost = null;
-                CostResults testCost = null;
-                double finalLambda = 0.0;
-                double[] thetaValues = null;
-
+                //Now Build the Models
+                double accuracy = 0.0;
                 switch (MODEL) {
                     case RAND_FORST:
-                        RandomForrest rf = new RandomForrest();
-                        int numTrees = 200;
-                        DecisionForest df = rf.createRandomForrest(matrixValues, numTrees);
-                        rf.saveForestToFile(df, ticker.getTicker());
 
-                        trainingCost = rf.testRandomForrest(df, matrixValues.getFeatures(TRAINING), matrixValues.getOutputValues(TRAINING), numTrees);
-                        crossValCost = rf.testRandomForrest(df, matrixValues.getFeatures(CROSS_VAL), matrixValues.getOutputValues(CROSS_VAL), numTrees);
-                        testCost = rf.testRandomForrest(df, matrixValues.getFeatures(TEST), matrixValues.getOutputValues(TEST), numTrees);
                         System.gc();
+                        
+                        StringReader sr = new StringReader(dataExamples);
+                        Instances train = new Instances(sr);
+                        sr.close();
+
+                        train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
+        
+                        RandomForest rf = new RandomForest();
+                        rf.buildClassifier(train);
+
+                        Evaluation eval = new Evaluation(train);
+                        eval.crossValidateModel(rf, train, 10, new Random(1));
+                        
+                        accuracy = eval.correct() / (eval.correct() + eval.incorrect());
+                        System.out.println(eval.toSummaryString("\nResults\n========\n", true));
+
+                        String newFileName = MODEL_PATH + "\\" + ticker.getTicker() + ".model";
+                        SerializationHelper.write(newFileName, rf);
+                        
                         break;
                     
                     case SVM:
-                        svm_model model = SVM.createModel(matrixValues);
                         break;
 
                     case LINEAR_REG:
-                        //Save cost values for all 3 datasets (Training, Cross Val, Test)
-                        thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
-
-                        //trainingCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
-                        //crossValCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
-                        //testCost = LinearRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
-
                         break;
                     case LOGIST_REG:
-                        //Save cost values for all 3 datasets (Training, Cross Val, Test)
-                        thetaValues = getThetaForModel(matrixValues, MODEL, ticker.getTicker(), DAYS_IN_FUTURE, finalLambda);
-
-                        trainingCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TRAINING), thetaValues, matrixValues.getOutputValues(TRAINING), finalLambda);
-                        crossValCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(CROSS_VAL), thetaValues, matrixValues.getOutputValues(CROSS_VAL), finalLambda);
-                        testCost = LogisticRegFormulas.costFunction(matrixValues.getFeatures(TEST), thetaValues, matrixValues.getOutputValues(TEST), finalLambda);
-
                         break;
                 }
 
                 //Save values to DB
-                double[] averages = matrixValues.getOriginalFeatureAverages();
-                double[] ranges = matrixValues.getOriginalFeatureRanges();
-                sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, thetaValues, averages, ranges, finalLambda, trainingCost, crossValCost, testCost);
+                sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, accuracy);
 
                 long endTime = System.currentTimeMillis();
                 long procTime = endTime - startTime;
@@ -142,74 +125,5 @@ public class RunModels {
         return smallestCostIndex;
     }
     
-    double[] getThetaForModel(final MatrixValues MATRIX_VAL, final ModelTypes MOD_APPR, final String TICKER, final int DAYS_IN_FUTURE, double lambda) throws Exception {
-        //Get values from the MatrixValues object
-        final RecordType REC_TYPE = RecordType.TRAINING;
-        double[][] trainingMatrix = MATRIX_VAL.getFeatures(REC_TYPE);
-        double[] results = MATRIX_VAL.getOutputValues(REC_TYPE);
-
-        //Calculate Theta
-        double[] thetas = initializeTheta(trainingMatrix[0].length);
-        thetas = runGradientDescent(MOD_APPR, trainingMatrix, results, thetas, lambda);
-        return thetas;
-    }
-
-    private double[] runGradientDescent(ModelTypes approach, double[][] trainingMatrix, double[] results, double[] theta, double lambda) throws Exception {
-
-        //Run Gradient Descent until there is less than a 0.001 variance
-        final double maxVariance;
-        switch (approach) {
-            case LOGIST_REG:
-                maxVariance = 0.000007;
-                break;
-            
-            case LINEAR_REG:
-                maxVariance = 0.001;
-                break;
-                
-            default:
-                throw new Exception("Method: runGradientDescent, Desc: Invalid Model Type!");
-        }
-
-        double oldCostFunction = Double.MAX_VALUE;
-        double costFunction = 0.0;
-
-        int i;
-        final int MAX_ITERATIONS = 12000;
-        CostResults costResults = null;
-        for (i = 0; ; i++) {
-            switch(approach) {
-                case LINEAR_REG:
-                    //LinearRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
-                    //costFunction = LinearRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
-                    break;
-                case LOGIST_REG:
-                    LogisticRegFormulas.gradientDescent(trainingMatrix, theta, results, lambda);
-                    costResults = LogisticRegFormulas.costFunction(trainingMatrix, theta, results, lambda);
-                    costFunction = costResults.getCost();
-                    break;
-            } //End switch
-            
-            //Test Check
-            if (i > MAX_ITERATIONS) {
-                throw new Exception("Problem with Gradient Descent================================================");
-            }
-
-            //Learning Rate ALPHA Check
-            if (oldCostFunction < costFunction)
-                throw new Exception("Learning Rate ALPHA is too high!");
-
-            //See if the variance has been met
-            if (oldCostFunction - costFunction < maxVariance) 
-                break;
-
-            oldCostFunction = costFunction;
-        }
-
-        System.out.printf("Cost Function = %.4f Iterations = %d %n", costFunction, i);
-        //System.out.println("Cost Function = " + costFunction + ", Iterations = " + i);
-
-        return theta;
-    }
 }
         

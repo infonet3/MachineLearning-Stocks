@@ -5,130 +5,116 @@
 package Modeling;
 
 import StockData.PredictionValues;
-import ML_Formulas.LinearRegFormulas;
-import ML_Formulas.LogisticRegFormulas;
-import ML_Formulas.RandomForrest;
-import MatrixOps.MatrixValues;
 import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
+import static Modeling.ModelTypes.RAND_FORST;
 import StockData.*;
+import java.io.FileInputStream;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import org.apache.mahout.classifier.df.DecisionForest;
+import java.util.Properties;
+import weka.classifiers.trees.RandomForest;
+import weka.core.Instance;
+import weka.core.Instances;
+import weka.core.SerializationHelper;
 
 /**
  *
  * @author Matt Jones
  */
 public class Predictor {
+
+    final String CONF_FILE = "settings.conf";
+    final String MODEL_PATH;
+
+    public Predictor() throws Exception {
+
+        //Load the file settings
+        Properties p = new Properties();
+        try (FileInputStream fis = new FileInputStream(CONF_FILE)) {
+            p.load(fis);
+            MODEL_PATH = p.getProperty("model_directory");
+        }
+    }
+    
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
  
         //Loop through all stocks for the given day
         StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
+        List<StockTicker> stockList = sdh.getAllStockTickers(); 
         for (StockTicker ticker : stockList) {
             
             //Get Features for the selected dates
-            List<Features> featureList = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, true, MODEL_TYPE, fromDate, toDate);
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, fromDate, toDate);
 
-            //If features are unavailable for this date then skip it
-            if (featureList.isEmpty()) {
-                System.out.println("Method: predictAllStocksForDate, Ticker: " + ticker.getTicker() + ", No Features Available!");
-                continue;
-            }
-                
-            //Extract the weights
-            List<Weight> listWeights = sdh.getWeights(ticker.getTicker(), MODEL_TYPE);
-            int numWeights = listWeights.size();
-            
-            //Sanity Check
-            int featureSize = featureList.get(0).getFeatureValues().length;
-            if (featureSize != numWeights) {
-                System.out.println("Method: predictAllStocks, Desc: Number of features != Number of weights."); 
-                continue;
-            }
-            
-            double[] weights = new double[numWeights];
-            double[] avg = new double[numWeights];
-            double[] range = new double[numWeights];
-            
-            for (int i = 0; i < weights.length; i++) {
-                weights[i] = listWeights.get(i).getTheta().doubleValue();
-                avg[i] = listWeights.get(i).getAverage().doubleValue();
-                range[i] = listWeights.get(i).getRange().doubleValue();
-            }
-            
-            //Mean Normalization of the features & Get date from features
-            int listSize = featureList.size();
-            Calendar[] curDates = new Calendar[listSize];
-            for (int i = 0; i < listSize; i++) {
-                
-                Features f = featureList.get(i);
-                Date dt = f.getDate();
-                double[] row = f.getFeatureValues();
+            //Load the model
+            switch (MODEL_TYPE) {
+                case LINEAR_REG:
+                    break;
+                case LOGIST_REG:
+                    break;
+                case RAND_FORST:
+                    System.gc();
+                    
+                    String modelPath = MODEL_PATH + "\\" + ticker.getTicker() + ".model";
+                    RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
 
-                curDates[i] = Calendar.getInstance();
-                curDates[i].setTime(dt);
-                
-                double[] normalizedRow = MatrixValues.meanNormalization(row, avg, range);
-                f = new Features(dt, normalizedRow);
-                featureList.set(i, f);
-            }
-            
-            //Load the Random Forest Model if needed                        
-            RandomForrest rf = new RandomForrest();
-            DecisionForest df = null;
-            if (MODEL_TYPE == ModelTypes.RAND_FORST)
-                df = rf.loadForestFromFile(ticker.getTicker());            
-            
-            //Calculate the Hypothesis
-            double[] hypothesisValues = new double[listSize];
-            for (int i = 0; i < listSize; i++) {
-                
-                switch (MODEL_TYPE) {
-                    case LINEAR_REG:
-                        hypothesisValues[i] = LinearRegFormulas.hypothesis(featureList.get(i).getFeatureValues(), weights);
-                        break;
-                    case LOGIST_REG:
-                        hypothesisValues[i] = LogisticRegFormulas.hypothesis(featureList.get(i).getFeatureValues(), weights);
-                        break;
-                    case RAND_FORST:
-                        hypothesisValues[i] = rf.hypothesis(df, featureList.get(i).getFeatureValues());
-                        break;
-                }
-            }
- 
-            //Set the predicted target date
-            Calendar[] targetDates = new Calendar[listSize];
-            for (int i = 0; i < listSize; i++) {
-                //Now increment the target date
-                targetDates[i] = (Calendar)curDates[i].clone();
-                if (DAYS_IN_FUTURE == 1 && targetDates[i].get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY) 
-                    targetDates[i].add(Calendar.DATE, 3);
-                else 
-                    targetDates[i].add(Calendar.DATE, DAYS_IN_FUTURE);
-            }
+                    StringReader sr = new StringReader(dataExamples);
+                    Instances test = new Instances(sr);
+                    sr.close();
+                    
+                    test.setClassIndex(test.numAttributes() - 1);
+                    
+                    // label instances
+                    List<PredictionValues> listPredictions = new ArrayList<>();
+                    for (int i = 0; i < test.numInstances(); i++) {
+                        double clsLabel = rf.classifyInstance(test.instance(i));
 
-            //Add the predictions to the list
-            List<PredictionValues> listPredictions = new ArrayList<>();
-            for (int i = 0; i < listSize; i++) {
-                BigDecimal bd = new BigDecimal(hypothesisValues[i]);
-                PredictionValues val = new PredictionValues(ticker.getTicker(), curDates[i].getTime(), targetDates[i].getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
-                listPredictions.add(val);
-            }
+                        double[] array = test.instance(i).toDoubleArray();
+                        int year = (int)array[0];
+                        int month = (int)array[1];
+                        int date = (int)(int)array[2];
+                        
+                        Calendar curDate = Calendar.getInstance();
+                        curDate.set(year, month - 1, date);
 
-            //Save Predictions to DB - Save all predictions for one stock at a time
-            sdh.insertStockPredictions(listPredictions);
-
-            System.gc();
+                        //Move the target day N business days out
+                        Calendar targetDate = Calendar.getInstance();
+                        targetDate.set(year, month - 1, date);
+                        int daysInAdvance = 0;
+                        for (;;) {
+                            //Weekend
+                            if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
+                                targetDate.add(Calendar.DATE, 1);
+                            //Business Days
+                            else {
+                                targetDate.add(Calendar.DATE, 1);
+                                daysInAdvance++;
+                            }
+                            
+                            if (daysInAdvance == DAYS_IN_FUTURE)
+                                break;
+                        }
+                        
+                        BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
+                        PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
+                        listPredictions.add(val);
+                    }
+                    
+                    //Save Predictions to DB - Save all predictions for one stock at a time
+                    sdh.insertStockPredictions(listPredictions);
             
-        } //End For Loop
-        
+                    break;
+             }
+
+        }
+
     }
     
     public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
@@ -139,7 +125,7 @@ public class Predictor {
         //Loop through all stocks
         List<BacktestingResults> listResults = new ArrayList<>();
         StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers(true); //FIX THIS LATER, SET TO FALSE!!!!
+        List<StockTicker> stockList = sdh.getAllStockTickers(); 
         for (StockTicker ticker : stockList) {
         
             try {
