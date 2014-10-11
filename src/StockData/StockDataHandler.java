@@ -5,6 +5,7 @@
 package StockData;
 
 import Modeling.CostResults;
+import Modeling.FuturePrice;
 import Modeling.ModelTypes;
 import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
@@ -319,6 +320,63 @@ public class StockDataHandler {
         }
     }
 
+    public FuturePrice getTargetValueRegressionPredictions(String stock, Date date) throws Exception {
+
+        FuturePrice fp;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?)}")) {
+
+            stmt.setString(1, stock);
+            
+            java.sql.Date dt = new java.sql.Date(date.getTime());
+            stmt.setDate(2, dt);
+
+            ResultSet rs = stmt.executeQuery();
+            
+            BigDecimal curPrice;
+            double forecastPctChg = 0.0;
+            if (rs.next()) {
+                curPrice = rs.getBigDecimal(1);
+                forecastPctChg = rs.getDouble(2);
+                fp = new FuturePrice(stock, forecastPctChg, curPrice);
+            }
+            else
+                throw new Exception("Method: getTargetValueRegressionPredictions, Description: No data returned!");
+                
+        } catch(Exception exc) {
+            System.out.println("Exception in getTargetValueRegressionPredictions");
+            throw exc;
+        }
+        
+        return fp;
+    }
+    
+    public List<String> getPostiveClassificationPredictions(Date date) throws Exception {
+
+        List<String> stockList = new ArrayList<>();
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Classification_Upward (?)}")) {
+
+            java.sql.Date dt = new java.sql.Date(date.getTime());
+            stmt.setDate(1, dt);
+
+            ResultSet rs = stmt.executeQuery();
+            
+            String stock;
+            while(rs.next()) {
+                stock = rs.getString(1);
+                stockList.add(stock);
+            }
+                
+        } catch(Exception exc) {
+            System.out.println("Exception in getPostiveClassificationPredictions");
+            throw exc;
+        }
+        
+        return stockList;
+    }
+    
     private List<StockPrice> getAllStockQuotes(String ticker, int daysBack) throws Exception {
 
         List<StockPrice> stockPrices = new ArrayList<>();

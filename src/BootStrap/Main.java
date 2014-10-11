@@ -7,14 +7,9 @@ package BootStrap;
 import Modeling.ModelTypes;
 import Modeling.Predictor;
 import Modeling.RunModels;
-import StockData.BEA_Data;
-import StockData.PredictionValues;
 import StockData.StockDataHandler;
-import Trading.TradeAction;
 import Trading.TradeEngine;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
 
 /**
  *
@@ -27,6 +22,9 @@ public class Main {
         final ModelTypes RND_FOR = ModelTypes.RAND_FORST;
         final ModelTypes M5P = ModelTypes.M5P;
 
+        TradeEngine trade = new TradeEngine();
+        trade.connect();
+        
         StockDataHandler sdh = new StockDataHandler();
         //sdh.downloadAllStockData();
 

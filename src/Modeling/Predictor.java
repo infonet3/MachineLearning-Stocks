@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -167,11 +168,69 @@ public class Predictor {
         return targetDate;
     }
     
-    public void topFiveBacktest() {
+    public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE) throws Exception {
         
+        Calendar curDate = Calendar.getInstance();
+        curDate.setTime(FROM_DATE);
+        
+        Calendar finalDate = Calendar.getInstance();
+        finalDate.setTime(TO_DATE);
+        
+        int dayOfWeek;
+        StockDataHandler sdh = new StockDataHandler();
+        List<String> stockList;
+        List<FuturePrice> fpList = new ArrayList<>();
+        for (;;) {
+            dayOfWeek = curDate.get(Calendar.DAY_OF_WEEK);
+            if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                curDate.add(Calendar.DATE, 1);
+                continue;
+            }
+            
+            //Get List of Stocks forecasted to go up
+            stockList = sdh.getPostiveClassificationPredictions(curDate.getTime());
+            
+            //Get the Forecasted Percent Change for each stock
+            double forecastPctChg;
+            FuturePrice fp;
+            for (String stock : stockList) {
+                fp = sdh.getTargetValueRegressionPredictions(stock, curDate.getTime());
+                fpList.add(fp);
+            }
+
+            //Filter to the top N stocks by the forecasted % change
+            Collections.sort(fpList);
+            String[] topStocks = new String[NUM_STOCKS];
+            for (int i = 0; i < NUM_STOCKS; i++)
+                topStocks[i] = fpList.get(i).getTicker();
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            //Reset the collection
+            fpList.clear();
+        }
     }
     
-    
+    //Method: backtest
+    //Description: Looks through all the stocks and backtests single stock and single model at a time
     public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
 
         //Commissions
@@ -187,7 +246,9 @@ public class Predictor {
                 System.out.println("Backtest Stock: " + ticker.getTicker());
 
                 //Run through all predictions for a given stock
-                List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), MODEL_TYPE.toString(), FROM_DATE, TO_DATE);
+                List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), 
+                                                                                 MODEL_TYPE.toString(), 
+                                                                                 FROM_DATE, TO_DATE);
                 BigDecimal capital = new BigDecimal("10000.0");
                 int sharesOwned = 0;
                 int numTrades = 0;
@@ -292,11 +353,17 @@ public class Predictor {
                 final BigDecimal MULTIPLIER = new BigDecimal("100.00");
 
                 BigDecimal totalAssets = curClosePrice.multiply(new BigDecimal(sharesOwned)).add(capital);
-                BigDecimal pctChg = totalAssets.add(ORIG_CAPITAL.negate()).divide(ORIG_CAPITAL, 2, RoundingMode.UP).multiply(MULTIPLIER);
+                BigDecimal pctChg = totalAssets.add(ORIG_CAPITAL.negate())
+                                               .divide(ORIG_CAPITAL, 2, RoundingMode.UP)
+                                               .multiply(MULTIPLIER);
 
-                BigDecimal buyAndHoldChg = curClosePrice.add(firstPrice.negate()).divide(firstPrice, 2, RoundingMode.HALF_UP).multiply(MULTIPLIER);
+                BigDecimal buyAndHoldChg = curClosePrice.add(firstPrice.negate())
+                                                        .divide(firstPrice, 2, RoundingMode.HALF_UP)
+                                                        .multiply(MULTIPLIER);
 
-                BacktestingResults results = new BacktestingResults(ticker.getTicker(), MODEL_TYPE.toString(), FROM_DATE, TO_DATE, numTrades, pctChg, buyAndHoldChg);
+                BacktestingResults results = new BacktestingResults(ticker.getTicker(), MODEL_TYPE.toString(), 
+                        FROM_DATE, TO_DATE, numTrades, pctChg, buyAndHoldChg);
+                
                 listResults.add(results);
 
             } catch(Exception exc) {
