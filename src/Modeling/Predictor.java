@@ -175,57 +175,153 @@ public class Predictor {
         
         Calendar finalDate = Calendar.getInstance();
         finalDate.setTime(TO_DATE);
+
+        //Financial Amounts
+        final BigDecimal TRADING_COST = new BigDecimal("10.00");
+        final BigDecimal STARTING_CAPITAL = new BigDecimal("40000.00");
+        final BigDecimal MIN_CASH = new BigDecimal("200.00");
+        BigDecimal currentCapital = new BigDecimal(STARTING_CAPITAL.toString());
+        
+        List<StockHolding> stockHoldings = new ArrayList<>();
+        List<PendingOrder> stockOrders = new ArrayList<>();
         
         int dayOfWeek;
         StockDataHandler sdh = new StockDataHandler();
-        List<String> stockList;
-        List<FuturePrice> fpList = new ArrayList<>();
         for (;;) {
+
+            //Weekend Test
             dayOfWeek = curDate.get(Calendar.DAY_OF_WEEK);
             if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
                 curDate.add(Calendar.DATE, 1);
                 continue;
             }
+
+            //Holiday Test
+            StockQuote testQuote = sdh.getStockQuote("AXP", curDate.getTime());
+            if (testQuote == null) {
+                curDate.add(Calendar.DATE, 1);
+                continue;
+            }
             
-            //Get List of Stocks forecasted to go up
-            stockList = sdh.getPostiveClassificationPredictions(curDate.getTime());
+            //Portfolio Value
+            BigDecimal acctValue = new BigDecimal(currentCapital.toString());
+            for (int i = 0; i < stockHoldings.size(); i++) {
+                StockHolding holding = stockHoldings.get(i);
+                StockQuote quote = sdh.getStockQuote(holding.getTicker(), curDate.getTime());
+                BigDecimal numShares = new BigDecimal(String.valueOf(holding.getSharesHeld()));
+                BigDecimal stockValue = quote.getClose().multiply(numShares);
+
+                acctValue = acctValue.add(stockValue);
+            }
             
-            //Get the Forecasted Percent Change for each stock
-            double forecastPctChg;
-            FuturePrice fp;
-            for (String stock : stockList) {
-                fp = sdh.getTargetValueRegressionPredictions(stock, curDate.getTime());
-                fpList.add(fp);
+            System.out.printf("Portfolio Value: %s %n", acctValue.toString());
+
+            //Broke Test
+            if (acctValue.doubleValue() < 1000) {
+                System.out.println("YOUR BROKE!");
+                break;
+            }
+            
+            //Execute pending stock orders
+            while (stockOrders.size() > 0) {
+                PendingOrder order = stockOrders.get(0);
+                StockQuote quote = sdh.getStockQuote(order.getTicker(), curDate.getTime());
+                BigDecimal curPrice = quote.getOpen();
+                BigDecimal numShares = new BigDecimal(String.valueOf(order.getNumShares()));
+                
+                switch (order.getType()) {
+                    case BUY:
+                        BigDecimal orderCost = curPrice.multiply(numShares);
+                        currentCapital = currentCapital.subtract(orderCost).subtract(TRADING_COST); //Commission
+                
+                        StockHolding stock = new StockHolding(order.getTicker(), order.getNumShares(), order.getProjectedDt());
+                        stockHoldings.add(stock);
+                        
+                        //System.out.printf("BUY: Ticker: %s, Shares: %d, Projected Date: %s %n", order.getTicker(), order.getNumShares(), order.getProjectedDt().toString());
+                        
+                        break;
+                        
+                    case SELL:
+                        BigDecimal proceeds = curPrice.multiply(numShares);
+                        currentCapital = currentCapital.add(proceeds).subtract(TRADING_COST); //Commission
+
+                        //System.out.printf("SELL: Ticker: %s, Shares: %d %n", order.getTicker(), order.getNumShares());
+
+                        //Remove the holding record
+                        for (int i = 0; i < stockHoldings.size(); i++) {
+                            String holding = stockHoldings.get(i).getTicker();
+                            if (holding.equals(order.getTicker())) {
+                                stockHoldings.remove(i);
+                                break;
+                            }
+                        }
+
+                        break;
+                }
+
+                //Delete Order
+                stockOrders.remove(0);
             }
 
-            //Filter to the top N stocks by the forecasted % change
-            Collections.sort(fpList);
-            String[] topStocks = new String[NUM_STOCKS];
-            for (int i = 0; i < NUM_STOCKS; i++)
-                topStocks[i] = fpList.get(i).getTicker();
+            //Have any holdings expired - enter sale order night of targetDate
+            for (int i = 0; i < stockHoldings.size(); i++) {
+                Date tDate = stockHoldings.get(i).getTargetDate();
+                Date curDt = curDate.getTime();
+                
+                if (curDt.compareTo(tDate) >= 0) {
+                    StockHolding stock = stockHoldings.get(i);
+                    PendingOrder order = new PendingOrder(OrderType.SELL, stock.getTicker(), stock.getSharesHeld(), null);
+                    stockOrders.add(order);
+                }
+            }
+            
+            //See how many stock we can buy
+            int openings = NUM_STOCKS - stockHoldings.size();
+            if (openings > 0) {
 
+                //Get List of Stocks forecasted to go up
+                List<String> stockList = sdh.getPostiveClassificationPredictions(curDate.getTime());
+                if (stockList.size() > 0) {
+
+                    //Get the Forecasted Percent Change for each stock
+                    double forecastPctChg;
+                    FuturePrice fp;
+                    List<FuturePrice> fpList = new ArrayList<>();
+                    for (String stock : stockList) {
+                        fp = sdh.getTargetValueRegressionPredictions(stock, curDate.getTime());
+                        fpList.add(fp);
+                    }
+                    
+                    //Filter to the top N stocks by the forecasted % change
+                    Collections.sort(fpList);
+                    
+                    //Generate buy orders
+                    int size = fpList.size();
+                    if (size >= NUM_STOCKS) {
+                        
+                        for (int i = size - 1; i > (size - 1 - openings); i--) {
+
+                            String ticker = fpList.get(i).getTicker();
+                            Date projDt = fpList.get(i).getProjectedDt();
+
+                            StockQuote quote = sdh.getStockQuote(ticker, curDate.getTime());
+                            BigDecimal curPrice = quote.getClose();
+
+                            BigDecimal numOpenings = new BigDecimal(String.valueOf(openings));
+                            int numShares = currentCapital.subtract(MIN_CASH)
+                                            .divide(numOpenings, RoundingMode.HALF_DOWN)
+                                            .divide(curPrice, RoundingMode.HALF_DOWN)
+                                            .intValue();
+
+                            PendingOrder order = new PendingOrder(OrderType.BUY, ticker, numShares, projDt);
+                            stockOrders.add(order);
+                        } //End Buy orders Loop
+                    } //Minimum Viable Stocks IF
+                } //Stock List IF
+            } //Openings IF
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            //Reset the collection
-            fpList.clear();
+            //Move forward
+            curDate.add(Calendar.DATE, 1);
         }
     }
     

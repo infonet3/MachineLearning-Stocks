@@ -5,6 +5,7 @@
 package Modeling;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 /**
  *
@@ -14,11 +15,13 @@ public class FuturePrice implements Comparable {
     private String ticker;
     private double forecastPctChg;
     private BigDecimal currentPrice;
+    private Date projectedDt;
 
-    public FuturePrice(String ticker, double forecastPctChg, BigDecimal currentPrice) {
+    public FuturePrice(String ticker, double forecastPctChg, BigDecimal currentPrice, Date projectedDt) {
         this.ticker = ticker;
         this.forecastPctChg = forecastPctChg;
         this.currentPrice = currentPrice;
+        this.projectedDt = projectedDt;
     }
 
     @Override
@@ -52,5 +55,13 @@ public class FuturePrice implements Comparable {
 
     public BigDecimal getCurrentPrice() {
         return currentPrice;
+    }
+
+    public Date getProjectedDt() {
+        return projectedDt;
+    }
+
+    public void setProjectedDt(Date projectedDt) {
+        this.projectedDt = projectedDt;
     }
 }

@@ -335,10 +335,13 @@ public class StockDataHandler {
             
             BigDecimal curPrice;
             double forecastPctChg = 0.0;
+            Date projectedDt;
             if (rs.next()) {
                 curPrice = rs.getBigDecimal(1);
                 forecastPctChg = rs.getDouble(2);
-                fp = new FuturePrice(stock, forecastPctChg, curPrice);
+                projectedDt = rs.getDate(3);
+                
+                fp = new FuturePrice(stock, forecastPctChg, curPrice, projectedDt);
             }
             else
                 throw new Exception("Method: getTargetValueRegressionPredictions, Description: No data returned!");
@@ -1915,6 +1918,38 @@ public class StockDataHandler {
             System.out.println("Exception in getAvgNewHomePrices_UpdateDate");
             throw exc;
         }
+    }
+    
+    public StockQuote getStockQuote(String ticker, Date date) throws Exception {
+
+        StockQuote quote = new StockQuote();
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockQuote (?, ?)}")) {
+
+            stmt.setString(1, ticker);
+            
+            java.sql.Date dt = new java.sql.Date(date.getTime());
+            stmt.setDate(2, dt);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                quote.setOpen(rs.getBigDecimal(1));
+                quote.setHigh(rs.getBigDecimal(2));
+                quote.setLow(rs.getBigDecimal(3));
+                quote.setClose(rs.getBigDecimal(4));
+                quote.setVolume(rs.getBigDecimal(5));
+            }
+            else {
+                return null;
+            }
+            
+        } catch (Exception exc) {
+            System.out.println("Exception in getStockQuote");
+            throw exc;
+        }
+        
+        return quote;
     }
     
     public Date getCPI_UpdateDate() throws Exception {

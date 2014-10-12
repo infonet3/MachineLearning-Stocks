@@ -23,7 +23,7 @@ public class Main {
         final ModelTypes M5P = ModelTypes.M5P;
 
         TradeEngine trade = new TradeEngine();
-        trade.connect();
+        //trade.connect();
         
         StockDataHandler sdh = new StockDataHandler();
         //sdh.downloadAllStockData();
@@ -37,18 +37,19 @@ public class Main {
 
         RunModels models = new RunModels();
         //models.runModels(RND_FOR, DAYS_IN_FUTURE);
-        models.runModels(M5P, DAYS_IN_FUTURE);
+        //models.runModels(M5P, DAYS_IN_FUTURE);
 
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();
         Calendar fromDate = Calendar.getInstance();
-        fromDate.set(2004, 7, 1);
+        //fromDate.set(2006, 0, 4);
+        fromDate.set(2010, 0, 4);
 
         //Historical Prediction
         final String PRED_TYPE_BACKTEST = "BACKTEST";
         Predictor pred = new Predictor();
         //pred.predictAllStocksForDates(RND_FOR, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
-        pred.predictAllStocksForDates(M5P, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+        //pred.predictAllStocksForDates(M5P, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
 
         //Get Current Prediction for Today
         final String PRED_TYPE_CURRENT = "CURRENT";
@@ -58,6 +59,7 @@ public class Main {
         
         //Backtesting
         //pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());
-        pred.backtest(M5P, fromDate.getTime(), toDate.getTime());
+        //pred.backtest(M5P, fromDate.getTime(), toDate.getTime());
+        pred.topNBacktest(5, fromDate.getTime(), toDate.getTime());
     }
 }
