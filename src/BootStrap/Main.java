@@ -42,8 +42,7 @@ public class Main {
         //Generate Predictions
         Calendar toDate = Calendar.getInstance();
         Calendar fromDate = Calendar.getInstance();
-        //fromDate.set(2006, 0, 4);
-        fromDate.set(2010, 0, 4);
+        fromDate.set(2006, 0, 4);
 
         //Historical Prediction
         final String PRED_TYPE_BACKTEST = "BACKTEST";
@@ -54,8 +53,8 @@ public class Main {
         //Get Current Prediction for Today
         final String PRED_TYPE_CURRENT = "CURRENT";
         Calendar today = Calendar.getInstance();
-        //pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
-        //pred.predictAllStocksForDates(M5P, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
+        pred.predictAllStocksForDates(RND_FOR, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
+        pred.predictAllStocksForDates(M5P, 0, today.getTime(), today.getTime(), PRED_TYPE_CURRENT);
         
         //Backtesting
         //pred.backtest(RND_FOR, fromDate.getTime(), toDate.getTime());

@@ -256,6 +256,7 @@ public class StockDataHandler {
 
             conxn.setAutoCommit(false);
             
+            int dupCount = 0;
             Map<Date, Date> map = new HashMap<>();
             for (PredictionValues p : predictionList) {
 
@@ -264,12 +265,14 @@ public class StockDataHandler {
                 
                 //Dedup Check
                 if (map.containsKey(dt)) {
-                    System.out.println("Method: setStockPredictions, Dup Found for Date: " + dt);
+                    dupCount++;
                     continue;
                 }
-                else {
+                else 
                     map.put(dt, dt);
-                }
+
+                if (dupCount > 0)
+                    System.out.println("Method: setStockPredictions, Dup Count: " + dupCount);
                 
                 //Write values to DB
                 stmt.setString(1, p.getTicker());
@@ -924,18 +927,18 @@ public class StockDataHandler {
                 int year = e.getYear();
                 int quarter = e.getQuarter();
 
+                //Move ahead one quarter
+                if (quarter == 4) {
+                    year++;
+                    quarter = 1;
+                }
+                else {
+                    quarter++;
+                }
+                
                 //Minimal Date
                 if (year < 1990)
                     continue;
-                
-                //Move one quarter forward
-                if (quarter >= 1 && quarter <= 3) {
-                    quarter++;
-                }
-                else if (quarter == 4) {
-                    quarter = 1;
-                    year++;
-                }
 
                 //Insert values into DB
                 stmt.setShort(1, (short)year);

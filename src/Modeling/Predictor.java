@@ -46,6 +46,26 @@ public class Predictor {
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
  
+        //Weekend Test - From Date
+        Calendar calFrom = Calendar.getInstance();
+        calFrom.setTime(fromDate);
+
+        int dayOfWeek = calFrom.get(Calendar.DAY_OF_WEEK);
+        if (dayOfWeek == Calendar.SATURDAY)
+            calFrom.add(Calendar.DATE, -1);
+        else if (dayOfWeek == Calendar.SUNDAY)
+            calFrom.add(Calendar.DATE, -2);
+        
+        //Weekend Test - To Date
+        Calendar calTo = Calendar.getInstance();
+        calTo.setTime(toDate);
+        
+        dayOfWeek = calTo.get(Calendar.DAY_OF_WEEK);
+        if (dayOfWeek == Calendar.SATURDAY)
+            calTo.add(Calendar.DATE, -1);
+        else if (dayOfWeek == Calendar.SUNDAY)
+            calTo.add(Calendar.DATE, -2);
+        
         //Loop through all stocks for the given day
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(); 
@@ -54,7 +74,7 @@ public class Predictor {
             System.gc();
             
             //Get Features for the selected dates
-            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, fromDate, toDate);
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
 
             //Load the model
             String modelPath;
@@ -152,6 +172,10 @@ public class Predictor {
         int daysInAdvance = 0;
 
         for (;;) {
+            
+            if (daysInAdvance == DAYS_OUT)
+                break;
+
             //Weekend
             if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
                 targetDate.add(Calendar.DATE, 1);
@@ -160,9 +184,6 @@ public class Predictor {
                 targetDate.add(Calendar.DATE, 1);
                 daysInAdvance++;
             }
-
-            if (daysInAdvance == DAYS_OUT)
-                break;
         }
         
         return targetDate;
@@ -189,6 +210,9 @@ public class Predictor {
         StockDataHandler sdh = new StockDataHandler();
         for (;;) {
 
+            if (curDate.compareTo(finalDate) >= 0)
+                break;
+            
             //Weekend Test
             dayOfWeek = curDate.get(Calendar.DAY_OF_WEEK);
             if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
@@ -202,7 +226,8 @@ public class Predictor {
                 curDate.add(Calendar.DATE, 1);
                 continue;
             }
-            
+
+            /*
             //Portfolio Value
             BigDecimal acctValue = new BigDecimal(currentCapital.toString());
             for (int i = 0; i < stockHoldings.size(); i++) {
@@ -221,6 +246,7 @@ public class Predictor {
                 System.out.println("YOUR BROKE!");
                 break;
             }
+            */
             
             //Execute pending stock orders
             while (stockOrders.size() > 0) {
@@ -237,7 +263,7 @@ public class Predictor {
                         StockHolding stock = new StockHolding(order.getTicker(), order.getNumShares(), order.getProjectedDt());
                         stockHoldings.add(stock);
                         
-                        //System.out.printf("BUY: Ticker: %s, Shares: %d, Projected Date: %s %n", order.getTicker(), order.getNumShares(), order.getProjectedDt().toString());
+                        System.out.printf("BUY: Ticker: %s, Shares: %d, Cost: %s, Projected Date: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString(), order.getProjectedDt().toString());
                         
                         break;
                         
@@ -245,7 +271,7 @@ public class Predictor {
                         BigDecimal proceeds = curPrice.multiply(numShares);
                         currentCapital = currentCapital.add(proceeds).subtract(TRADING_COST); //Commission
 
-                        //System.out.printf("SELL: Ticker: %s, Shares: %d %n", order.getTicker(), order.getNumShares());
+                        System.out.printf("SELL: Ticker: %s, Shares: %d, Cost: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString());
 
                         //Remove the holding record
                         for (int i = 0; i < stockHoldings.size(); i++) {
@@ -256,9 +282,13 @@ public class Predictor {
                             }
                         }
 
+                        //Last order?
+                        if (stockOrders.size() == 1)
+                            System.out.printf("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
+                        
                         break;
                 }
-
+                
                 //Delete Order
                 stockOrders.remove(0);
             }
@@ -284,7 +314,6 @@ public class Predictor {
                 if (stockList.size() > 0) {
 
                     //Get the Forecasted Percent Change for each stock
-                    double forecastPctChg;
                     FuturePrice fp;
                     List<FuturePrice> fpList = new ArrayList<>();
                     for (String stock : stockList) {
