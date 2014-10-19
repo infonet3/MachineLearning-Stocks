@@ -8,8 +8,12 @@ import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
 import StockData.StockDataHandler;
 import StockData.StockTicker;
+import Utilities.Logger;
 import java.io.FileInputStream;
 import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
@@ -25,7 +29,8 @@ import weka.core.SerializationHelper;
  */
 public class RunModels {
 
-    final String CONF_FILE = "settings.conf";
+    static Logger logger = new Logger();
+    final String CONF_FILE = "Resources\\settings.conf";
     final String MODEL_PATH;
     
     public RunModels() throws Exception {
@@ -42,6 +47,9 @@ public class RunModels {
     //Methods
     public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
 
+        String summary = String.format("Model Type: %s, Days In Future: %d", MODEL, DAYS_IN_FUTURE);
+        logger.Log("RunModels", "runModels", summary, "");
+
         testAllStocks(MODEL, DAYS_IN_FUTURE);
     }
     
@@ -54,7 +62,6 @@ public class RunModels {
 
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
-            long startTime = System.currentTimeMillis();
             
             System.gc();
             
@@ -68,6 +75,7 @@ public class RunModels {
                 Instances train;
                 Evaluation eval;
                 String newFileName;
+                Path p;
                 switch (MODEL) {
                     case RAND_FORST:
                         
@@ -84,9 +92,13 @@ public class RunModels {
                         eval.crossValidateModel(rf, train, 10, new Random(1));
                         
                         accuracy = eval.correct() / (eval.correct() + eval.incorrect());
-                        System.out.println(eval.toSummaryString("\nResults\n========\n", true));
+                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true));
 
                         newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-RandomForest.model";
+                        p = Paths.get(newFileName);
+                        if (Files.exists(p))
+                            Files.delete(p);
+                        
                         SerializationHelper.write(newFileName, rf);
                         
                         break;
@@ -106,9 +118,13 @@ public class RunModels {
                         eval.crossValidateModel(mp, train, 10, new Random(1));
                         
                         accuracy = eval.correlationCoefficient();
-                        System.out.println(eval.toSummaryString("\nResults\n========\n", true));
+                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true));
 
                         newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-M5P.model";
+                        p = Paths.get(newFileName);
+                        if (Files.exists(p))
+                            Files.delete(p);
+
                         SerializationHelper.write(newFileName, mp);
                         
                         break;
@@ -124,15 +140,12 @@ public class RunModels {
 
                 //Save values to DB
                 sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, accuracy);
-
-                long endTime = System.currentTimeMillis();
-                long procTime = endTime - startTime;
-                System.out.println("Processing Time = " + (procTime / 1000.0) + " sec");
                 
                 System.gc();
 
             } catch(Exception exc) {
-                System.out.println("Method: testAllStocks, Ticker: " + ticker.getTicker() + ", Desc: " + exc);
+                logger.Log("RunModels", "testAllStocks", ticker.getTicker(), exc.toString());
+                throw exc;
             }
 
         } //End of for loop

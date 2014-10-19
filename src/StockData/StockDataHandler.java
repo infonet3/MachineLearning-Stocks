@@ -4,12 +4,12 @@
  */
 package StockData;
 
-import Modeling.CostResults;
 import Modeling.FuturePrice;
 import Modeling.ModelTypes;
 import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
 import static Modeling.ModelTypes.SVM;
+import Utilities.Logger;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -48,8 +48,10 @@ import javax.json.stream.JsonParser;
  * @author Matt Jones
  */
 public class StockDataHandler {
+
+    static Logger logger = new Logger();
     
-    final String CONF_FILE = "settings.conf";
+    final String CONF_FILE = "Resources\\settings.conf";
     final String STOCK_TICKERS_PATH;
 
     final String MYSQL_SERVER_HOST;
@@ -92,6 +94,10 @@ public class StockDataHandler {
     }
 
     public void computeMovingAverages(final int DAYS_BACK) throws Exception {
+        
+        String summary = String.format("Days Back: %d", DAYS_BACK);
+        logger.Log("StockDataHandler", "computeMovingAverages", summary, "");
+        
         List<StockTicker> tickers = getAllStockTickers(); 
         
         //Iterate through all stock tickers
@@ -165,6 +171,10 @@ public class StockDataHandler {
     }
 
     public void computeStockQuoteSlopes(final int DAYS_BACK) throws Exception {
+        
+        String summary = String.format("Days Back: %d", DAYS_BACK);
+        logger.Log("StockDataHandler", "computeStockQuoteSlopes", summary, "");
+        
         List<StockTicker> tickers = getAllStockTickers(); 
         
         //Iterate through all stock tickers
@@ -223,6 +233,8 @@ public class StockDataHandler {
 
     private void setStockQuoteSlope(List<StockQuoteSlope> slopeList) throws Exception {
 
+        logger.Log("StockDataHandler", "setStockQuoteSlope", "", "");
+
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote_Slope(?, ?, ?, ?)}")) {
 
@@ -251,12 +263,13 @@ public class StockDataHandler {
     
     public void insertStockPredictions(List<PredictionValues> predictionList) throws Exception {
 
+        logger.Log("StockDataHandler", "insertStockPrediction", "", "");
+
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockPrediction(?, ?, ?, ?, ?, ?)}")) {
 
             conxn.setAutoCommit(false);
             
-            int dupCount = 0;
             Map<Date, Date> map = new HashMap<>();
             for (PredictionValues p : predictionList) {
 
@@ -264,15 +277,10 @@ public class StockDataHandler {
                 java.sql.Date projDt = new java.sql.Date(p.getProjectedDate().getTime());
                 
                 //Dedup Check
-                if (map.containsKey(dt)) {
-                    dupCount++;
-                    continue;
-                }
-                else 
+                if (map.containsKey(dt)) 
+                    throw new Exception("Method: insertStockPredictions, Duplicate dates found!");
+                else
                     map.put(dt, dt);
-
-                if (dupCount > 0)
-                    System.out.println("Method: setStockPredictions, Dup Count: " + dupCount);
                 
                 //Write values to DB
                 stmt.setString(1, p.getTicker());
@@ -296,6 +304,8 @@ public class StockDataHandler {
     }
     
     private void setMovingAverages(List<MovingAverage> listMAs) throws Exception {
+
+        logger.Log("StockDataHandler", "setMovingAverages", "", "");
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote(?, ?, ?, ?, ?)}")) {
@@ -324,6 +334,9 @@ public class StockDataHandler {
     }
 
     public FuturePrice getTargetValueRegressionPredictions(String stock, Date date) throws Exception {
+
+        String summary = String.format("Stock: %s, Date: %s", stock, date.toString());
+        logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "");
 
         FuturePrice fp;
         try (Connection conxn = getDBConnection();
@@ -358,6 +371,9 @@ public class StockDataHandler {
     }
     
     public List<String> getPostiveClassificationPredictions(Date date) throws Exception {
+
+        String summary = String.format("Date: %s", date.toString());
+        logger.Log("StockDataHandler", "getPositiveClassificationPredictions", summary, "");
 
         List<String> stockList = new ArrayList<>();
 
@@ -2364,7 +2380,7 @@ public class StockDataHandler {
         final String NIKEII = "NIKEII";
         lastDt = getStockIndex_UpdateDate(NIKEII);
         if (isDataExpired(lastDt)) {
-            String nikeiiIndex = downloadData("NIKKEI/INDEX", lastDt);
+            String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt);
             insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
 

@@ -9,6 +9,7 @@ import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
 import StockData.*;
+import Utilities.Logger;
 import java.io.FileInputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
@@ -30,7 +31,8 @@ import weka.core.SerializationHelper;
  */
 public class Predictor {
 
-    final String CONF_FILE = "settings.conf";
+    static Logger logger = new Logger();
+    final String CONF_FILE = "Resources\\settings.conf";
     final String MODEL_PATH;
 
     public Predictor() throws Exception {
@@ -45,7 +47,10 @@ public class Predictor {
     
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
- 
+
+        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE + ", Prediction Type: " + PRED_TYPE;
+        logger.Log("Predictor", "predictAllStocksForDates", summary, "");
+        
         //Weekend Test - From Date
         Calendar calFrom = Calendar.getInstance();
         calFrom.setTime(fromDate);
@@ -76,6 +81,12 @@ public class Predictor {
             //Get Features for the selected dates
             String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
 
+            //Ensure were not missing data
+            if (dataExamples.isEmpty()) {
+                logger.Log("Predictor", "predictAllStocksForDates", ticker.getTicker(), "No data returned from DB");
+                throw new Exception("Method: predictAllStocksForDates, no data returned!");
+            }
+            
             //Load the model
             String modelPath;
             StringReader sr;
@@ -191,6 +202,9 @@ public class Predictor {
     
     public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE) throws Exception {
         
+        String summary = "Number Stocks: " + NUM_STOCKS + ", From: " + FROM_DATE + ", To: " + TO_DATE;
+        logger.Log("Predictor", "topNBacktest", summary, "");
+        
         Calendar curDate = Calendar.getInstance();
         curDate.setTime(FROM_DATE);
         
@@ -262,8 +276,9 @@ public class Predictor {
                 
                         StockHolding stock = new StockHolding(order.getTicker(), order.getNumShares(), order.getProjectedDt());
                         stockHoldings.add(stock);
-                        
-                        System.out.printf("BUY: Ticker: %s, Shares: %d, Cost: %s, Projected Date: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString(), order.getProjectedDt().toString());
+
+                        String buyActivity = String.format("BUY: Ticker: %s, Shares: %d, Cost: %s, Projected Date: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString(), order.getProjectedDt().toString());
+                        logger.Log("Predictor", "topNBacktest", buyActivity, "");
                         
                         break;
                         
@@ -271,7 +286,8 @@ public class Predictor {
                         BigDecimal proceeds = curPrice.multiply(numShares);
                         currentCapital = currentCapital.add(proceeds).subtract(TRADING_COST); //Commission
 
-                        System.out.printf("SELL: Ticker: %s, Shares: %d, Cost: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString());
+                        String sellActivity = String.format("SELL: Ticker: %s, Shares: %d, Cost: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString());
+                        logger.Log("Predictor", "topNBacktest", sellActivity, "");
 
                         //Remove the holding record
                         for (int i = 0; i < stockHoldings.size(); i++) {
@@ -283,8 +299,10 @@ public class Predictor {
                         }
 
                         //Last order?
-                        if (stockOrders.size() == 1)
-                            System.out.printf("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
+                        if (stockOrders.size() == 1) {
+                            String sumValue = String.format("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
+                            logger.Log("Predictor", "topNBacktest", sumValue, "");
+                        }
                         
                         break;
                 }
@@ -368,7 +386,7 @@ public class Predictor {
         for (StockTicker ticker : stockList) {
         
             try {
-                System.out.println("Backtest Stock: " + ticker.getTicker());
+                logger.Log("Predictor", "backtest", ticker.getTicker(), "");
 
                 //Run through all predictions for a given stock
                 List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), 
@@ -492,7 +510,9 @@ public class Predictor {
                 listResults.add(results);
 
             } catch(Exception exc) {
-                System.out.println("Method: backtest, Ticker: " + ticker.getTicker() + ", Desc: " + exc);
+                String summary = "Method: backtest, Ticker: " + ticker.getTicker() + ", Desc: " + exc;
+                logger.Log("Predictor", "backtest", summary, "");
+                throw exc;
             }
 
         } //End ticker loop
