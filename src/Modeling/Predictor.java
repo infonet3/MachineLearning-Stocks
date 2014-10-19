@@ -510,8 +510,7 @@ public class Predictor {
                 listResults.add(results);
 
             } catch(Exception exc) {
-                String summary = "Method: backtest, Ticker: " + ticker.getTicker() + ", Desc: " + exc;
-                logger.Log("Predictor", "backtest", summary, "");
+                logger.Log("Predictor", "backtest", "Exception", ticker.getTicker() + ": " + exc.toString());
                 throw exc;
             }
 

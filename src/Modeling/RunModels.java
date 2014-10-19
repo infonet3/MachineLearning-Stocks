@@ -144,7 +144,7 @@ public class RunModels {
                 System.gc();
 
             } catch(Exception exc) {
-                logger.Log("RunModels", "testAllStocks", ticker.getTicker(), exc.toString());
+                logger.Log("RunModels", "testAllStocks", "Exception", ticker.getTicker() + ": " + exc.toString());
                 throw exc;
             }
 

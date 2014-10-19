@@ -46,10 +46,20 @@ public class Logger {
     
     private Connection getDBConnection() throws Exception {
         MysqlDataSource dataSource = new MysqlDataSource();
-        dataSource.setServerName(MYSQL_SERVER_HOST);
-        dataSource.setPort(Integer.parseInt(MYSQL_SERVER_PORT));
-        dataSource.setDatabaseName(MYSQL_SERVER_DB);
-        return dataSource.getConnection(MYSQL_SERVER_LOGIN, MYSQL_SERVER_PASSWORD);
+        Connection conxn = null;
+        
+        try {
+            dataSource.setServerName(MYSQL_SERVER_HOST);
+            dataSource.setPort(Integer.parseInt(MYSQL_SERVER_PORT));
+            dataSource.setDatabaseName(MYSQL_SERVER_DB);
+            conxn  = dataSource.getConnection(MYSQL_SERVER_LOGIN, MYSQL_SERVER_PASSWORD);
+
+        } catch (Exception exc) {
+            Notifications.EmailActions.SendEmail("ML Notification - Database Error", "Cannot connect to DB.  Details: " + exc.toString());
+            System.exit(3);
+        }
+        
+        return conxn;
     }
     
     public void Log(String className, String method, String summary, String fullDescription) throws Exception {
