@@ -4,6 +4,7 @@
  */
 package StockData;
 
+import Utilities.Logger;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -27,6 +28,8 @@ import java.util.Map;
  */
 public class MorningstarData {
 
+    static Logger logger = new Logger();
+    
     public StockFundamentals_Quarter getStockFundamentals_Quarterly(StockTicker ticker) throws Exception {
         
         String tenQtrData = getDataFromMorningstar_Quarterly(ticker);
@@ -36,7 +39,7 @@ public class MorningstarData {
         try {
             stockFundBasics = parse10QtrData(ticker.getTicker(), tenQtrData);
         } catch (Exception exc) {
-            System.out.println("Method: getStockFundamentals_Quarterly, Ticker: " + ticker + ", Error Parsing Data!");
+            logger.Log("MorningstarData", "getStockFundamentals_Quarterly", "Exception", exc.toString());
         }
         return stockFundBasics;
     }
@@ -49,7 +52,7 @@ public class MorningstarData {
         try {
             stockFundBasics = parse10YrData(ticker.getTicker(), tenYrData);
         } catch (Exception exc) {
-            System.out.println("Method: getStockFundamentals_Annual, Ticker: " + ticker + ", Error Parsing Data!");
+            logger.Log("MorningstarData", "getStockFundamentals_Annual", "Exception", exc.toString());
         }
         return stockFundBasics;
     }
@@ -171,7 +174,7 @@ public class MorningstarData {
             stockFund.setFinancials_ReturnOnEquity(financialsROEBD);
             
         } catch (Exception exc) {
-            System.out.println("Method: parse10YrData, Desc: Ticker = " + ticker + ", " + input);
+            logger.Log("MorningstarData", "parse10YrData", "Exception", ticker + ": " + exc.toString());
             throw exc;
         }
         
@@ -460,7 +463,7 @@ public class MorningstarData {
             }
             
         } catch (Exception exc) {
-            System.out.println("Method: parse10QtrData, Desc: Ticker = " + ticker + ", " + input);
+            logger.Log("MorningstarData", "parse10QtrData", "Exception", ticker + ": " + exc.toString());
             throw exc;
         }
         
@@ -585,7 +588,7 @@ public class MorningstarData {
             default:
                 throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
-        System.out.println(urlTenQtrData);
+        logger.Log("MorningstarData", "getDataFromMorningstar_Quarterly", "URL", urlTenQtrData.toString());
         
         //Pull back the Financial Data
         int c;
@@ -626,7 +629,7 @@ public class MorningstarData {
             default:
                 throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
-        System.out.println(urlTenYrData);
+        logger.Log("MorningstarData", "getDataFromMorningstar_Annual", "URL", urlTenYrData.toString());
         
         //Pull back the Financial Data
         int c;

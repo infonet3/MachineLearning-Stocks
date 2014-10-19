@@ -428,7 +428,7 @@ public class Predictor {
 
                         //Broke Test
                         if (capital.doubleValue() < 1000) {
-                            System.out.println("YOUR BROKE!");
+                            logger.Log("Predictor", "backtest", "Broke", "Backtesting funds are lower than $1,000");
                             break Prices;
                         }
 

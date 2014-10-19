@@ -37,6 +37,13 @@ public class Logger {
         }
         catch (Exception exc) {
             System.out.println("Class Logger, Static Initializer, Desc:" + exc);
+            
+            try {
+                Notifications.EmailActions.SendEmail("Can't open configuration file for Logger class", exc.toString());
+            } catch(Exception exc2) {
+                System.out.println(exc2.toString());
+            }
+
             System.exit(2);
         }
     }

@@ -4,6 +4,7 @@
  */
 package Notifications;
 
+import Utilities.Logger;
 import java.util.Date;
 import java.util.Properties;
 import javax.mail.Message;
@@ -18,6 +19,8 @@ import javax.mail.internet.MimeMessage;
  */
 public class EmailActions {
 
+    static Logger logger = new Logger();
+    
     public static void SendEmail(String subject, String message) throws Exception {
 
         try {
@@ -43,7 +46,7 @@ public class EmailActions {
             Transport.send(msg, login, pwd);
         }
         catch (Exception exc) {
-            System.out.println(exc);
+            logger.Log("EmailActions", "SendEmail", "Exception", exc.toString());
         }
     }
 }

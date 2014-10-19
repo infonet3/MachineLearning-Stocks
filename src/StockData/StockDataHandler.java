@@ -126,8 +126,8 @@ public class StockDataHandler {
             final int TWENTY = 20;
             final int SIXTY = 60;
 
-            System.out.println("Method: computeMovingAverages, Ticker: " + stockTicker.getTicker());
-            
+            logger.Log("StockDataHandler", "computeMovingAverages", "Ticker: " + stockTicker.getTicker(), "");
+        
             //Look through a stock's price history
             for (StockPrice price : priceList) {
 
@@ -202,7 +202,7 @@ public class StockDataHandler {
             final int TWENTY = 20;
             final int SIXTY = 60;
 
-            System.out.println("Method: computeStockQuoteSlopes, Ticker: " + stockTicker.getTicker());
+            logger.Log("StockDataHandler", "computeStockQuoteSlopes", "Ticker: " + stockTicker.getTicker(), "");
 
             //Look through the 5 Day MAs
             for (int i = 0; i < priceList.size() - FIVE; i++) {
@@ -266,7 +266,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            System.out.println("Exception in setStockQuoteSlope");
+            logger.Log("StockDataHandler", "setStockQuoteSlope", "Exception", exc.toString());
             throw exc;
         }
     }
@@ -307,7 +307,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch (Exception exc) {
-            System.out.println("Exception in setStockPredictions");
+            logger.Log("StockDataHandler", "insertStockPrediction", "Exception", exc.toString());
             throw exc;
         }
 
@@ -338,7 +338,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            System.out.println("Exception in updateMovingAverages");
+            logger.Log("StockDataHandler", "setMovingAverages", "Exception", exc.toString());
             throw exc;
         }
     }
@@ -373,7 +373,7 @@ public class StockDataHandler {
                 throw new Exception("Method: getTargetValueRegressionPredictions, Description: No data returned!");
                 
         } catch(Exception exc) {
-            System.out.println("Exception in getTargetValueRegressionPredictions");
+            logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", "Exception", exc.toString());
             throw exc;
         }
         
@@ -403,7 +403,6 @@ public class StockDataHandler {
                 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getPositiveClassificationPredictions", "Exception", exc.toString());
-            System.out.println("Exception in getPostiveClassificationPredictions");
             throw exc;
         }
         
@@ -432,7 +431,6 @@ public class StockDataHandler {
                 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getAllStockQuotes", "Exception", exc.toString());
-            System.out.println("Exception in getAllStockQuotes");
             throw exc;
         }
         
@@ -470,7 +468,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getStockBackTesting", "Exception", exc.toString());
-            System.out.println("Exception in getAllStockQuotes");
             throw exc;
         }
     }
@@ -497,7 +494,6 @@ public class StockDataHandler {
             return listWeights;
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getWeights", "Exception", exc.toString());
-            System.out.println("Exception in getWeights");
             throw exc;
         }
     }
@@ -524,7 +520,6 @@ public class StockDataHandler {
                 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getAll5DayMAs", "Exception", exc.toString());
-            System.out.println("Exception in getAll5DayMAs");
             throw exc;
         }
         
@@ -614,7 +609,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", "Exception", exc.toString());
-            System.out.println("Exception in getAllStockFeaturesFromDB");
             throw exc;
         }
         
@@ -688,7 +682,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertStockIndexDataIntoDB, Index: " + stockIndex + ", Row: " + i);
                 }
             } //End For
             
@@ -698,7 +691,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockIndexDataIntoDB, Index: " + stockIndex + ", Description: " + exc);
             throw exc;
         }
     }
@@ -755,7 +747,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertEnergyPricesIntoDB, EnergyCode: " + energyCode + ", Row: " + i);
                 }
             } //End For
             
@@ -765,7 +756,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertEnergyPricesIntoDB, EnergyCode: " + energyCode + ", Description: " + exc);
             throw exc;
         }
     }
@@ -811,7 +801,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertCurrencyRatiosIntoDB, Currency: " + currency + ", Row: " + i);
                 }
             } //End for
             
@@ -821,7 +810,6 @@ public class StockDataHandler {
 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertCurrencyRatiosIntoDB, Currency: " + currency + ", Description: " + exc);
             throw exc;
         }
         
@@ -857,7 +845,6 @@ public class StockDataHandler {
 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockBacktestingIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -904,7 +891,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertPreciousMetalsPricesIntoDB, Metal: " + metal + ", Row: " + i);
                 }
             } //End For
             
@@ -914,7 +900,6 @@ public class StockDataHandler {
 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertPreciousMetalsPricesIntoDB, Metal: " + metal + ", Description: " + exc);
             throw exc;
         }
     }
@@ -975,7 +960,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertInflationDataIntoDB, Row: " + i);
                 }
             } //End For
             
@@ -985,7 +969,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertInflationDataIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1054,7 +1037,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertGDPDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertGDPDataIntoDB, Desc:" + exc);
             throw exc;
         }
     }
@@ -1097,12 +1079,10 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertUnemploymentRatesIntoDB, Row: " + i);
                 }
             }
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertUnemploymentRatesIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1148,7 +1128,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertInterestRatesIntoDB, Row: " + i + ", Desc: " + exc);
                 }
             } //End For
             
@@ -1158,7 +1137,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertInterestRatesIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1204,7 +1182,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertEconomicDataIntoDB, Row: " + i);
                 }
             } //End For
             
@@ -1214,7 +1191,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertEconomicDataIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1258,7 +1234,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertMortgateDataIntoDB, Row: " + i);
                 }
             } //End For
             
@@ -1268,7 +1243,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertMortgateDataIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1312,7 +1286,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertNewHomePriceDataIntoDB, Row: " + i);
                 }
             } //End For
             
@@ -1322,7 +1295,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertNewHomePriceDataIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1376,7 +1348,6 @@ public class StockDataHandler {
                     
                 } catch(Exception exc) {
                     logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString());
-                    System.out.println("Method: insertStockPricesIntoDB, Ticker: " + stockTicker + "Row: " + i);
                 }
 
             } //End for
@@ -1386,7 +1357,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockPricesIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1670,7 +1640,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockFundamentalsIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -1730,8 +1699,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "loadStockTickers", "Exception", exc.toString());
-            System.out.println("Row:" + i + ", " + exc);
+            logger.Log("StockDataHandler", "loadStockTickers", "Exception", "Row:" + i + ", " + exc.toString());
         }
 
     }
@@ -1846,7 +1814,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockFundamentals_Annual_IntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -2007,7 +1974,6 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "Exception", exc.toString());
-            System.out.println("Method: insertStockFundamentals_Quarter_IntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -2032,7 +1998,6 @@ public class StockDataHandler {
 
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in get30YrMortgageRates_UpdateDate");
             throw exc;
         }
     }
@@ -2056,7 +2021,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getAvgNewHomePrices_UpdateDate");
             throw exc;
         }
     }
@@ -2090,7 +2054,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getStockQuote", "Exception", exc.toString());
-            System.out.println("Exception in getStockQuote");
             throw exc;
         }
         
@@ -2116,7 +2079,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getCPI_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getCPI_UpdateDate");
             throw exc;
         }
     }
@@ -2142,7 +2104,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getEconomicData_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getEconomicData_UpdateDate");
             throw exc;
         }
     }
@@ -2168,7 +2129,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getCurrencyRations_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getCurrencyRatios_UpdateDate");
             throw exc;
         }
     }
@@ -2194,7 +2154,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getEnergyPrices_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getEnergyPrices_UpdateDate");
             throw exc;
         }
     }
@@ -2219,7 +2178,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getBEA_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getBEA_UpdateDate");
             throw exc;
         }
     }
@@ -2247,7 +2205,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getStockFundamentals_UpdateDate");
             throw exc;
         }
     }
@@ -2274,7 +2231,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getInterestRates_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getInterestRates_UpdateDate");
             throw exc;
         }
     }
@@ -2300,7 +2256,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getPreciousMetals_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getPreciousMetals_UpdateDate");
             throw exc;
         }
     }
@@ -2326,7 +2281,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getStockIndex_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getStockIndex_UpdateDate");
             throw exc;
         }
     }
@@ -2352,7 +2306,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getStockQuote_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getStockQuote_UpdateDate");
             throw exc;
         }
     }
@@ -2368,7 +2321,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "Exception", exc.toString());
-            System.out.println("Exception in setStockFundamentals_Quarter_ValidDates");
             throw exc;
         }
     }
@@ -2384,7 +2336,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "setStockFundametals_Annual_PctChg", "Excepton", exc.toString());
-            System.out.println("Exception in setStockFundamentals_Annual_PctChg");
             throw exc;
         }
     }
@@ -2400,7 +2351,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "setStockFundamentals_Quarter_PctChg", "Exception", exc.toString());
-            System.out.println("Exception in setStockFundamentals_Quarter_PctChg");
             throw exc;
         }
     }
@@ -2424,7 +2374,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "Exception", exc.toString());
-            System.out.println("Exception in getUnemployment_UpdateDate");
             throw exc;
         }
     }
@@ -2704,7 +2653,7 @@ public class StockDataHandler {
             URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
-            System.out.println(url);
+            logger.Log("StockDataHandler", "downloadBEAData", "URL", url.toString());
             
             //Pull back the data as JSON
             try (InputStream is = conxn.getInputStream()) {
@@ -2856,7 +2805,7 @@ public class StockDataHandler {
             }
 
         } catch(Exception exc) {
-            System.out.println(exc);
+            logger.Log("StockDataHandler", "downloadBEAData", "Exception", exc.toString());
         }
         
         return list;
@@ -2880,7 +2829,6 @@ public class StockDataHandler {
 
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "setModelValues", "Exception", exc.toString());
-            System.out.println("Method: insertWeightsIntoDB, Description: " + exc);
             throw exc;
         }
     }
@@ -2916,7 +2864,7 @@ public class StockDataHandler {
             }
             
         } catch(Exception exc) {
-            System.out.println(exc);
+            logger.Log("StockDataHandler", "downloadCensusData", "Exception", exc.toString());
         }
 
         return responseStr.toString();
@@ -2942,7 +2890,7 @@ public class StockDataHandler {
             URL url = new URL(quandlQuery);
             URLConnection conxn = url.openConnection();
 
-            System.out.println("Downloading: " + quandlQuery);
+            logger.Log("StockDataHandler", "downloadData", "Downloading", quandlQuery);
             
             //Pull back the data as CSV
             try (InputStream is = conxn.getInputStream()) {
@@ -2958,7 +2906,7 @@ public class StockDataHandler {
             }
             
         } catch(Exception exc) {
-            System.out.println(exc);
+            logger.Log("StockDataHandler", "downloadData", "Exception", exc.toString());
         }
 
         return responseStr.toString();
