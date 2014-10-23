@@ -4,6 +4,7 @@
  */
 package Modeling;
 
+import StockData.StockHolding;
 import java.math.BigDecimal;
 
 /**

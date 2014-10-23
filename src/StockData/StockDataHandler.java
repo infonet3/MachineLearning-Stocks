@@ -271,6 +271,31 @@ public class StockDataHandler {
         }
     }
     
+    public List<StockHolding> getCurrentStockHoldings() throws Exception {
+
+        logger.Log("StockDataHandler", "getCurrentStockHoldings", "", "");
+
+        List<StockHolding> listHoldings = new ArrayList<>();
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Current_Stock_Holdings () }")) {
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String ticker = rs.getString(1);
+                int numShares = rs.getInt(2);
+                Date expDt = rs.getDate(3);
+                StockHolding holding = new StockHolding(ticker, numShares, expDt);
+                listHoldings.add(holding);
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getCurrentStockHoldings", "Exception", exc.toString());
+            throw exc;
+        }
+        
+        return listHoldings;
+    }
+    
     public void insertStockPredictions(List<PredictionValues> predictionList) throws Exception {
 
         logger.Log("StockDataHandler", "insertStockPrediction", "", "");

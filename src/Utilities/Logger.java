@@ -70,6 +70,10 @@ public class Logger {
     }
     
     public void Log(String className, String method, String summary, String fullDescription) throws Exception {
+        
+        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s", className, method, summary, fullDescription);
+        System.out.println(strOutput);
+        
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?)}")) {
             

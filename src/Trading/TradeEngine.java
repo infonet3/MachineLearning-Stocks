@@ -1,33 +1,28 @@
 package Trading;
 
+import Modeling.Predictor;
+import StockData.StockDataHandler;
+import StockData.StockHolding;
 import java.io.FileReader;
 import java.util.Properties;
 import Trading.IB.*;
+import java.math.BigDecimal;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
 public class TradeEngine implements EWrapper {
 
-    final String CONF_FILE = "settings.conf";
-    final String MYSQL_SERVER_HOST;
-    final String MYSQL_SERVER_PORT;
-    final String MYSQL_SERVER_DB;
-    final String MYSQL_SERVER_LOGIN;
-    final String MYSQL_SERVER_PASSWORD;
+    //Fields
+    BigDecimal availableFunds;
+    BigDecimal stockQuote;
+    int orderID = 1;
+    int stockHoldingCount = 0;
     
+    //Methods
     public TradeEngine() throws Exception {
-        
-        Properties p = new Properties();
-        try (FileReader fis = new FileReader(CONF_FILE)) {
-            p.load(fis);
-            
-            MYSQL_SERVER_HOST = p.getProperty("mysql_server_host");
-            MYSQL_SERVER_PORT = p.getProperty("mysql_server_port");
-            MYSQL_SERVER_DB = p.getProperty("mysql_server_db");
-            MYSQL_SERVER_LOGIN = p.getProperty("mysql_server_login");
-            MYSQL_SERVER_PASSWORD = p.getProperty("mysql_server_password");
-        } 
     }
-
     
     @Override
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
@@ -66,7 +61,8 @@ public class TradeEngine implements EWrapper {
 
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
-        System.out.println("openOrder");
+        String output = String.format("Order: %d, Ticker: %s, Order: %d, State: %s", orderId, contract.m_symbol, order.m_totalQuantity, orderState.m_status);
+        System.out.println(output);
     }
 
     @Override
@@ -206,7 +202,13 @@ public class TradeEngine implements EWrapper {
 
     @Override
     public void position(String account, Contract contract, int pos, double avgCost) {
-        System.out.println("position");
+
+        stockHoldingCount++;
+        
+        String s = contract.m_symbol;
+        System.out.println("Symbol: " + s);
+        String output = String.format("Account: %s, Pos: %d, Cost: %f", account, pos, avgCost);
+        System.out.println(output);
     }
 
     @Override
@@ -216,7 +218,14 @@ public class TradeEngine implements EWrapper {
 
     @Override
     public void accountSummary(int reqId, String account, String tag, String value, String currency) {
-        System.out.println("accountSummary");
+        
+        final String AVAIL_FUNDS = "TotalCashValue";
+        if (tag.equals(AVAIL_FUNDS)) {
+            availableFunds = new BigDecimal(value);
+        }
+        
+        String output = String.format("ReqID: %d, Acct: %s, Tag: %s, Value: %s, Currency: %s", reqId, account, tag, value, currency);
+        System.out.println(output);
     }
 
     @Override
@@ -244,16 +253,10 @@ public class TradeEngine implements EWrapper {
         System.out.println("displayGroupUpdated");
     }
     
-    public void connect() {
-        
-        EClientSocket client = new EClientSocket(this);
-
-        //client.eConnect("localhost", 7496, 101);
-        client.eConnect("localhost", 4001, 101);
-
+    private void reqStockQuote(EClientSocket client, String quote) {
         Contract c = new Contract();
         c.m_conId = 0;
-        c.m_symbol = "IBM";
+        c.m_symbol = quote;
         c.m_secType = "STK";
         c.m_expiry = "";
         c.m_strike = 0.0;
@@ -267,11 +270,159 @@ public class TradeEngine implements EWrapper {
         c.m_primaryExch = "";
         c.m_secIdType = "";
         c.m_secId = null;
-        
     	client.reqMktData(1, c, "", true, Collections.<TagValue>emptyList());
+    }
+    
+    private void reqBuyStock(EClientSocket client, String ticker, int numShares, double curPrice) {
+
+        Contract contract = new Contract();
+        contract.m_symbol = ticker.toUpperCase();
+        contract.m_secType = "STK";
+        contract.m_expiry = "";
+        contract.m_strike = 0;
+        contract.m_right = "None";
+        contract.m_multiplier = String.valueOf(numShares);
+        contract.m_exchange = "SMART";
+        contract.m_primaryExch = "ISLAND";
+        contract.m_currency = "USD";
         
+        Order order = new Order();
+        order.m_clientId = 1;
+        order.m_orderId = 3;
+        order.m_permId = 0;
+        order.m_parentId = 0;
+        order.m_account = "DU205493";
+        order.m_action = "BUY";
+        order.m_totalQuantity = numShares;
+        order.m_orderType = "LMT";
+        order.m_lmtPrice = curPrice * 1.05; //Max 5% above current price
+        order.m_tif = "DAY";
+        
+        client.placeOrder(orderID++, contract, order);
+    }
+
+    private void reqSellStock(EClientSocket client, String ticker, int numShares, double curPrice) {
+
+        Contract contract = new Contract();
+        contract.m_symbol = ticker.toUpperCase();
+        contract.m_secType = "STK";
+        contract.m_expiry = "";
+        contract.m_strike = 0;
+        contract.m_right = "None";
+        contract.m_multiplier = String.valueOf(numShares);
+        contract.m_exchange = "SMART";
+        contract.m_primaryExch = "ISLAND";
+        contract.m_currency = "USD";
+        
+        Order order = new Order();
+        order.m_clientId = 1;
+        order.m_orderId = 3;
+        order.m_permId = 0;
+        order.m_parentId = 0;
+        order.m_account = "DU205493";
+        order.m_action = "SELL";
+        order.m_totalQuantity = numShares;
+        order.m_orderType = "LMT";
+        order.m_lmtPrice = curPrice * .95; //Max 5% above current price
+        order.m_tif = "DAY";
+        
+        client.placeOrder(orderID++, contract, order);
+    }
+
+    public void emailTodaysStockPicks(final int MAX_STOCK_COUNT, Date runDate) throws Exception {
+
+        Predictor p = new Predictor();
+        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate);
+        
+        StringBuilder sb = new StringBuilder("Today's top stock picks: ");
+        for (StockHolding stk : stkPicks) {
+            sb.append(stk.getTicker());
+            sb.append("\t");
+        }
+
+        String subject = "Top Picks for: " + runDate.toString();
+        Notifications.EmailActions.SendEmail(subject, sb.toString());
+    }
+    
+    public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
+
+        EClientSocket client = connect();
+        reqStockQuote(client, "AXP");
+
+        client.reqPositions();
+        
+        //First see what holdings we have
+        StockDataHandler sdh = new StockDataHandler();
+        List<StockHolding> listHoldings = sdh.getCurrentStockHoldings();
+        int count = listHoldings.size();
+        
+        //See if any currently held stocks are expired
+        Calendar today = Calendar.getInstance();
+        Calendar expDt = Calendar.getInstance();
+        
+        for (StockHolding stk : listHoldings) {
+            expDt.setTime(stk.getTargetDate());
+            double curPrice = 123.45;
+            
+            //Generate sell order if expired
+            if (expDt.compareTo(today) >= 0) {
+                reqStockQuote(client, stk.getTicker());
+                reqSellStock(client, stk.getTicker(), stk.getSharesHeld(), curPrice);
+            }
+        }
+        
+        //Get positions held at IB
+        client.reqPositions();
+        Thread.sleep(2000);
+        System.out.println("Stocks Held = " + stockHoldingCount);
+
+        //Can we purchase stocks - must be in ALL cash
+        if (stockHoldingCount == 0) {
+            reqAccountBalance(client);
+            Thread.sleep(2000);
+            System.out.println("Funds = " + availableFunds);
+
+            //Get List of Stocks forecasted to go up
+            Date yesterday = Utilities.Dates.getYesterday();
+            Predictor p = new Predictor();
+            List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+
+            for (int i = 0; i < MAX_STOCK_COUNT; i++) {
+                //BUY ORDERS
+            }
+        }
+
+        
+        
+        //Open Orders
+        client.reqAllOpenOrders();
+        
+        //If needed
+        //client.reqGlobalCancel();
+        
+        //Stop Session
         client.eDisconnect();
+    }
+    
+    private void reqAccountBalance(EClientSocket client) throws Exception {
+        client.reqAccountSummary(101, "All", "TotalCashValue");
+    }
+    
+    private EClientSocket connect() throws Exception {
         
+        EClientSocket client = new EClientSocket(this);
+
+        for (;;) {
+            client.eConnect("localhost", 7496, 101);
+            //client.eConnect("localhost", 4001, 101);
+
+            if (client.isConnected())
+                break;
+            
+            Thread.sleep(1000);
+        }
+        
+        return client;
     }
 
     

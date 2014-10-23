@@ -4,6 +4,7 @@
  */
 package Modeling;
 
+import StockData.StockHolding;
 import StockData.PredictionValues;
 import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
@@ -198,6 +199,47 @@ public class Predictor {
         }
         
         return targetDate;
+    }
+    
+    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate) throws Exception {
+
+        logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "");
+        
+        List<StockHolding> topStocks = new ArrayList<>();
+        
+        try {
+            //Get List of Stocks forecasted to go up
+            StockDataHandler sdh = new StockDataHandler();
+            List<String> stockList = sdh.getPostiveClassificationPredictions(runDate);
+            if (stockList.size() >= NUM_STOCKS) {
+
+                //Get the Forecasted Percent Change for each stock
+                FuturePrice fp;
+                List<FuturePrice> fpList = new ArrayList<>();
+                for (String stock : stockList) {
+                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate);
+                    fpList.add(fp);
+                }
+
+                //Filter to the top N stocks by the forecasted % change
+                Collections.sort(fpList);
+
+                //Pick Top stocks
+                int size = fpList.size();
+                for (int i = size - 1; i > (size - 1 - NUM_STOCKS); i--) {
+                    String ticker = fpList.get(i).getTicker();
+                    Date projDt = fpList.get(i).getProjectedDt();
+                    StockHolding stk = new StockHolding(ticker, 0, projDt);
+                    topStocks.add(stk);
+                } 
+            }
+            
+        } catch(Exception exc) {
+            logger.Log("Predictor", "topStockPicks", "Exception", exc.toString());
+            throw exc;
+        }
+        
+        return topStocks;
     }
     
     public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE) throws Exception {
