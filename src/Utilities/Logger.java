@@ -16,7 +16,7 @@ import java.util.Properties;
  */
 public class Logger {
 
-    static final String CONF_FILE = "Resources\\settings.conf";
+    static final String CONF_FILE = "Resources/settings.conf";
 
     static String MYSQL_SERVER_HOST;
     static String MYSQL_SERVER_PORT;
@@ -69,18 +69,19 @@ public class Logger {
         return conxn;
     }
     
-    public void Log(String className, String method, String summary, String fullDescription) throws Exception {
+    public void Log(String className, String method, String summary, String fullDescription, boolean isError) throws Exception {
         
-        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s", className, method, summary, fullDescription);
+        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Error: %s", className, method, summary, fullDescription, String.valueOf(isError));
         System.out.println(strOutput);
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?, ?)}")) {
             
             stmt.setString(1, className);
             stmt.setString(2, method);
             stmt.setString(3, summary);
             stmt.setString(4, fullDescription);
+            stmt.setBoolean(5, isError);
 
             stmt.executeUpdate();
             

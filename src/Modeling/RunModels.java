@@ -30,7 +30,7 @@ import weka.core.SerializationHelper;
 public class RunModels {
 
     static Logger logger = new Logger();
-    final String CONF_FILE = "Resources\\settings.conf";
+    final String CONF_FILE = "Resources/settings.conf";
     final String MODEL_PATH;
     
     public RunModels() throws Exception {
@@ -48,7 +48,7 @@ public class RunModels {
     public void runModels(final ModelTypes MODEL, final int DAYS_IN_FUTURE) throws Exception {
 
         String summary = String.format("Model Type: %s, Days In Future: %d", MODEL, DAYS_IN_FUTURE);
-        logger.Log("RunModels", "runModels", summary, "");
+        logger.Log("RunModels", "runModels", summary, "", false);
 
         testAllStocks(MODEL, DAYS_IN_FUTURE);
     }
@@ -92,9 +92,9 @@ public class RunModels {
                         eval.crossValidateModel(rf, train, 10, new Random(1));
                         
                         accuracy = eval.correct() / (eval.correct() + eval.incorrect());
-                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true));
+                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
 
-                        newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-RandomForest.model";
+                        newFileName = MODEL_PATH + "/" + ticker.getTicker() + "-RandomForest.model";
                         p = Paths.get(newFileName);
                         if (Files.exists(p))
                             Files.delete(p);
@@ -118,9 +118,9 @@ public class RunModels {
                         eval.crossValidateModel(mp, train, 10, new Random(1));
                         
                         accuracy = eval.correlationCoefficient();
-                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true));
+                        logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
 
-                        newFileName = MODEL_PATH + "\\" + ticker.getTicker() + "-M5P.model";
+                        newFileName = MODEL_PATH + "/" + ticker.getTicker() + "-M5P.model";
                         p = Paths.get(newFileName);
                         if (Files.exists(p))
                             Files.delete(p);
@@ -144,7 +144,7 @@ public class RunModels {
                 System.gc();
 
             } catch(Exception exc) {
-                logger.Log("RunModels", "testAllStocks", "Exception", ticker.getTicker() + ": " + exc.toString());
+                logger.Log("RunModels", "testAllStocks", "Exception", ticker.getTicker() + ": " + exc.toString(), true);
                 throw exc;
             }
 

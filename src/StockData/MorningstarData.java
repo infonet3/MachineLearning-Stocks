@@ -39,7 +39,7 @@ public class MorningstarData {
         try {
             stockFundBasics = parse10QtrData(ticker.getTicker(), tenQtrData);
         } catch (Exception exc) {
-            logger.Log("MorningstarData", "getStockFundamentals_Quarterly", "Exception", exc.toString());
+            logger.Log("MorningstarData", "getStockFundamentals_Quarterly", "Exception", exc.toString(), true);
         }
         return stockFundBasics;
     }
@@ -52,7 +52,7 @@ public class MorningstarData {
         try {
             stockFundBasics = parse10YrData(ticker.getTicker(), tenYrData);
         } catch (Exception exc) {
-            logger.Log("MorningstarData", "getStockFundamentals_Annual", "Exception", exc.toString());
+            logger.Log("MorningstarData", "getStockFundamentals_Annual", "Exception", exc.toString(), true);
         }
         return stockFundBasics;
     }
@@ -174,7 +174,7 @@ public class MorningstarData {
             stockFund.setFinancials_ReturnOnEquity(financialsROEBD);
             
         } catch (Exception exc) {
-            logger.Log("MorningstarData", "parse10YrData", "Exception", ticker + ": " + exc.toString());
+            logger.Log("MorningstarData", "parse10YrData", "Exception", ticker + ": " + exc.toString(), true);
             throw exc;
         }
         
@@ -463,7 +463,7 @@ public class MorningstarData {
             }
             
         } catch (Exception exc) {
-            logger.Log("MorningstarData", "parse10QtrData", "Exception", ticker + ": " + exc.toString());
+            logger.Log("MorningstarData", "parse10QtrData", "Exception", ticker + ": " + exc.toString(), true);
             throw exc;
         }
         
@@ -588,7 +588,7 @@ public class MorningstarData {
             default:
                 throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
-        logger.Log("MorningstarData", "getDataFromMorningstar_Quarterly", "URL", urlTenQtrData.toString());
+        logger.Log("MorningstarData", "getDataFromMorningstar_Quarterly", "URL", urlTenQtrData.toString(), false);
         
         //Pull back the Financial Data
         int c;
@@ -629,7 +629,7 @@ public class MorningstarData {
             default:
                 throw new Exception("Method: getDataFromMorningstar, Desc: Exchange Not Found! " + ticker.getExchange());
         }
-        logger.Log("MorningstarData", "getDataFromMorningstar_Annual", "URL", urlTenYrData.toString());
+        logger.Log("MorningstarData", "getDataFromMorningstar_Annual", "URL", urlTenYrData.toString(), false);
         
         //Pull back the Financial Data
         int c;

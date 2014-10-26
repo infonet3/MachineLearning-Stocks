@@ -25,7 +25,7 @@ public class Main {
 
         try {
             if (args.length != 1) {
-                logger.Log("Main", "main", "Program Arguments", "Num arguments != 1");
+                logger.Log("Main", "main", "Program Arguments", "Num arguments != 1", false);
                 System.out.println("Missing argument!");
                 System.exit(1);
             }
@@ -39,7 +39,7 @@ public class Main {
             switch(argument) {
                 //Download Data
                 case "D":
-                    logger.Log("Main", "main", "Option D", "Downloading Data");
+                    logger.Log("Main", "main", "Option D", "Downloading Data", false);
 
                     StockDataHandler sdh = new StockDataHandler();
                     sdh.downloadAllStockData();
@@ -52,7 +52,7 @@ public class Main {
 
                 //Generate Models    
                 case "M":
-                    logger.Log("Main", "main", "Option M", "Generating Models");
+                    logger.Log("Main", "main", "Option M", "Generating Models", false);
 
                     RunModels models = new RunModels();
                     models.runModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE);
@@ -62,7 +62,7 @@ public class Main {
 
                 //Current Predictions
                 case "C":
-                    logger.Log("Main", "main", "Option C", "Get Current Predictions");
+                    logger.Log("Main", "main", "Option C", "Get Current Predictions", false);
 
                     final String PRED_TYPE_CURRENT = "CURRENT";
                     pred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, yesterday, yesterday, PRED_TYPE_CURRENT);
@@ -72,7 +72,7 @@ public class Main {
 
                 //Backtest
                 case "B":
-                    logger.Log("Main", "main", "Option B", "Perform Backtesting");
+                    logger.Log("Main", "main", "Option B", "Perform Backtesting", false);
 
                     final String PRED_TYPE_BACKTEST = "BACKTEST";
                     
@@ -92,18 +92,18 @@ public class Main {
 
                 //Trading
                 case "T":
-                    logger.Log("Main", "main", "Option T", "Perform Automated Trading");
+                    logger.Log("Main", "main", "Option T", "Perform Automated Trading", false);
 
                     TradeEngine trade = new TradeEngine();
                     final int MAX_STOCK_COUNT = 5;
-                    trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
-                    //trade.runTrading(MAX_STOCK_COUNT);
+                    //trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
+                    trade.runTrading(MAX_STOCK_COUNT);
                     
                     break;
             } //End Switch
             
         } catch (Exception exc) {
-            logger.Log("Main", "main", "Exception", exc.toString());
+            logger.Log("Main", "main", "Exception", exc.toString(), true);
             Notifications.EmailActions.SendEmail("Exception in main method", exc.toString());
             throw exc;
         }

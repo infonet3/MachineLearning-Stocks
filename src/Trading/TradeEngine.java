@@ -3,10 +3,9 @@ package Trading;
 import Modeling.Predictor;
 import StockData.StockDataHandler;
 import StockData.StockHolding;
-import java.io.FileReader;
-import java.util.Properties;
 import Trading.IB.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -18,7 +17,7 @@ public class TradeEngine implements EWrapper {
     BigDecimal availableFunds;
     BigDecimal stockQuote;
     int orderID = 1;
-    int stockHoldingCount = 0;
+    List<StockHolding> listHoldings = new ArrayList<>();
     
     //Methods
     public TradeEngine() throws Exception {
@@ -203,12 +202,12 @@ public class TradeEngine implements EWrapper {
     @Override
     public void position(String account, Contract contract, int pos, double avgCost) {
 
-        stockHoldingCount++;
-        
-        String s = contract.m_symbol;
-        System.out.println("Symbol: " + s);
+        String ticker = contract.m_symbol;
         String output = String.format("Account: %s, Pos: %d, Cost: %f", account, pos, avgCost);
         System.out.println(output);
+        
+        StockHolding holding = new StockHolding(ticker, pos, null);
+        listHoldings.add(holding);
     }
 
     @Override
@@ -347,14 +346,22 @@ public class TradeEngine implements EWrapper {
     public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
 
         EClientSocket client = connect();
-        reqStockQuote(client, "AXP");
 
+        //Get current holdings
         client.reqPositions();
+        Thread.sleep(1000);
+        int holdingCount = listHoldings.size();
+        
+        //Find expiration from DB
+        
+
+        
+        reqAccountBalance(client);
         
         //First see what holdings we have
         StockDataHandler sdh = new StockDataHandler();
         List<StockHolding> listHoldings = sdh.getCurrentStockHoldings();
-        int count = listHoldings.size();
+        int stockHoldingCount = listHoldings.size();
         
         //See if any currently held stocks are expired
         Calendar today = Calendar.getInstance();

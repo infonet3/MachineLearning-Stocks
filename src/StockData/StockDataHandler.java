@@ -51,7 +51,7 @@ public class StockDataHandler {
 
     static Logger logger = new Logger();
     
-    final String CONF_FILE = "Resources\\settings.conf";
+    final String CONF_FILE = "Resources/settings.conf";
     final String STOCK_TICKERS_PATH;
 
     final String MYSQL_SERVER_HOST;
@@ -106,7 +106,7 @@ public class StockDataHandler {
     public void computeMovingAverages(final int DAYS_BACK) throws Exception {
         
         String summary = String.format("Days Back: %d", DAYS_BACK);
-        logger.Log("StockDataHandler", "computeMovingAverages", summary, "");
+        logger.Log("StockDataHandler", "computeMovingAverages", summary, "", false);
         
         List<StockTicker> tickers = getAllStockTickers(); 
         
@@ -126,7 +126,7 @@ public class StockDataHandler {
             final int TWENTY = 20;
             final int SIXTY = 60;
 
-            logger.Log("StockDataHandler", "computeMovingAverages", "Ticker: " + stockTicker.getTicker(), "");
+            logger.Log("StockDataHandler", "computeMovingAverages", "Ticker: " + stockTicker.getTicker(), "", false);
         
             //Look through a stock's price history
             for (StockPrice price : priceList) {
@@ -183,7 +183,7 @@ public class StockDataHandler {
     public void computeStockQuoteSlopes(final int DAYS_BACK) throws Exception {
         
         String summary = String.format("Days Back: %d", DAYS_BACK);
-        logger.Log("StockDataHandler", "computeStockQuoteSlopes", summary, "");
+        logger.Log("StockDataHandler", "computeStockQuoteSlopes", summary, "", false);
         
         List<StockTicker> tickers = getAllStockTickers(); 
         
@@ -202,7 +202,7 @@ public class StockDataHandler {
             final int TWENTY = 20;
             final int SIXTY = 60;
 
-            logger.Log("StockDataHandler", "computeStockQuoteSlopes", "Ticker: " + stockTicker.getTicker(), "");
+            logger.Log("StockDataHandler", "computeStockQuoteSlopes", "Ticker: " + stockTicker.getTicker(), "", false);
 
             //Look through the 5 Day MAs
             for (int i = 0; i < priceList.size() - FIVE; i++) {
@@ -243,7 +243,7 @@ public class StockDataHandler {
 
     private void setStockQuoteSlope(List<StockQuoteSlope> slopeList) throws Exception {
 
-        logger.Log("StockDataHandler", "setStockQuoteSlope", "", "");
+        logger.Log("StockDataHandler", "setStockQuoteSlope", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote_Slope(?, ?, ?, ?)}")) {
@@ -266,14 +266,14 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "setStockQuoteSlope", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setStockQuoteSlope", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     public List<StockHolding> getCurrentStockHoldings() throws Exception {
 
-        logger.Log("StockDataHandler", "getCurrentStockHoldings", "", "");
+        logger.Log("StockDataHandler", "getCurrentStockHoldings", "", "", false);
 
         List<StockHolding> listHoldings = new ArrayList<>();
         try (Connection conxn = getDBConnection();
@@ -289,7 +289,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getCurrentStockHoldings", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getCurrentStockHoldings", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -298,7 +298,7 @@ public class StockDataHandler {
     
     public void insertStockPredictions(List<PredictionValues> predictionList) throws Exception {
 
-        logger.Log("StockDataHandler", "insertStockPrediction", "", "");
+        logger.Log("StockDataHandler", "insertStockPrediction", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockPrediction(?, ?, ?, ?, ?, ?)}")) {
@@ -332,7 +332,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "insertStockPrediction", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockPrediction", "Exception", exc.toString(), true);
             throw exc;
         }
 
@@ -340,7 +340,7 @@ public class StockDataHandler {
     
     private void setMovingAverages(List<MovingAverage> listMAs) throws Exception {
 
-        logger.Log("StockDataHandler", "setMovingAverages", "", "");
+        logger.Log("StockDataHandler", "setMovingAverages", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote(?, ?, ?, ?, ?)}")) {
@@ -363,7 +363,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "setMovingAverages", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setMovingAverages", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -371,7 +371,7 @@ public class StockDataHandler {
     public FuturePrice getTargetValueRegressionPredictions(String stock, Date date) throws Exception {
 
         String summary = String.format("Stock: %s, Date: %s", stock, date.toString());
-        logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "");
+        logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "", false);
 
         FuturePrice fp;
         try (Connection conxn = getDBConnection();
@@ -398,7 +398,7 @@ public class StockDataHandler {
                 throw new Exception("Method: getTargetValueRegressionPredictions, Description: No data returned!");
                 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -408,7 +408,7 @@ public class StockDataHandler {
     public List<String> getPostiveClassificationPredictions(Date date) throws Exception {
 
         String summary = String.format("Date: %s", date.toString());
-        logger.Log("StockDataHandler", "getPositiveClassificationPredictions", summary, "");
+        logger.Log("StockDataHandler", "getPositiveClassificationPredictions", summary, "", false);
 
         List<String> stockList = new ArrayList<>();
 
@@ -427,7 +427,7 @@ public class StockDataHandler {
             }
                 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getPositiveClassificationPredictions", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getPositiveClassificationPredictions", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -437,7 +437,7 @@ public class StockDataHandler {
     private List<StockPrice> getAllStockQuotes(String ticker, int daysBack) throws Exception {
 
         String summary = String.format("Ticker: %s, Days Back: %d", ticker, daysBack);
-        logger.Log("StockDataHandler", "getAllStockQuotes", summary, "");
+        logger.Log("StockDataHandler", "getAllStockQuotes", summary, "", false);
         
         List<StockPrice> stockPrices = new ArrayList<>();
         try (Connection conxn = getDBConnection();
@@ -455,7 +455,7 @@ public class StockDataHandler {
             }
                 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getAllStockQuotes", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getAllStockQuotes", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -465,7 +465,7 @@ public class StockDataHandler {
     public List<PredictionValues> getStockBackTesting(String ticker, String modelType, Date fromDate, Date toDate) throws Exception {
 
         String summary = String.format("Ticker: %s, Model Type: %s, From: %s, To: %s", ticker, modelType, fromDate, toDate);
-        logger.Log("StockDataHandler", "getStockBackTesting", summary, "");
+        logger.Log("StockDataHandler", "getStockBackTesting", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Stock_BackTesting(?, ?, ?, ?)}")) {
@@ -492,7 +492,7 @@ public class StockDataHandler {
             return listVals;
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getStockBackTesting", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getStockBackTesting", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -500,7 +500,7 @@ public class StockDataHandler {
     public List<Weight> getWeights(String ticker, ModelTypes modelType) throws Exception {
 
         String summary = String.format("Ticker: %s, Model Type: %s", ticker, modelType);
-        logger.Log("StockDataHandler", "getWeights", summary, "");
+        logger.Log("StockDataHandler", "getWeights", summary, "", false);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Weights(?, ?)}")) {
@@ -518,7 +518,7 @@ public class StockDataHandler {
             
             return listWeights;
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getWeights", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getWeights", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -526,7 +526,7 @@ public class StockDataHandler {
     private List<StockPrice> getAll5DayMAs(String ticker, int daysBack) throws Exception {
 
         String summary = String.format("Ticker: %s, Days Back: %d", ticker, daysBack);
-        logger.Log("StockDataHandler", "getAll5DayMAs", summary, "");
+        logger.Log("StockDataHandler", "getAll5DayMAs", summary, "", false);
 
         List<StockPrice> stockPrices = new ArrayList<>();
         try (Connection conxn = getDBConnection();
@@ -544,7 +544,7 @@ public class StockDataHandler {
             }
                 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getAll5DayMAs", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getAll5DayMAs", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -553,8 +553,8 @@ public class StockDataHandler {
     
     public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
 
-        String summary = String.format("Ticker: %s, Days In Future: %d, Model: %s, From: %s, To: %s", stockTicker, daysInFuture, approach, fromDt.toString(), toDt.toString());
-        logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", summary, "");
+        String summary = String.format("Ticker: %s, Days In Future: %d, Model: %s", stockTicker, daysInFuture, approach);
+        logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", summary, "", false);
 
         StringBuilder dataExamples = new StringBuilder();
         try (Connection conxn = getDBConnection()) {
@@ -633,7 +633,7 @@ public class StockDataHandler {
             }
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -643,7 +643,7 @@ public class StockDataHandler {
     private void insertStockIndexDataIntoDB(String stockIndex, String indexPrices) throws Exception {
 
         String summary = String.format("Index: %s", stockIndex);
-        logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", summary, "", false);
         
         String[] rows = indexPrices.split("\n");
 
@@ -706,7 +706,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -715,7 +715,7 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockIndexDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -723,7 +723,7 @@ public class StockDataHandler {
     private void insertEnergyPricesIntoDB(String energyCode, String energyPrices) throws Exception {
         
         String summary = String.format("Code: %s", energyCode);
-        logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", summary, "", false);
         
         String[] rows = energyPrices.split("\n");
 
@@ -771,7 +771,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -780,7 +780,7 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertEnergyPricesIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -788,7 +788,7 @@ public class StockDataHandler {
     private void insertCurrencyRatiosIntoDB(String currency, String currencyRatios) throws Exception {
 
         String summary = String.format("Currency: %s", currency);
-        logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", summary, "", false);
 
         String[] rows = currencyRatios.split("\n");
 
@@ -825,7 +825,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString(), true);
                 }
             } //End for
             
@@ -834,7 +834,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -842,7 +842,7 @@ public class StockDataHandler {
 
     public void setStockBacktestingIntoDB(List<BacktestingResults> listResults) throws Exception {
 
-        logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "", "");
+        logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BackTesting (?, ?, ?, ?, ?, ?, ?)}")) {
@@ -869,7 +869,7 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -878,7 +878,7 @@ public class StockDataHandler {
     private void insertPreciousMetalsPricesIntoDB(String metal, String goldPrices) throws Exception {
 
         String summary = String.format("Metal: %s", metal);
-        logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", summary, "", false);
         
         String[] rows = goldPrices.split("\n");
 
@@ -915,7 +915,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -924,14 +924,14 @@ public class StockDataHandler {
             conxn.commit();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertPreciousMetalsPricesIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     private void removeAllBadData() throws Exception {
 
-        logger.Log("StockDataHandler", "removeAllBadData", "", "");
+        logger.Log("StockDataHandler", "removeAllBadData", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_RemoveAll_BadData()}")) {
@@ -942,7 +942,7 @@ public class StockDataHandler {
     
     private void insertInflationDataIntoDB(String cpiInflation) throws Exception {
 
-        logger.Log("StockDataHandler", "insertInflationDataIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertInflationDataIntoDB", "", "", false);
 
         String[] rows = cpiInflation.split("\n");
 
@@ -984,7 +984,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -993,14 +993,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertInflationDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     private void insertGDPDataIntoDB(List<BEA_Data> listData) throws Exception {
 
-        logger.Log("StockDataHandler", "insertGDPDataIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertGDPDataIntoDB", "", "", false);
 
         try (Connection conxn = getDBConnection();
             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
@@ -1061,14 +1061,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertGDPDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertGDPDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     private void insertUnemploymentRatesIntoDB(String unemploymentRates) throws Exception {
 
-        logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "", "", false);
 
         String[] rows = unemploymentRates.split("\n");
 
@@ -1103,11 +1103,11 @@ public class StockDataHandler {
                     stmt.executeUpdate();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString(), true);
                 }
             }
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertUnemploymentRatesIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -1115,7 +1115,7 @@ public class StockDataHandler {
     private void insertInterestRatesIntoDB(final String RATE_TYPE, String primeRates) throws Exception {
 
         String summary = String.format("Rate Type: %s", RATE_TYPE);
-        logger.Log("StockDataHandler", "insertInterestRatesIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertInterestRatesIntoDB", summary, "", false);
 
         String[] rows = primeRates.split("\n");
 
@@ -1152,7 +1152,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -1161,7 +1161,7 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertInterestRatesIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -1169,7 +1169,7 @@ public class StockDataHandler {
     private void insertEconomicDataIntoDB(String indicator, String econData) throws Exception {
 
         String summary = String.format("Indicator: %s", indicator);
-        logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "", "", false);
 
         String[] rows = econData.split("\n");
 
@@ -1206,7 +1206,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -1215,14 +1215,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     private void insertMortgageDataIntoDB(String thirtyYrMtgRates) throws Exception {
 
-        logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "", "", false);
 
         String[] rows = thirtyYrMtgRates.split("\n");
 
@@ -1258,7 +1258,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -1267,14 +1267,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     private void insertNewHomePriceDataIntoDB(String newHomePrices) throws Exception {
 
-        logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "", "", false);
 
         String[] rows = newHomePrices.split("\n");
 
@@ -1310,7 +1310,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString(), true);
                 }
             } //End For
             
@@ -1319,7 +1319,7 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -1327,7 +1327,7 @@ public class StockDataHandler {
     private void insertStockPricesIntoDB(String stockTicker, String stockValues) throws Exception {
 
         String summary = String.format("Ticker: %s", stockTicker);
-        logger.Log("StockDataHandler", "insertStockPricesIntoDB", summary, "");
+        logger.Log("StockDataHandler", "insertStockPricesIntoDB", summary, "", false);
 
         String[] rows = stockValues.split("\n");
 
@@ -1372,7 +1372,7 @@ public class StockDataHandler {
                     stmt.addBatch();
                     
                 } catch(Exception exc) {
-                    logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString());
+                    logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString(), true);
                 }
 
             } //End for
@@ -1381,14 +1381,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockPricesIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     private void insertStockFundamentalsIntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
 
-        logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "", "", false);
 
         String row;
         java.sql.Date sqlDt;
@@ -1664,14 +1664,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     public List<StockTicker> getAllStockTickers() throws Exception {
 
-        logger.Log("StockDataHandler", "getAllStockTickers", "", "");
+        logger.Log("StockDataHandler", "getAllStockTickers", "", "", false);
 
         List<StockTicker> tickerList = new ArrayList<>();
         try (Connection conxn = getDBConnection();
@@ -1695,7 +1695,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getAllStockTickers", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getAllStockTickers", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -1704,7 +1704,7 @@ public class StockDataHandler {
     
     public void loadStockTickers() throws Exception {
 
-        logger.Log("StockDataHandler", "loadStockTickers", "", "");
+        logger.Log("StockDataHandler", "loadStockTickers", "", "", false);
 
         Path p = Paths.get(STOCK_TICKERS_PATH);
         int i = 0;
@@ -1724,14 +1724,14 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "loadStockTickers", "Exception", "Row:" + i + ", " + exc.toString());
+            logger.Log("StockDataHandler", "loadStockTickers", "Exception", "Row:" + i + ", " + exc.toString(), true);
         }
 
     }
 
     private void insertStockTickersIntoDB(String[] cells) throws Exception {
 
-        logger.Log("StockDataHandler", "insertStockTickersIntoDB", "", "");
+        logger.Log("StockDataHandler", "insertStockTickersIntoDB", "", "", false);
 
         if (cells.length != 3)
             throw new Exception("Method: insertStockTickersIntoDB, invalid number of paramaters");
@@ -1746,7 +1746,7 @@ public class StockDataHandler {
             stmt.executeUpdate();
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "insertStockTickersIntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockTickersIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -1754,7 +1754,7 @@ public class StockDataHandler {
     
     private void insertStockFundamentals_Annual_IntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
 
-        logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "", "");
+        logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "", "", false);
 
         String row;
         java.sql.Date sqlDt;
@@ -1838,14 +1838,14 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     private void insertStockFundamentals_Quarter_IntoDB(List<StockFundamentals_Quarter> listStockFund) throws Exception {
 
-        logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "", "");
+        logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "", "", false);
 
         String row;
         java.sql.Date sqlDt;
@@ -1998,7 +1998,7 @@ public class StockDataHandler {
             conxn.commit();
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2006,7 +2006,7 @@ public class StockDataHandler {
     
     public Date get30YrMortgageRates_UpdateDate() throws Exception {
 
-        logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "", "");
+        logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_30yr_MortgageRates_LastUpdate ()}")) {
@@ -2022,14 +2022,14 @@ public class StockDataHandler {
             }
 
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     public Date getAvgNewHomePrices_UpdateDate() throws Exception {
 
-        logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "", "");
+        logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_AvgNewHomePrices_LastUpdate ()}")) {
@@ -2045,7 +2045,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2053,7 +2053,7 @@ public class StockDataHandler {
     public StockQuote getStockQuote(String ticker, Date date) throws Exception {
 
         String summary = String.format("Ticker: %s, Date: %s", ticker, date.toString());
-        logger.Log("StockDataHandler", "getStockQuote", summary, "");
+        logger.Log("StockDataHandler", "getStockQuote", summary, "", false);
 
         StockQuote quote = new StockQuote();
         try (Connection conxn = getDBConnection();
@@ -2078,7 +2078,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getStockQuote", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getStockQuote", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -2087,7 +2087,7 @@ public class StockDataHandler {
     
     public Date getCPI_UpdateDate() throws Exception {
 
-        logger.Log("StockDataHandler", "getCPI_UpdateDate", "", "");
+        logger.Log("StockDataHandler", "getCPI_UpdateDate", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_ConsumerPriceIndex_LastUpdate ()}")) {
@@ -2103,7 +2103,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getCPI_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getCPI_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2111,7 +2111,7 @@ public class StockDataHandler {
     public Date getEconomicData_UpdateDate(String econInd) throws Exception {
 
         String summary = String.format("Indicator: %s", econInd);
-        logger.Log("StockDataHandler", "getEconomicData_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getEconomicData_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_EconomicData_LastUpdate (?)}")) {
@@ -2128,7 +2128,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getEconomicData_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getEconomicData_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2136,7 +2136,7 @@ public class StockDataHandler {
     public Date getCurrencyRatios_UpdateDate(String currencyCode) throws Exception {
 
         String summary = String.format("Currency: %s", currencyCode);
-        logger.Log("StockDataHandler", "getCurrencyRatios_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getCurrencyRatios_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Currency_Ratios_LastUpdate (?)}")) {
@@ -2153,7 +2153,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getCurrencyRations_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getCurrencyRations_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2161,7 +2161,7 @@ public class StockDataHandler {
     public Date getEnergyPrices_UpdateDate(String energyCode) throws Exception {
 
         String summary = String.format("Code: %s", energyCode);
-        logger.Log("StockDataHandler", "getEnergyPrices_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getEnergyPrices_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Energy_Prices_LastUpdate (?)}")) {
@@ -2178,14 +2178,14 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getEnergyPrices_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getEnergyPrices_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     public Quarter getBEA_UpdateDate() throws Exception {
 
-        logger.Log("StockDataHandler", "getBEA_UpdateDate", "", "");
+        logger.Log("StockDataHandler", "getBEA_UpdateDate", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_BEA_LastUpdate ()}")) {
@@ -2202,7 +2202,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getBEA_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getBEA_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2210,7 +2210,7 @@ public class StockDataHandler {
     public Date getStockFundamentals_UpdateDate(String stockTicker, String indicator) throws Exception {
 
         String summary = String.format("Ticker: %s, Indicator: ", stockTicker, indicator);
-        logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockFundamentals_LastUpdate (?, ?)}")) {
@@ -2229,7 +2229,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2237,7 +2237,7 @@ public class StockDataHandler {
     public Date getInterestRates_UpdateDate(final String INT_RATE_TYPE) throws Exception {
 
         String summary = String.format("Rate Type: %s", INT_RATE_TYPE);
-        logger.Log("StockDataHandler", "getInterestRates_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getInterestRates_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_InterestRates_LastUpdate (?)}")) {
@@ -2255,7 +2255,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getInterestRates_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getInterestRates_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2263,7 +2263,7 @@ public class StockDataHandler {
     public Date getPreciousMetals_UpdateDate(String metalCode) throws Exception {
 
         String summary = String.format("Metal: %s", metalCode);
-        logger.Log("StockDataHandler", "getPreciousMetals_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getPreciousMetals_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Precious_MetalsPrices_LastUpdate (?)}")) {
@@ -2280,7 +2280,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getPreciousMetals_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getPreciousMetals_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2288,7 +2288,7 @@ public class StockDataHandler {
     public Date getStockIndex_UpdateDate(String stockIndex) throws Exception {
 
         String summary = String.format("Index: %s", stockIndex);
-        logger.Log("StockDataHandler", "getStockIndex_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getStockIndex_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Stock_Index_LastUpdate (?)}")) {
@@ -2305,7 +2305,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getStockIndex_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getStockIndex_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2313,7 +2313,7 @@ public class StockDataHandler {
     public Date getStockQuote_UpdateDate(String stockQuote) throws Exception {
 
         String summary = String.format("Quote: %s", stockQuote);
-        logger.Log("StockDataHandler", "getStockQuote_UpdateDate", summary, "");
+        logger.Log("StockDataHandler", "getStockQuote_UpdateDate", summary, "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockQuotes_LastUpdate (?)}")) {
@@ -2330,14 +2330,14 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getStockQuote_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getStockQuote_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     public void setStockFundamentals_Quarter_ValidDates() throws Exception {
         
-        logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "", "");
+        logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "", "", false);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_Stock_Fundamentals_Quarter_ValidDates ()}")) {
@@ -2345,14 +2345,14 @@ public class StockDataHandler {
             stmt.executeUpdate();
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     public void setStockFundamentals_Annual_PctChg() throws Exception {
 
-        logger.Log("StockDataHandler", "setStockFundamentals_Annual_PctChg", "", "");
+        logger.Log("StockDataHandler", "setStockFundamentals_Annual_PctChg", "", "", false);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_AnnualFundamentals_PctChg ()}")) {
@@ -2360,14 +2360,14 @@ public class StockDataHandler {
             stmt.executeUpdate();
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "setStockFundametals_Annual_PctChg", "Excepton", exc.toString());
+            logger.Log("StockDataHandler", "setStockFundametals_Annual_PctChg", "Excepton", exc.toString(), true);
             throw exc;
         }
     }
     
     public void setStockFundamentals_Quarter_PctChg() throws Exception {
 
-        logger.Log("StockDataHandler", "setStockFundamentals_Quarter_PctChg", "", "");
+        logger.Log("StockDataHandler", "setStockFundamentals_Quarter_PctChg", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Update_QuarterlyFundamentals_PctChg ()}")) {
@@ -2375,14 +2375,14 @@ public class StockDataHandler {
             stmt.executeUpdate();
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "setStockFundamentals_Quarter_PctChg", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setStockFundamentals_Quarter_PctChg", "Exception", exc.toString(), true);
             throw exc;
         }
     }
 
     public Date getUnemployment_UpdateDate() throws Exception {
 
-        logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "", "");
+        logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "", "", false);
 
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Unemployment_LastUpdate ()}")) {
@@ -2398,7 +2398,7 @@ public class StockDataHandler {
             }
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2406,7 +2406,7 @@ public class StockDataHandler {
     private boolean isDataExpired(Date dt) throws Exception {
 
         String summary = String.format("Date: %s", dt.toString());
-        logger.Log("StockDataHandler", "isDataExpired", summary, "");
+        logger.Log("StockDataHandler", "isDataExpired", summary, "", false);
 
         Calendar lastRun = Calendar.getInstance();
         lastRun.setTime(dt);
@@ -2432,7 +2432,7 @@ public class StockDataHandler {
     
     public void downloadAllStockData() throws Exception {
 
-        logger.Log("StockDataHandler", "downloadAllStockData", "", "");
+        logger.Log("StockDataHandler", "downloadAllStockData", "", "", false);
 
         //M2 - Money Supply
         Date lastDt;
@@ -2659,7 +2659,7 @@ public class StockDataHandler {
 
     private List<BEA_Data> downloadBEAData() throws Exception {
 
-        logger.Log("StockDataHandler", "downloadBEAData", "", "");
+        logger.Log("StockDataHandler", "downloadBEAData", "", "", false);
 
         Quarter qtr = getBEA_UpdateDate();
 
@@ -2678,7 +2678,7 @@ public class StockDataHandler {
             URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
             URLConnection conxn = url.openConnection();
 
-            logger.Log("StockDataHandler", "downloadBEAData", "URL", url.toString());
+            logger.Log("StockDataHandler", "downloadBEAData", "URL", url.toString(), false);
             
             //Pull back the data as JSON
             try (InputStream is = conxn.getInputStream()) {
@@ -2830,7 +2830,7 @@ public class StockDataHandler {
             }
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "downloadBEAData", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "downloadBEAData", "Exception", exc.toString(), true);
         }
         
         return list;
@@ -2839,7 +2839,7 @@ public class StockDataHandler {
     public void setModelValues(String ticker, String modelType, int daysForecast, double accuracy) throws Exception {
 
         String summary = String.format("Ticker: %s, Model: %s, Days Forecast: %d, Accuracy: %.3f", ticker, modelType, daysForecast, accuracy);
-        logger.Log("StockDataHandler", "setModelValues", summary, "");
+        logger.Log("StockDataHandler", "setModelValues", summary, "", false);
 
         java.sql.Date dt = new java.sql.Date(new Date().getTime());
         
@@ -2853,14 +2853,14 @@ public class StockDataHandler {
             stmtModel.executeUpdate();
 
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "setModelValues", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "setModelValues", "Exception", exc.toString(), true);
             throw exc;
         }
     }
     
     public String downloadCensusData() throws Exception {
 
-        logger.Log("StockDataHandler", "downloadCensusData", "", "");
+        logger.Log("StockDataHandler", "downloadCensusData", "", "", false);
 
         String key = "aff69a193c409c1d534e2e03c908e7a7ce06cb78";
         String retailTradeAndFoodSvc = "http://api.census.gov/data/eits/mrts?get=cell_value&for=us:*&category_code=44X72&data_type_code=SM&time=from+2004-08&key=" + key;
@@ -2889,7 +2889,7 @@ public class StockDataHandler {
             }
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "downloadCensusData", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "downloadCensusData", "Exception", exc.toString(), true);
         }
 
         return responseStr.toString();
@@ -2898,7 +2898,7 @@ public class StockDataHandler {
     private String downloadData(final String QUANDL_CODE, final Date fromDt) throws Exception {
 
         String summary = String.format("Code: %s, From: %s", QUANDL_CODE, fromDt.toString());
-        logger.Log("StockDataHandler", "downloadData", summary, "");
+        logger.Log("StockDataHandler", "downloadData", summary, "", false);
 
         //Move the date ONE day ahead
         final long DAY_IN_MILLIS = 86400000;
@@ -2915,7 +2915,7 @@ public class StockDataHandler {
             URL url = new URL(quandlQuery);
             URLConnection conxn = url.openConnection();
 
-            logger.Log("StockDataHandler", "downloadData", "Downloading", quandlQuery);
+            logger.Log("StockDataHandler", "downloadData", "Downloading", quandlQuery, false);
             
             //Pull back the data as CSV
             try (InputStream is = conxn.getInputStream()) {
@@ -2931,7 +2931,7 @@ public class StockDataHandler {
             }
             
         } catch(Exception exc) {
-            logger.Log("StockDataHandler", "downloadData", "Exception", exc.toString());
+            logger.Log("StockDataHandler", "downloadData", "Exception", exc.toString(), true);
         }
 
         return responseStr.toString();

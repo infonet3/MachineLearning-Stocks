@@ -29,10 +29,7 @@ public class EmailActions {
             props.put("mail.smtp.ssl.enable", true);
 
             Session session = Session.getInstance(props, null);
-            boolean debug = true;
-
-            //DEBUG
-            session.setDebug(true);
+            session.setDebug(false);
 
             Message msg = new MimeMessage(session);
             msg.setSentDate(new Date());
@@ -46,7 +43,7 @@ public class EmailActions {
             Transport.send(msg, login, pwd);
         }
         catch (Exception exc) {
-            logger.Log("EmailActions", "SendEmail", "Exception", exc.toString());
+            logger.Log("EmailActions", "SendEmail", "Exception", exc.toString(), true);
         }
     }
 }

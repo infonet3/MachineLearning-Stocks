@@ -33,7 +33,7 @@ import weka.core.SerializationHelper;
 public class Predictor {
 
     static Logger logger = new Logger();
-    final String CONF_FILE = "Resources\\settings.conf";
+    final String CONF_FILE = "Resources/settings.conf";
     final String MODEL_PATH;
 
     public Predictor() throws Exception {
@@ -50,7 +50,7 @@ public class Predictor {
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
 
         String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE + ", Prediction Type: " + PRED_TYPE;
-        logger.Log("Predictor", "predictAllStocksForDates", summary, "");
+        logger.Log("Predictor", "predictAllStocksForDates", summary, "", false);
         
         //Weekend Test - From Date
         Calendar calFrom = Calendar.getInstance();
@@ -81,12 +81,6 @@ public class Predictor {
             
             //Get Features for the selected dates
             String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
-
-            //Ensure were not missing data
-            if (dataExamples.isEmpty()) {
-                logger.Log("Predictor", "predictAllStocksForDates", ticker.getTicker(), "No data returned from DB");
-                throw new Exception("Method: predictAllStocksForDates, no data returned!");
-            }
             
             //Load the model
             String modelPath;
@@ -100,7 +94,7 @@ public class Predictor {
                     break;
                 case M5P:
                     
-                    modelPath = MODEL_PATH + "\\" + ticker.getTicker() + "-M5P.model";
+                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-M5P.model";
                     M5P mp = (M5P)SerializationHelper.read(modelPath);
 
                     sr = new StringReader(dataExamples);
@@ -137,7 +131,7 @@ public class Predictor {
 
                 case RAND_FORST:
                     
-                    modelPath = MODEL_PATH + "\\" + ticker.getTicker() + "-RandomForest.model";
+                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-RandomForest.model";
                     RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
 
                     sr = new StringReader(dataExamples);
@@ -203,7 +197,7 @@ public class Predictor {
     
     public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate) throws Exception {
 
-        logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "");
+        logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "", false);
         
         List<StockHolding> topStocks = new ArrayList<>();
         
@@ -235,7 +229,7 @@ public class Predictor {
             }
             
         } catch(Exception exc) {
-            logger.Log("Predictor", "topStockPicks", "Exception", exc.toString());
+            logger.Log("Predictor", "topStockPicks", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -245,7 +239,7 @@ public class Predictor {
     public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE) throws Exception {
         
         String summary = "Number Stocks: " + NUM_STOCKS + ", From: " + FROM_DATE + ", To: " + TO_DATE;
-        logger.Log("Predictor", "topNBacktest", summary, "");
+        logger.Log("Predictor", "topNBacktest", summary, "", false);
         
         Calendar curDate = Calendar.getInstance();
         curDate.setTime(FROM_DATE);
@@ -320,7 +314,7 @@ public class Predictor {
                         stockHoldings.add(stock);
 
                         String buyActivity = String.format("BUY: Ticker: %s, Shares: %d, Cost: %s, Projected Date: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString(), order.getProjectedDt().toString());
-                        logger.Log("Predictor", "topNBacktest", buyActivity, "");
+                        logger.Log("Predictor", "topNBacktest", buyActivity, "", false);
                         
                         break;
                         
@@ -329,7 +323,7 @@ public class Predictor {
                         currentCapital = currentCapital.add(proceeds).subtract(TRADING_COST); //Commission
 
                         String sellActivity = String.format("SELL: Ticker: %s, Shares: %d, Cost: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString());
-                        logger.Log("Predictor", "topNBacktest", sellActivity, "");
+                        logger.Log("Predictor", "topNBacktest", sellActivity, "", false);
 
                         //Remove the holding record
                         for (int i = 0; i < stockHoldings.size(); i++) {
@@ -343,7 +337,7 @@ public class Predictor {
                         //Last order?
                         if (stockOrders.size() == 1) {
                             String sumValue = String.format("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
-                            logger.Log("Predictor", "topNBacktest", sumValue, "");
+                            logger.Log("Predictor", "topNBacktest", sumValue, "", false);
                         }
                         
                         break;
@@ -428,7 +422,7 @@ public class Predictor {
         for (StockTicker ticker : stockList) {
         
             try {
-                logger.Log("Predictor", "backtest", ticker.getTicker(), "");
+                logger.Log("Predictor", "backtest", ticker.getTicker(), "", false);
 
                 //Run through all predictions for a given stock
                 List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), 
@@ -470,7 +464,7 @@ public class Predictor {
 
                         //Broke Test
                         if (capital.doubleValue() < 1000) {
-                            logger.Log("Predictor", "backtest", "Broke", "Backtesting funds are lower than $1,000");
+                            logger.Log("Predictor", "backtest", "Broke", "Backtesting funds are lower than $1,000", false);
                             break Prices;
                         }
 
@@ -552,7 +546,7 @@ public class Predictor {
                 listResults.add(results);
 
             } catch(Exception exc) {
-                logger.Log("Predictor", "backtest", "Exception", ticker.getTicker() + ": " + exc.toString());
+                logger.Log("Predictor", "backtest", "Exception", ticker.getTicker() + ": " + exc.toString(), true);
                 throw exc;
             }
 
