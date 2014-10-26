@@ -271,6 +271,51 @@ public class StockDataHandler {
         }
     }
     
+    public int getStockOrderID() throws Exception {
+        
+        logger.Log("StockDataHandler", "getStockOrderID", "", "", false);
+
+        int orderID = -1;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockOrderID () }")) {
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                orderID = rs.getInt(1);
+            }
+            else {
+                throw new Exception("Order ID wasn't returned from SP");
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getStockOrderID", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return orderID;
+    }
+    
+    public Date getLastStockSaleDate() throws Exception {
+        
+        logger.Log("StockDataHandler", "getLastStockSaleDate", "", "", false);
+
+        Date lastSale = null;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Stock_Holding_Last_SaleDate () }")) {
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                lastSale = rs.getDate(1);
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getLastStockSaleDate", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return lastSale;
+    }
+    
     public List<StockHolding> getCurrentStockHoldings() throws Exception {
 
         logger.Log("StockDataHandler", "getCurrentStockHoldings", "", "", false);

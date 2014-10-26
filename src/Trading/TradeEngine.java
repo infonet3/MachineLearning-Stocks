@@ -5,6 +5,7 @@ import StockData.StockDataHandler;
 import StockData.StockHolding;
 import Trading.IB.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -15,7 +16,7 @@ public class TradeEngine implements EWrapper {
 
     //Fields
     BigDecimal availableFunds;
-    BigDecimal stockQuote;
+    BigDecimal stockQuote = new BigDecimal("100.00");
     int orderID = 1;
     List<StockHolding> listHoldings = new ArrayList<>();
     
@@ -25,6 +26,8 @@ public class TradeEngine implements EWrapper {
     
     @Override
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
+        stockQuote = new BigDecimal(String.valueOf(price));
+
         System.out.printf("tickPrice: field: %d, price: %f %n", field, price);
     }
 
@@ -111,7 +114,11 @@ public class TradeEngine implements EWrapper {
 
     @Override
     public void execDetails(int reqId, Contract contract, Execution execution) {
-        System.out.println("execDetails");
+        String ticker = contract.m_symbol;
+        double totalPrice = execution.m_price;
+        String output = String.format("Method: execDetails, reqId: %d, ticker: %s, price: %f", reqId, ticker, totalPrice);
+
+        System.out.println(output);
     }
 
     @Override
@@ -272,7 +279,7 @@ public class TradeEngine implements EWrapper {
     	client.reqMktData(1, c, "", true, Collections.<TagValue>emptyList());
     }
     
-    private void reqBuyStock(EClientSocket client, String ticker, int numShares, double curPrice) {
+    private void reqBuyStock(EClientSocket client, int orderID, String ticker, int numShares, double curPrice) {
 
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
@@ -287,20 +294,20 @@ public class TradeEngine implements EWrapper {
         
         Order order = new Order();
         order.m_clientId = 1;
-        order.m_orderId = 3;
+        order.m_orderId = orderID;
         order.m_permId = 0;
         order.m_parentId = 0;
         order.m_account = "DU205493";
         order.m_action = "BUY";
         order.m_totalQuantity = numShares;
         order.m_orderType = "LMT";
-        order.m_lmtPrice = curPrice * 1.05; //Max 5% above current price
+        order.m_lmtPrice = curPrice;
         order.m_tif = "DAY";
         
-        client.placeOrder(orderID++, contract, order);
+        client.placeOrder(orderID, contract, order);
     }
 
-    private void reqSellStock(EClientSocket client, String ticker, int numShares, double curPrice) {
+    private void reqSellStock(EClientSocket client, int orderID, String ticker, int numShares, double curPrice) {
 
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
@@ -315,17 +322,17 @@ public class TradeEngine implements EWrapper {
         
         Order order = new Order();
         order.m_clientId = 1;
-        order.m_orderId = 3;
+        order.m_orderId = orderID;
         order.m_permId = 0;
         order.m_parentId = 0;
         order.m_account = "DU205493";
         order.m_action = "SELL";
         order.m_totalQuantity = numShares;
         order.m_orderType = "LMT";
-        order.m_lmtPrice = curPrice * .95; //Max 5% above current price
+        order.m_lmtPrice = curPrice;
         order.m_tif = "DAY";
         
-        client.placeOrder(orderID++, contract, order);
+        client.placeOrder(orderID, contract, order);
     }
 
     public void emailTodaysStockPicks(final int MAX_STOCK_COUNT, Date runDate) throws Exception {
@@ -353,61 +360,84 @@ public class TradeEngine implements EWrapper {
         int holdingCount = listHoldings.size();
         
         //Find expiration from DB
-        
-
-        
-        reqAccountBalance(client);
-        
-        //First see what holdings we have
         StockDataHandler sdh = new StockDataHandler();
-        List<StockHolding> listHoldings = sdh.getCurrentStockHoldings();
-        int stockHoldingCount = listHoldings.size();
+        if (holdingCount > 0) {
+            List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
+
+            Date expDt = listCurStocks.get(0).getTargetDate();
+            Date now = new Date();
+
+            //Sell everything
+            if (now.compareTo(expDt) >= 0)
+            {
+                for (StockHolding stk : listCurStocks) {
+                    reqStockQuote(client, stk.getTicker());
+                    Thread.sleep(1000);
+                    
+                    int orderID = sdh.getStockOrderID();
+                    reqSellStock(client, orderID, stk.getTicker(), stk.getSharesHeld(), stockQuote.doubleValue());
+                    Thread.sleep(60 * 1000);
+                    
+                    //CONFIRM AND LOG TO DB
+                    orderID = sdh.getStockOrderID();
+                    ExecutionFilter ef = new ExecutionFilter();
+                    client.reqExecutions(orderID, ef);
+                    Thread.sleep(1000);
+                }
+                
+                return;
+            }
+        }
+
+        //Honor 3 wait waiting period
+        Date lastSale = sdh.getLastStockSaleDate();
+        Calendar calSale = Calendar.getInstance();
+        calSale.setTime(lastSale);
         
-        //See if any currently held stocks are expired
-        Calendar today = Calendar.getInstance();
-        Calendar expDt = Calendar.getInstance();
+        Calendar calNow = Calendar.getInstance();
         
-        for (StockHolding stk : listHoldings) {
-            expDt.setTime(stk.getTargetDate());
-            double curPrice = 123.45;
+        for (int i = 0; i < 3; i++) {
+            if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
+                calSale.add(Calendar.DATE, 3);
+            else
+                calSale.add(Calendar.DATE, 1);
+        }
+        
+        if (calSale.compareTo(calNow) < 0)
+            return;
+        
+        //Buy Stocks
+        Date yesterday = Utilities.Dates.getYesterday();
+        Predictor p = new Predictor();
+        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+                
+        reqAccountBalance(client);
+        Thread.sleep(1000);
+        
+        BigDecimal reserve = new BigDecimal("100.00");
+        BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
+        BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
+        
+        //Enter buy orders
+        for (int i = 1; i <= MAX_STOCK_COUNT; i++) {
+            String ticker = stkPicks.get(i).getTicker();
+
+            reqStockQuote(client, ticker);
+            Thread.sleep(1000);
+            double limitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
+
+            int numShares = stkPartition.divide(stockQuote).intValue();
+            int orderID = sdh.getStockOrderID();
+            reqBuyStock(client, orderID, ticker, numShares, limitPrice);
+            Thread.sleep(60 * 1000);
             
-            //Generate sell order if expired
-            if (expDt.compareTo(today) >= 0) {
-                reqStockQuote(client, stk.getTicker());
-                reqSellStock(client, stk.getTicker(), stk.getSharesHeld(), curPrice);
-            }
+            //SAVE RECORDS TO DB
         }
-        
-        //Get positions held at IB
-        client.reqPositions();
-        Thread.sleep(2000);
-        System.out.println("Stocks Held = " + stockHoldingCount);
-
-        //Can we purchase stocks - must be in ALL cash
-        if (stockHoldingCount == 0) {
-            reqAccountBalance(client);
-            Thread.sleep(2000);
-            System.out.println("Funds = " + availableFunds);
-
-            //Get List of Stocks forecasted to go up
-            Date yesterday = Utilities.Dates.getYesterday();
-            Predictor p = new Predictor();
-            List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
-
-            for (int i = 0; i < MAX_STOCK_COUNT; i++) {
-                //BUY ORDERS
-            }
-        }
-
-        
         
         //Open Orders
         client.reqAllOpenOrders();
         
-        //If needed
-        //client.reqGlobalCancel();
-        
-        //Stop Session
+        //End Session
         client.eDisconnect();
     }
     
