@@ -830,6 +830,47 @@ public class StockDataHandler {
         }
     }
 
+    public void updateStockTrade(String ticker) throws Exception {
+
+        logger.Log("StockDataHandler", "updateStockTrade", "", "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_Stock_Trade (?) }")) {
+
+            stmt.setString(1, ticker);
+
+            stmt.executeUpdate();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "updateStockTrade", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
+    public void insertStockTrades(String ticker, int numShares, Date purchaseDate, Date expirationDate) throws Exception {
+
+        logger.Log("StockDataHandler", "insertStockTrades", "", "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Trade (?, ?, ?, ?)}")) {
+
+            stmt.setString(1, ticker);
+            stmt.setInt(2, numShares);
+            
+            java.sql.Date purchDt = new java.sql.Date(purchaseDate.getTime());
+            stmt.setDate(3, purchDt);
+            
+            java.sql.Date expDt = new java.sql.Date(expirationDate.getTime());
+            stmt.setDate(4, expDt);
+
+            stmt.executeUpdate();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "insertStockTrades", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
     private void insertCurrencyRatiosIntoDB(String currency, String currencyRatios) throws Exception {
 
         String summary = String.format("Currency: %s", currency);
@@ -882,7 +923,6 @@ public class StockDataHandler {
             logger.Log("StockDataHandler", "insertCurrencyRatiosIntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
-        
     }
 
     public void setStockBacktestingIntoDB(List<BacktestingResults> listResults) throws Exception {

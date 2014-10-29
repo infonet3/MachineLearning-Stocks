@@ -15,8 +15,10 @@ public class Dates {
     public static Date getYesterday() {
 
         Calendar today = Calendar.getInstance();
-        if (today.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
-            today.add(Calendar.DATE, -2); //Move back to Friday
+        if (today.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) //Move back to Friday
+            today.add(Calendar.DATE, -2);
+        else if (today.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) //Move back to Friday
+            today.add(Calendar.DATE, -3); 
         else
             today.add(Calendar.DATE, -1); //Move to yesterday
 

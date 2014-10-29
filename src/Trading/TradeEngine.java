@@ -4,6 +4,7 @@ import Modeling.Predictor;
 import StockData.StockDataHandler;
 import StockData.StockHolding;
 import Trading.IB.*;
+import Utilities.Logger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -16,9 +17,10 @@ public class TradeEngine implements EWrapper {
 
     //Fields
     BigDecimal availableFunds;
-    BigDecimal stockQuote = new BigDecimal("100.00");
+    BigDecimal stockQuote = null;
     int orderID = 1;
     List<StockHolding> listHoldings = new ArrayList<>();
+    Logger logger = new Logger();
     
     //Methods
     public TradeEngine() throws Exception {
@@ -26,7 +28,8 @@ public class TradeEngine implements EWrapper {
     
     @Override
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
-        stockQuote = new BigDecimal(String.valueOf(price));
+        if (field == 9)
+            stockQuote = new BigDecimal(String.valueOf(price));
 
         System.out.printf("tickPrice: field: %d, price: %f %n", field, price);
     }
@@ -351,7 +354,7 @@ public class TradeEngine implements EWrapper {
     }
     
     public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
-
+        
         EClientSocket client = connect();
 
         //Get current holdings
@@ -364,78 +367,104 @@ public class TradeEngine implements EWrapper {
         if (holdingCount > 0) {
             List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
 
+            //Sanity check
+            if (holdingCount != listCurStocks.size()) {
+                logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
+                Notifications.EmailActions.SendEmail("Assertion Failed", "Number of positions held at IB doesn't match positions held in DB");
+                System.exit(5);
+            }
+            
             Date expDt = listCurStocks.get(0).getTargetDate();
             Date now = new Date();
 
-            //Sell everything
-            if (now.compareTo(expDt) >= 0)
-            {
-                for (StockHolding stk : listCurStocks) {
+            //Sell everything if expired
+            if (now.compareTo(expDt) >= 0) {
+
+                for (int i = 0; i < listCurStocks.size(); i++) {
+                    StockHolding stk = listCurStocks.get(i);
+                    
                     reqStockQuote(client, stk.getTicker());
                     Thread.sleep(1000);
+                    if (stockQuote == null) {
+                        logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
+                        Notifications.EmailActions.SendEmail("Auto Trading Failed", "Failed to receive a stock quote");
+                        System.exit(6);
+                    }
                     
                     int orderID = sdh.getStockOrderID();
-                    reqSellStock(client, orderID, stk.getTicker(), stk.getSharesHeld(), stockQuote.doubleValue());
+                    reqSellStock(client, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
                     Thread.sleep(60 * 1000);
                     
-                    //CONFIRM AND LOG TO DB
-                    orderID = sdh.getStockOrderID();
+                    //Confirm the trade
                     ExecutionFilter ef = new ExecutionFilter();
-                    client.reqExecutions(orderID, ef);
+                    ef.m_symbol = stk.getTicker();
+                    client.reqExecutions(i, ef);
                     Thread.sleep(1000);
+                    
+                    //Update DB
+                    sdh.updateStockTrade(stk.getTicker());
                 }
                 
-                return;
-            }
-        }
-
-        //Honor 3 wait waiting period
-        Date lastSale = sdh.getLastStockSaleDate();
-        Calendar calSale = Calendar.getInstance();
-        calSale.setTime(lastSale);
-        
-        Calendar calNow = Calendar.getInstance();
-        
-        for (int i = 0; i < 3; i++) {
-            if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
-                calSale.add(Calendar.DATE, 3);
-            else
-                calSale.add(Calendar.DATE, 1);
-        }
-        
-        if (calSale.compareTo(calNow) < 0)
-            return;
-        
-        //Buy Stocks
-        Date yesterday = Utilities.Dates.getYesterday();
-        Predictor p = new Predictor();
-        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+                return; //Sold all stocks, done
                 
-        reqAccountBalance(client);
-        Thread.sleep(1000);
-        
-        BigDecimal reserve = new BigDecimal("100.00");
-        BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
-        BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
-        
-        //Enter buy orders
-        for (int i = 1; i <= MAX_STOCK_COUNT; i++) {
-            String ticker = stkPicks.get(i).getTicker();
+            } //End If expired holdings
+            //Stocks aren't expired yet, done
+            else {
+                return; 
+            }
+        } //End If holdings > 0
+        //No current stock holdings
+        else {
+            //Honor 3 wait waiting period
+            Date lastSale = sdh.getLastStockSaleDate();
+            Calendar calSale = Calendar.getInstance();
+            calSale.setTime(lastSale);
 
-            reqStockQuote(client, ticker);
+            Calendar calNow = Calendar.getInstance();
+
+            for (int i = 0; i < 3; i++) {
+                if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
+                    calSale.add(Calendar.DATE, 3);
+                else
+                    calSale.add(Calendar.DATE, 1);
+            }
+
+            //Exit if 3 day waiting period isn't yet met
+            if (calSale.compareTo(calNow) < 0)
+                return;
+
+            //Buy Stocks
+            Date yesterday = Utilities.Dates.getYesterday();
+            Predictor p = new Predictor();
+            List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+
+            reqAccountBalance(client);
             Thread.sleep(1000);
-            double limitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
 
-            int numShares = stkPartition.divide(stockQuote).intValue();
-            int orderID = sdh.getStockOrderID();
-            reqBuyStock(client, orderID, ticker, numShares, limitPrice);
-            Thread.sleep(60 * 1000);
-            
-            //SAVE RECORDS TO DB
+            BigDecimal reserve = new BigDecimal("100.00");
+            BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
+            BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
+
+            //Enter buy orders
+            for (int i = 1; i <= MAX_STOCK_COUNT; i++) {
+                String ticker = stkPicks.get(i).getTicker();
+
+                reqStockQuote(client, ticker);
+                Thread.sleep(1000);
+                double limitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
+
+                int numShares = stkPartition.divide(stockQuote).intValue();
+                int orderID = sdh.getStockOrderID();
+                reqBuyStock(client, orderID, ticker, numShares, limitPrice);
+                Thread.sleep(60 * 1000);
+
+                //Save to DB
+                sdh.insertStockTrades(ticker, numShares, new Date(), stkPicks.get(i).getTargetDate());
+            }
+
+            //Open Orders
+            client.reqAllOpenOrders();
         }
-        
-        //Open Orders
-        client.reqAllOpenOrders();
         
         //End Session
         client.eDisconnect();
@@ -448,15 +477,13 @@ public class TradeEngine implements EWrapper {
     private EClientSocket connect() throws Exception {
         
         EClientSocket client = new EClientSocket(this);
+        client.eConnect("localhost", 7496, 101);
+        //client.eConnect("localhost", 4001, 101);
 
-        for (;;) {
-            client.eConnect("localhost", 7496, 101);
-            //client.eConnect("localhost", 4001, 101);
-
-            if (client.isConnected())
-                break;
-            
-            Thread.sleep(1000);
+        if (!client.isConnected()) {
+            logger.Log("TradeEngine", "connect", "Exception", "Cannot conect to IB API", true);
+            Notifications.EmailActions.SendEmail("Cannot connect to IB API", "Cannot connect to IB API.");
+            System.exit(4);
         }
         
         return client;
