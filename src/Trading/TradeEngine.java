@@ -282,8 +282,11 @@ public class TradeEngine implements EWrapper {
     	client.reqMktData(1, c, "", true, Collections.<TagValue>emptyList());
     }
     
-    private void reqBuyStock(EClientSocket client, int orderID, String ticker, int numShares, double curPrice) {
+    private void reqTrade(EClientSocket client, final TradeAction ACTION_CD, int orderID, String ticker, int numShares, double curPrice) throws Exception {
 
+        String strOutput = String.format("Action: %s, Ticker: %s, Shares: %d, Price: %f", ACTION_CD.toString(), ticker, numShares, curPrice);
+        logger.Log("TradeEngine", "reqBuyStock", strOutput, "", false);
+        
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
         contract.m_secType = "STK";
@@ -301,35 +304,7 @@ public class TradeEngine implements EWrapper {
         order.m_permId = 0;
         order.m_parentId = 0;
         order.m_account = "DU205493";
-        order.m_action = "BUY";
-        order.m_totalQuantity = numShares;
-        order.m_orderType = "LMT";
-        order.m_lmtPrice = curPrice;
-        order.m_tif = "DAY";
-        
-        client.placeOrder(orderID, contract, order);
-    }
-
-    private void reqSellStock(EClientSocket client, int orderID, String ticker, int numShares, double curPrice) {
-
-        Contract contract = new Contract();
-        contract.m_symbol = ticker.toUpperCase();
-        contract.m_secType = "STK";
-        contract.m_expiry = "";
-        contract.m_strike = 0;
-        contract.m_right = "None";
-        contract.m_multiplier = String.valueOf(numShares);
-        contract.m_exchange = "SMART";
-        contract.m_primaryExch = "ISLAND";
-        contract.m_currency = "USD";
-        
-        Order order = new Order();
-        order.m_clientId = 1;
-        order.m_orderId = orderID;
-        order.m_permId = 0;
-        order.m_parentId = 0;
-        order.m_account = "DU205493";
-        order.m_action = "SELL";
+        order.m_action = ACTION_CD.toString();
         order.m_totalQuantity = numShares;
         order.m_orderType = "LMT";
         order.m_lmtPrice = curPrice;
@@ -354,6 +329,9 @@ public class TradeEngine implements EWrapper {
     }
     
     public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
+        
+        String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
+        logger.Log("TradeEngine", "runTrading", strOutput, "", false);
         
         EClientSocket client = connect();
 
@@ -392,7 +370,7 @@ public class TradeEngine implements EWrapper {
                     }
                     
                     int orderID = sdh.getStockOrderID();
-                    reqSellStock(client, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
+                    reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
                     Thread.sleep(60 * 1000);
                     
                     //Confirm the trade
@@ -455,7 +433,7 @@ public class TradeEngine implements EWrapper {
 
                 int numShares = stkPartition.divide(stockQuote).intValue();
                 int orderID = sdh.getStockOrderID();
-                reqBuyStock(client, orderID, ticker, numShares, limitPrice);
+                reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
                 Thread.sleep(60 * 1000);
 
                 //Save to DB
@@ -471,10 +449,15 @@ public class TradeEngine implements EWrapper {
     }
     
     private void reqAccountBalance(EClientSocket client) throws Exception {
+        
+        logger.Log("TradeEngine", "reqAccountBalance", "", "", false);
+
         client.reqAccountSummary(101, "All", "TotalCashValue");
     }
     
     private EClientSocket connect() throws Exception {
+        
+        logger.Log("TradeEngine", "connect", "", "", false);
         
         EClientSocket client = new EClientSocket(this);
         client.eConnect("localhost", 7496, 101);
