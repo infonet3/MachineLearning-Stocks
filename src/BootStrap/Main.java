@@ -65,8 +65,8 @@ public class Main {
                     logger.Log("Main", "main", "Option C", "Get Current Predictions", false);
 
                     final String PRED_TYPE_CURRENT = "CURRENT";
-                    pred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, yesterday, yesterday, PRED_TYPE_CURRENT);
-                    pred.predictAllStocksForDates(ModelTypes.M5P, 0, yesterday, yesterday, PRED_TYPE_CURRENT);
+                    pred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
+                    pred.predictAllStocksForDates(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
 
                     break;
 
@@ -81,8 +81,8 @@ public class Main {
 
                     Calendar toDate = Calendar.getInstance();
 
-                    pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
-                    pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+                    pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
+                    pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
 
                     pred.backtest(ModelTypes.RAND_FORST, fromDate.getTime(), toDate.getTime());
                     pred.backtest(ModelTypes.M5P, fromDate.getTime(), toDate.getTime());
@@ -96,8 +96,9 @@ public class Main {
 
                     TradeEngine trade = new TradeEngine();
                     final int MAX_STOCK_COUNT = 5;
-                    //trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
+                    trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
                     trade.runTrading(MAX_STOCK_COUNT);
+                    
                     
                     break;
             } //End Switch

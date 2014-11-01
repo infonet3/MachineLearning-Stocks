@@ -47,9 +47,9 @@ public class Predictor {
     }
     
     
-    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
+    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DATE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
 
-        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE + ", Prediction Type: " + PRED_TYPE;
+        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE_MODEL + ", Target Date: " + TARGET_DATE + ", Prediction Type: " + PRED_TYPE;
         logger.Log("Predictor", "predictAllStocksForDates", summary, "", false);
         
         //Weekend Test - From Date
@@ -80,7 +80,7 @@ public class Predictor {
             System.gc();
             
             //Get Features for the selected dates
-            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
             
             //Load the model
             String modelPath;
@@ -117,7 +117,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, DAYS_IN_FUTURE);
+                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DATE);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
@@ -154,7 +154,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, DAYS_IN_FUTURE);
+                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DATE);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));

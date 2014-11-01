@@ -16,10 +16,10 @@ import java.util.List;
 public class TradeEngine implements EWrapper {
 
     //Fields
-    BigDecimal availableFunds;
-    BigDecimal stockQuote = null;
+    volatile BigDecimal availableFunds = null;
+    volatile BigDecimal stockQuote = null;
+    volatile List<StockHolding> listHoldings = new ArrayList<>();
     int orderID = 1;
-    List<StockHolding> listHoldings = new ArrayList<>();
     Logger logger = new Logger();
     
     //Methods
@@ -212,12 +212,13 @@ public class TradeEngine implements EWrapper {
     @Override
     public void position(String account, Contract contract, int pos, double avgCost) {
 
-        String ticker = contract.m_symbol;
-        String output = String.format("Account: %s, Pos: %d, Cost: %f", account, pos, avgCost);
-        System.out.println(output);
-        
-        StockHolding holding = new StockHolding(ticker, pos, null);
-        listHoldings.add(holding);
+        if (pos > 0) {
+            String output = String.format("Account: %s, Ticker: %s, Pos: %d, Cost: %f, Expiry: %s", account, contract.m_symbol, pos, avgCost, contract.m_expiry);
+            System.out.println(output);
+
+            StockHolding holding = new StockHolding(contract.m_symbol, pos, null);
+            listHoldings.add(holding);
+        }
     }
 
     @Override
@@ -262,7 +263,7 @@ public class TradeEngine implements EWrapper {
         System.out.println("displayGroupUpdated");
     }
     
-    private void reqStockQuote(EClientSocket client, String quote) {
+    private void reqStockQuote(EClientSocket client, int tickerID, String quote) {
         Contract c = new Contract();
         c.m_conId = 0;
         c.m_symbol = quote;
@@ -276,10 +277,10 @@ public class TradeEngine implements EWrapper {
         c.m_currency = "USD";
         c.m_localSymbol = "";
         c.m_tradingClass = "";
-        c.m_primaryExch = "";
+        //c.m_primaryExch = "";
         c.m_secIdType = "";
         c.m_secId = null;
-    	client.reqMktData(1, c, "", true, Collections.<TagValue>emptyList());
+    	client.reqMktData(tickerID, c, "", true, Collections.<TagValue>emptyList());
     }
     
     private void reqTrade(EClientSocket client, final TradeAction ACTION_CD, int orderID, String ticker, int numShares, double curPrice) throws Exception {
@@ -329,6 +330,8 @@ public class TradeEngine implements EWrapper {
     }
     
     public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
+
+        final int WAIT_TIME = 5000;
         
         String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
         logger.Log("TradeEngine", "runTrading", strOutput, "", false);
@@ -337,7 +340,7 @@ public class TradeEngine implements EWrapper {
 
         //Get current holdings
         client.reqPositions();
-        Thread.sleep(1000);
+        Thread.sleep(WAIT_TIME);
         int holdingCount = listHoldings.size();
         
         //Find expiration from DB
@@ -361,8 +364,8 @@ public class TradeEngine implements EWrapper {
                 for (int i = 0; i < listCurStocks.size(); i++) {
                     StockHolding stk = listCurStocks.get(i);
                     
-                    reqStockQuote(client, stk.getTicker());
-                    Thread.sleep(1000);
+                    reqStockQuote(client, i, stk.getTicker());
+                    Thread.sleep(WAIT_TIME);
                     if (stockQuote == null) {
                         logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
                         Notifications.EmailActions.SendEmail("Auto Trading Failed", "Failed to receive a stock quote");
@@ -371,13 +374,13 @@ public class TradeEngine implements EWrapper {
                     
                     int orderID = sdh.getStockOrderID();
                     reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
-                    Thread.sleep(60 * 1000);
+                    Thread.sleep(WAIT_TIME);
                     
                     //Confirm the trade
                     ExecutionFilter ef = new ExecutionFilter();
                     ef.m_symbol = stk.getTicker();
                     client.reqExecutions(i, ef);
-                    Thread.sleep(1000);
+                    Thread.sleep(WAIT_TIME);
                     
                     //Update DB
                     sdh.updateStockTrade(stk.getTicker());
@@ -395,53 +398,70 @@ public class TradeEngine implements EWrapper {
         else {
             //Honor 3 wait waiting period
             Date lastSale = sdh.getLastStockSaleDate();
-            Calendar calSale = Calendar.getInstance();
-            calSale.setTime(lastSale);
+            if (lastSale != null) {
+                Calendar calSale = Calendar.getInstance();
+                calSale.setTime(lastSale);
 
-            Calendar calNow = Calendar.getInstance();
+                Calendar calNow = Calendar.getInstance();
 
-            for (int i = 0; i < 3; i++) {
-                if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
-                    calSale.add(Calendar.DATE, 3);
-                else
-                    calSale.add(Calendar.DATE, 1);
+                for (int i = 0; i < 3; i++) {
+                    if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
+                        calSale.add(Calendar.DATE, 3);
+                    else
+                        calSale.add(Calendar.DATE, 1);
+                }
+
+                //Exit if 3 day waiting period isn't yet met
+                if (calSale.compareTo(calNow) < 0)
+                    return;
             }
 
-            //Exit if 3 day waiting period isn't yet met
-            if (calSale.compareTo(calNow) < 0)
-                return;
+            //Get current balance
+            reqAccountBalance(client);
+            Thread.sleep(WAIT_TIME);
+            if (availableFunds == null) {
+                logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Account Balance wasn't retrieved from IB", true);
+                Notifications.EmailActions.SendEmail("Assertion Failed", "Account Balance wasn't retrieved from IB");
+                System.exit(6);
+            }
 
-            //Buy Stocks
+            //Enter buy orders
+            BigDecimal reserve = new BigDecimal("20000.00");
+            BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
+            BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
             Date yesterday = Utilities.Dates.getYesterday();
             Predictor p = new Predictor();
             List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
-
-            reqAccountBalance(client);
-            Thread.sleep(1000);
-
-            BigDecimal reserve = new BigDecimal("100.00");
-            BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
-            BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
-
-            //Enter buy orders
-            for (int i = 1; i <= MAX_STOCK_COUNT; i++) {
+            for (int i = 0; i < MAX_STOCK_COUNT; i++) {
                 String ticker = stkPicks.get(i).getTicker();
 
-                reqStockQuote(client, ticker);
-                Thread.sleep(1000);
-                double limitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
+                stockQuote = null;
+                reqStockQuote(client, i, ticker);
+                Thread.sleep(WAIT_TIME);
+                if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
+                    logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, "Stock Quote not retrieved from IB", true);
+                    Notifications.EmailActions.SendEmail("Assertion Failed", "Stock Quote not retrieved from IB");
+                    continue; //Something is wrong, skip this stock
+                } else {
+                    logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, stockQuote.toString(), false);
+                }
 
-                int numShares = stkPartition.divide(stockQuote).intValue();
+                //Pay no more than 2% over Market
+                double tmpLimitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
+                String strValue = String.format("%.2f", tmpLimitPrice);
+                double limitPrice = Double.parseDouble(strValue);
+                
+                int numShares = stkPartition.divide(stockQuote, RoundingMode.DOWN).intValue();
                 int orderID = sdh.getStockOrderID();
                 reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
-                Thread.sleep(60 * 1000);
+                Thread.sleep(WAIT_TIME);
 
                 //Save to DB
                 sdh.insertStockTrades(ticker, numShares, new Date(), stkPicks.get(i).getTargetDate());
             }
 
             //Open Orders
-            client.reqAllOpenOrders();
+            //client.reqAllOpenOrders();
         }
         
         //End Session
