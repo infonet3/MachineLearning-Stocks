@@ -287,7 +287,9 @@ public class TradeEngine implements EWrapper {
 
         String strOutput = String.format("Action: %s, Ticker: %s, Shares: %d, Price: %f", ACTION_CD.toString(), ticker, numShares, curPrice);
         logger.Log("TradeEngine", "reqBuyStock", strOutput, "", false);
-        
+
+        return;
+/*        
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
         contract.m_secType = "STK";
@@ -312,6 +314,7 @@ public class TradeEngine implements EWrapper {
         order.m_tif = "DAY";
         
         client.placeOrder(orderID, contract, order);
+        */ 
     }
 
     public void emailTodaysStockPicks(final int MAX_STOCK_COUNT, Date runDate) throws Exception {
@@ -329,9 +332,15 @@ public class TradeEngine implements EWrapper {
         Notifications.EmailActions.SendEmail(subject, sb.toString());
     }
     
-    public void runTrading(final int MAX_STOCK_COUNT) throws Exception {
+    /* Method: runTrading
+     * Notes: This method will only buy at 9AM and will only sell at 3PM
+     */
+    public void runTrading(final int MAX_STOCK_COUNT, final boolean debug) throws Exception {
 
         final int WAIT_TIME = 5000;
+        
+        Calendar calNow = Calendar.getInstance();
+        final int HOUR_OF_DAY = calNow.get(Calendar.HOUR_OF_DAY);
         
         String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
         logger.Log("TradeEngine", "runTrading", strOutput, "", false);
@@ -347,11 +356,12 @@ public class TradeEngine implements EWrapper {
         StockDataHandler sdh = new StockDataHandler();
         if (holdingCount > 0) {
             List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
+            
+            logger.Log("TradeEngine", "runTrading", "Current Holdings = " + listCurStocks.size(), "", false);
 
             //Sanity check
             if (holdingCount != listCurStocks.size()) {
                 logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
-                Notifications.EmailActions.SendEmail("Assertion Failed", "Number of positions held at IB doesn't match positions held in DB");
                 System.exit(5);
             }
             
@@ -359,7 +369,9 @@ public class TradeEngine implements EWrapper {
             Date now = new Date();
 
             //Sell everything if expired
-            if (now.compareTo(expDt) >= 0) {
+            if (now.compareTo(expDt) >= 0 && HOUR_OF_DAY == 15) {
+
+                logger.Log("TradeEngine", "runTrading", "Holdings Expired", "", false);
 
                 for (int i = 0; i < listCurStocks.size(); i++) {
                     StockHolding stk = listCurStocks.get(i);
@@ -368,13 +380,14 @@ public class TradeEngine implements EWrapper {
                     Thread.sleep(WAIT_TIME);
                     if (stockQuote == null) {
                         logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
-                        Notifications.EmailActions.SendEmail("Auto Trading Failed", "Failed to receive a stock quote");
                         System.exit(6);
                     }
                     
-                    int orderID = sdh.getStockOrderID();
-                    reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
-                    Thread.sleep(WAIT_TIME);
+                    if (!debug) {
+                        int orderID = sdh.getStockOrderID();
+                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
+                        Thread.sleep(WAIT_TIME);
+                    }
                     
                     //Confirm the trade
                     ExecutionFilter ef = new ExecutionFilter();
@@ -391,18 +404,20 @@ public class TradeEngine implements EWrapper {
             } //End If expired holdings
             //Stocks aren't expired yet, done
             else {
+                logger.Log("TradeEngine", "runTrading", "Holdings Not Yet Expired", "", false);
                 return; 
             }
         } //End If holdings > 0
         //No current stock holdings
-        else {
+        else if (HOUR_OF_DAY == 9) {
+            
+            logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
+
             //Honor 3 wait waiting period
             Date lastSale = sdh.getLastStockSaleDate();
             if (lastSale != null) {
                 Calendar calSale = Calendar.getInstance();
                 calSale.setTime(lastSale);
-
-                Calendar calNow = Calendar.getInstance();
 
                 for (int i = 0; i < 3; i++) {
                     if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
@@ -412,8 +427,10 @@ public class TradeEngine implements EWrapper {
                 }
 
                 //Exit if 3 day waiting period isn't yet met
-                if (calSale.compareTo(calNow) < 0)
+                if (calSale.compareTo(calNow) < 0) {
+                    logger.Log("TradeEngine", "runTrading", "Waiting for 3 days to trade again", "", false);
                     return;
+                }
             }
 
             //Get current balance
@@ -421,14 +438,15 @@ public class TradeEngine implements EWrapper {
             Thread.sleep(WAIT_TIME);
             if (availableFunds == null) {
                 logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Account Balance wasn't retrieved from IB", true);
-                Notifications.EmailActions.SendEmail("Assertion Failed", "Account Balance wasn't retrieved from IB");
                 System.exit(6);
             }
 
             //Enter buy orders
-            BigDecimal reserve = new BigDecimal("20000.00");
+            logger.Log("TradeEngine", "runTrading", "Buying Stocks", "", false);
+            
+            final BigDecimal CASH_RESERVE = new BigDecimal("100.00");
             BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
-            BigDecimal stkPartition = availableFunds.subtract(reserve).divide(divisor, RoundingMode.DOWN);
+            BigDecimal stkPartition = availableFunds.subtract(CASH_RESERVE).divide(divisor, RoundingMode.DOWN);
             Date yesterday = Utilities.Dates.getYesterday();
             Predictor p = new Predictor();
             List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
@@ -440,7 +458,6 @@ public class TradeEngine implements EWrapper {
                 Thread.sleep(WAIT_TIME);
                 if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
                     logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, "Stock Quote not retrieved from IB", true);
-                    Notifications.EmailActions.SendEmail("Assertion Failed", "Stock Quote not retrieved from IB");
                     continue; //Something is wrong, skip this stock
                 } else {
                     logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, stockQuote.toString(), false);
@@ -452,9 +469,12 @@ public class TradeEngine implements EWrapper {
                 double limitPrice = Double.parseDouble(strValue);
                 
                 int numShares = stkPartition.divide(stockQuote, RoundingMode.DOWN).intValue();
-                int orderID = sdh.getStockOrderID();
-                reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
-                Thread.sleep(WAIT_TIME);
+                
+                if (!debug) {
+                    int orderID = sdh.getStockOrderID();
+                    reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
+                    Thread.sleep(WAIT_TIME);
+                }
 
                 //Save to DB
                 sdh.insertStockTrades(ticker, numShares, new Date(), stkPicks.get(i).getTargetDate());
@@ -485,7 +505,6 @@ public class TradeEngine implements EWrapper {
 
         if (!client.isConnected()) {
             logger.Log("TradeEngine", "connect", "Exception", "Cannot conect to IB API", true);
-            Notifications.EmailActions.SendEmail("Cannot connect to IB API", "Cannot connect to IB API.");
             System.exit(4);
         }
         

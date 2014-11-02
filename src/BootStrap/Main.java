@@ -24,8 +24,8 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         try {
-            if (args.length != 1) {
-                logger.Log("Main", "main", "Program Arguments", "Num arguments != 1", false);
+            if (args.length < 1 || args.length > 2) {
+                logger.Log("Main", "main", "Program Arguments", "Num arguments != 1 or 2", false);
                 System.out.println("Missing argument!");
                 System.exit(1);
             }
@@ -36,12 +36,12 @@ public class Main {
 
             //Actions
             String argument = args[0];
+            StockDataHandler sdh = new StockDataHandler();
             switch(argument) {
                 //Download Data
                 case "D":
                     logger.Log("Main", "main", "Option D", "Downloading Data", false);
 
-                    StockDataHandler sdh = new StockDataHandler();
                     sdh.downloadAllStockData();
 
                     final int DAYS_BACK = 0;
@@ -77,7 +77,7 @@ public class Main {
                     final String PRED_TYPE_BACKTEST = "BACKTEST";
                     
                     Calendar fromDate = Calendar.getInstance();
-                    fromDate.set(2006, 0, 4);
+                    fromDate.set(2014, 0, 4);
 
                     Calendar toDate = Calendar.getInstance();
 
@@ -94,18 +94,38 @@ public class Main {
                 case "T":
                     logger.Log("Main", "main", "Option T", "Perform Automated Trading", false);
 
-                    TradeEngine trade = new TradeEngine();
-                    final int MAX_STOCK_COUNT = 5;
-                    trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
-                    trade.runTrading(MAX_STOCK_COUNT);
-                    
+                    String holidayCode = sdh.getHolidays(yesterday);
+                    switch (holidayCode) {
+                        case "Closed":
+                            break;
+                            
+                        case "Early": //Can only buy on such a day and not sell
+                            break;
+                            
+                        default:
+                            TradeEngine trade = new TradeEngine();
+                            final int MAX_STOCK_COUNT = 5;
+                            trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
+                            
+                            //See if the debug option was passed in the cmd line
+                            boolean debug = false;
+                            if (args.length == 2) {
+                                String arg = args[1];
+                                if (arg.equals("debug")) {
+                                    logger.Log("Main", "main", "Option T", "Debug Option is ON", false);
+                                    debug = true;
+                                }
+                            }
+                            
+                            trade.runTrading(MAX_STOCK_COUNT, debug);
+                            break;
+                    }
                     
                     break;
             } //End Switch
             
         } catch (Exception exc) {
             logger.Log("Main", "main", "Exception", exc.toString(), true);
-            Notifications.EmailActions.SendEmail("Exception in main method", exc.toString());
             throw exc;
         }
         

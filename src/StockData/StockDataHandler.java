@@ -116,12 +116,20 @@ public class StockDataHandler {
             //Iterate through the stock prices
             List<MovingAverage> listMAs = new ArrayList<>();
             List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker(), DAYS_BACK);
+
+            //Price MAs
             Queue<StockPrice> fiveDayMAQueue = new LinkedList<>();
             Queue<StockPrice> twentyDayMAQueue = new LinkedList<>();
             Queue<StockPrice> sixtyDayMAQueue = new LinkedList<>();
             BigDecimal fiveDayMA = null;
             BigDecimal twentyDayMA = null;
             BigDecimal sixtyDayMA = null;
+            
+            //Volume MAs
+            BigDecimal fiveDayVolMA = null;
+            BigDecimal twentyDayVolMA = null;
+            BigDecimal sixtyDayVolMA = null;
+            
             final int FIVE = 5;
             final int TWENTY = 20;
             final int SIXTY = 60;
@@ -130,45 +138,57 @@ public class StockDataHandler {
         
             //Look through a stock's price history
             for (StockPrice price : priceList) {
-
+                
                 //5 Day MA
                 fiveDayMAQueue.add(price);
                 if (fiveDayMAQueue.size() >= FIVE) {
-                    BigDecimal sum = new BigDecimal(0.0);
+                    BigDecimal priceSum = new BigDecimal(0.0);
+                    BigDecimal volSum = new BigDecimal(0.0);
+                    
                     for (StockPrice sp : fiveDayMAQueue) {
-                        sum = sum.add(sp.getPrice());
+                        priceSum = priceSum.add(sp.getPrice());
+                        volSum = volSum.add(sp.getVolume());
                     }
                 
-                    fiveDayMA = sum.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
+                    fiveDayMA = priceSum.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
+                    fiveDayVolMA = volSum.divide(new BigDecimal(FIVE), RoundingMode.HALF_UP);
                     fiveDayMAQueue.remove();
                 }
                     
                 //20 Day MA
                 twentyDayMAQueue.add(price);
                 if (twentyDayMAQueue.size() >= TWENTY) {
-                    BigDecimal sum = new BigDecimal(0.0);
+                    BigDecimal priceSum = new BigDecimal(0.0);
+                    BigDecimal volSum = new BigDecimal(0.0);
+
                     for (StockPrice sp : twentyDayMAQueue) {
-                        sum = sum.add(sp.getPrice());
+                        priceSum = priceSum.add(sp.getPrice());
+                        volSum = volSum.add(sp.getVolume());
                     }
                 
-                    twentyDayMA = sum.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
+                    twentyDayMA = priceSum.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
+                    twentyDayVolMA = volSum.divide(new BigDecimal(TWENTY), RoundingMode.HALF_UP);
                     twentyDayMAQueue.remove();
                 }
                 
                 //60 Day MA
                 sixtyDayMAQueue.add(price);
                 if (sixtyDayMAQueue.size() >= SIXTY) {
-                    BigDecimal sum = new BigDecimal(0.0);
+                    BigDecimal priceSum = new BigDecimal(0.0);
+                    BigDecimal volSum = new BigDecimal(0.0);
+
                     for (StockPrice sp : sixtyDayMAQueue) {
-                        sum = sum.add(sp.getPrice());
+                        priceSum = priceSum.add(sp.getPrice());
+                        volSum = volSum.add(sp.getVolume());
                     }
                 
-                    sixtyDayMA = sum.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
+                    sixtyDayMA = priceSum.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
+                    sixtyDayVolMA = volSum.divide(new BigDecimal(SIXTY), RoundingMode.HALF_UP);
                     sixtyDayMAQueue.remove();
                 }
                 
                 //Save MAs to list
-                MovingAverage avg = new MovingAverage(stockTicker.getTicker(), price.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA);
+                MovingAverage avg = new MovingAverage(stockTicker.getTicker(), price.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA, fiveDayVolMA, twentyDayVolMA, sixtyDayVolMA);
                 listMAs.add(avg);
                 
                 
@@ -388,7 +408,7 @@ public class StockDataHandler {
         logger.Log("StockDataHandler", "setMovingAverages", "", "", false);
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote(?, ?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_StockQuote(?, ?, ?, ?, ?, ?, ?, ?)}")) {
 
             conxn.setAutoCommit(false);
             
@@ -401,6 +421,9 @@ public class StockDataHandler {
                 stmt.setBigDecimal(3, ma.getFiveDayMA());
                 stmt.setBigDecimal(4, ma.getTwentyDayMA());
                 stmt.setBigDecimal(5, ma.getSixtyDayMA());
+                stmt.setBigDecimal(6, ma.getFiveDayVolMA());
+                stmt.setBigDecimal(7, ma.getTwentyDayVolMA());
+                stmt.setBigDecimal(8, ma.getSixtyDayVolMA());
                 stmt.addBatch();
             }
             
@@ -2268,6 +2291,31 @@ public class StockDataHandler {
         }
     }
 
+    public String getHolidays(Date date) throws Exception {
+
+        logger.Log("StockDataHandler", "getHolidays", "Date: " + date.toString(), "", false);
+
+        String code = "";
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_IsHoliday (?)}")) {
+            
+            java.sql.Date dt = new java.sql.Date(date.getTime());
+            stmt.setDate(1, dt);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) 
+                code = rs.getString(1);
+
+            return code;
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getHolidays", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+    }
+    
     public Quarter getBEA_UpdateDate() throws Exception {
 
         logger.Log("StockDataHandler", "getBEA_UpdateDate", "", "", false);

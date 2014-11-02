@@ -17,13 +17,21 @@ public class MovingAverage {
     private BigDecimal fiveDayMA;
     private BigDecimal twentyDayMA;
     private BigDecimal sixtyDayMA;
+    private BigDecimal fiveDayVolMA;
+    private BigDecimal twentyDayVolMA;
+    private BigDecimal sixtyDayVolMA;
 
-    public MovingAverage(String stockTicker, Date date, BigDecimal fiveDayMA, BigDecimal twentyDayMA, BigDecimal sixtyDayMA) {
+    public MovingAverage(String stockTicker, Date date, BigDecimal fiveDayMA, BigDecimal twentyDayMA, BigDecimal sixtyDayMA, 
+                         BigDecimal fiveDayVolMA, BigDecimal twentyDayVolMA, BigDecimal sixtyDayVolMA) {
+        
         this.stockTicker = stockTicker;
         this.date = date;
         this.fiveDayMA = fiveDayMA;
         this.twentyDayMA = twentyDayMA;
         this.sixtyDayMA = sixtyDayMA;
+        this.fiveDayVolMA = fiveDayVolMA;
+        this.twentyDayVolMA = twentyDayVolMA;
+        this.sixtyDayVolMA = sixtyDayVolMA;
     }
 
     public String getStockTicker() {
@@ -44,5 +52,17 @@ public class MovingAverage {
 
     public BigDecimal getSixtyDayMA() {
         return sixtyDayMA;
+    }
+
+    public BigDecimal getFiveDayVolMA() {
+        return fiveDayVolMA;
+    }
+
+    public BigDecimal getTwentyDayVolMA() {
+        return twentyDayVolMA;
+    }
+
+    public BigDecimal getSixtyDayVolMA() {
+        return sixtyDayVolMA;
     }
 }

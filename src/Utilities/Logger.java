@@ -73,6 +73,9 @@ public class Logger {
         
         String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Error: %s", className, method, summary, fullDescription, String.valueOf(isError));
         System.out.println(strOutput);
+
+        if (isError)
+            Notifications.EmailActions.SendEmail("Log Error", strOutput);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?, ?)}")) {

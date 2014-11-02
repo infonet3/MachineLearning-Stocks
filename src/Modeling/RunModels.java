@@ -60,6 +60,8 @@ public class RunModels {
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers();
 
+        final int NUM_TREES = 50;
+        
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
             
@@ -86,6 +88,7 @@ public class RunModels {
                         train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
         
                         RandomForest rf = new RandomForest();
+                        rf.setNumTrees(NUM_TREES);
                         rf.buildClassifier(train);
 
                         eval = new Evaluation(train);
