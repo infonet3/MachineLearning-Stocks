@@ -12,6 +12,7 @@ import Trading.TradeEngine;
 import Utilities.Logger;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Map;
 
 /**
  *
@@ -24,8 +25,8 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         try {
-            if (args.length < 1 || args.length > 2) {
-                logger.Log("Main", "main", "Program Arguments", "Num arguments != 1 or 2", false);
+            if (args.length == 0) {
+                logger.Log("Main", "main", "Program Arguments", "Min Arguments not entered, must be at least one.", true);
                 System.out.println("Missing argument!");
                 System.exit(1);
             }
@@ -37,6 +38,7 @@ public class Main {
             //Actions
             String argument = args[0];
             StockDataHandler sdh = new StockDataHandler();
+            Map<Date, String> mapHolidays = sdh.getAllHolidays();
             switch(argument) {
                 //Download Data
                 case "D":
@@ -94,7 +96,30 @@ public class Main {
                 case "T":
                     logger.Log("Main", "main", "Option T", "Perform Automated Trading", false);
 
-                    String holidayCode = sdh.getHolidays(yesterday);
+                    //Cmd Line Arguments must equal 3 - T IB_GateWay_Port [debug]
+                    if (args.length != 2 && args.length != 3) {
+                        logger.Log("Main", "main", "Program Arguments", "For T Option - Must have two or three Arguments.", true);
+                        System.out.println("Missing argument for T Option!");
+                        System.exit(1);
+                    }
+
+                    //2nd Argument - IB Gateway Port
+                    int port = Integer.parseInt(args[1]);
+                    
+                    //3rd Argument - See if the debug option was passed in the cmd line
+                    boolean debug = false;
+                    if (args.length == 3) {
+                        if (args[2].equals("debug")) {
+                            logger.Log("Main", "main", "Option T", "Debug Option is ON", false);
+                            debug = true;
+                        }
+                    }
+
+                    //Holiday Check
+                    String holidayCode = mapHolidays.get(yesterday);
+                    if (holidayCode == null)
+                        holidayCode = "";
+                    
                     switch (holidayCode) {
                         case "Closed":
                             break;
@@ -107,17 +132,7 @@ public class Main {
                             final int MAX_STOCK_COUNT = 5;
                             trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
                             
-                            //See if the debug option was passed in the cmd line
-                            boolean debug = false;
-                            if (args.length == 2) {
-                                String arg = args[1];
-                                if (arg.equals("debug")) {
-                                    logger.Log("Main", "main", "Option T", "Debug Option is ON", false);
-                                    debug = true;
-                                }
-                            }
-                            
-                            trade.runTrading(MAX_STOCK_COUNT, debug);
+                            trade.runTrading(MAX_STOCK_COUNT, port, debug);
                             break;
                     }
                     

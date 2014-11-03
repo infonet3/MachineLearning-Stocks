@@ -12,6 +12,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 public class TradeEngine implements EWrapper {
 
@@ -288,33 +289,19 @@ public class TradeEngine implements EWrapper {
         String strOutput = String.format("Action: %s, Ticker: %s, Shares: %d, Price: %f", ACTION_CD.toString(), ticker, numShares, curPrice);
         logger.Log("TradeEngine", "reqBuyStock", strOutput, "", false);
 
-        return;
-/*        
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
         contract.m_secType = "STK";
-        contract.m_expiry = "";
-        contract.m_strike = 0;
-        contract.m_right = "None";
-        contract.m_multiplier = String.valueOf(numShares);
         contract.m_exchange = "SMART";
-        contract.m_primaryExch = "ISLAND";
         contract.m_currency = "USD";
         
         Order order = new Order();
-        order.m_clientId = 1;
-        order.m_orderId = orderID;
-        order.m_permId = 0;
-        order.m_parentId = 0;
-        order.m_account = "DU205493";
         order.m_action = ACTION_CD.toString();
         order.m_totalQuantity = numShares;
         order.m_orderType = "LMT";
         order.m_lmtPrice = curPrice;
-        order.m_tif = "DAY";
         
         client.placeOrder(orderID, contract, order);
-        */ 
     }
 
     public void emailTodaysStockPicks(final int MAX_STOCK_COUNT, Date runDate) throws Exception {
@@ -335,7 +322,7 @@ public class TradeEngine implements EWrapper {
     /* Method: runTrading
      * Notes: This method will only buy at 9AM and will only sell at 3PM
      */
-    public void runTrading(final int MAX_STOCK_COUNT, final boolean debug) throws Exception {
+    public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT, final boolean debug) throws Exception {
 
         final int WAIT_TIME = 5000;
         
@@ -345,13 +332,13 @@ public class TradeEngine implements EWrapper {
         String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
         logger.Log("TradeEngine", "runTrading", strOutput, "", false);
         
-        EClientSocket client = connect();
+        EClientSocket client = connect(IB_GATE_PORT);
 
         //Get current holdings
         client.reqPositions();
         Thread.sleep(WAIT_TIME);
         int holdingCount = listHoldings.size();
-        
+
         //Find expiration from DB
         StockDataHandler sdh = new StockDataHandler();
         if (holdingCount > 0) {
@@ -364,14 +351,14 @@ public class TradeEngine implements EWrapper {
                 logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
                 System.exit(5);
             }
-            
-            Date expDt = listCurStocks.get(0).getTargetDate();
-            Date now = new Date();
 
             //Sell everything if expired
+            Date now = new Date();
+            Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
             if (now.compareTo(expDt) >= 0 && HOUR_OF_DAY == 15) {
 
-                logger.Log("TradeEngine", "runTrading", "Holdings Expired", "", false);
+                String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
+                logger.Log("TradeEngine", "runTrading", "Holdings Expired", strExpOutput, false);
 
                 for (int i = 0; i < listCurStocks.size(); i++) {
                     StockHolding stk = listCurStocks.get(i);
@@ -414,16 +401,37 @@ public class TradeEngine implements EWrapper {
             logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
 
             //Honor 3 wait waiting period
+            final int WAITING_PERIOD = 3;
+            int daysWaited = 0;
             Date lastSale = sdh.getLastStockSaleDate();
+            Map<Date, String> mapHolidays = sdh.getAllHolidays();
             if (lastSale != null) {
                 Calendar calSale = Calendar.getInstance();
                 calSale.setTime(lastSale);
 
-                for (int i = 0; i < 3; i++) {
-                    if (calNow.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY)
-                        calSale.add(Calendar.DATE, 3);
-                    else
+                for (;;) {
+                    //Saturday
+                    if (calSale.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY)
+                        calSale.add(Calendar.DATE, 2);
+                    //Sunday
+                    else if (calSale.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
                         calSale.add(Calendar.DATE, 1);
+                    //Monday - Friday
+                    else {
+                        String holidayCode = mapHolidays.get(calSale.getTime());
+                        if (holidayCode == null)
+                            holidayCode = "";
+                        
+                        if (holidayCode.equals("Closed"))
+                            calSale.add(Calendar.DATE, 1);
+                        else {
+                            calSale.add(Calendar.DATE, 1);
+                            daysWaited++;
+                        }
+                    }
+                    
+                    if (daysWaited == WAITING_PERIOD)
+                        break;
                 }
 
                 //Exit if 3 day waiting period isn't yet met
@@ -456,6 +464,7 @@ public class TradeEngine implements EWrapper {
                 stockQuote = null;
                 reqStockQuote(client, i, ticker);
                 Thread.sleep(WAIT_TIME);
+                
                 if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
                     logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, "Stock Quote not retrieved from IB", true);
                     continue; //Something is wrong, skip this stock
@@ -495,13 +504,12 @@ public class TradeEngine implements EWrapper {
         client.reqAccountSummary(101, "All", "TotalCashValue");
     }
     
-    private EClientSocket connect() throws Exception {
+    private EClientSocket connect(final int PORT) throws Exception {
         
         logger.Log("TradeEngine", "connect", "", "", false);
         
         EClientSocket client = new EClientSocket(this);
-        client.eConnect("localhost", 7496, 101);
-        //client.eConnect("localhost", 4001, 101);
+        client.eConnect("localhost", PORT, 101);
 
         if (!client.isConnected()) {
             logger.Log("TradeEngine", "connect", "Exception", "Cannot conect to IB API", true);

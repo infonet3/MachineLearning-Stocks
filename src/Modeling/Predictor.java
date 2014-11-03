@@ -20,6 +20,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
@@ -47,9 +48,9 @@ public class Predictor {
     }
     
     
-    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DATE, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
+    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
 
-        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE_MODEL + ", Target Date: " + TARGET_DATE + ", Prediction Type: " + PRED_TYPE;
+        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE_MODEL + ", Target Days Out: " + TARGET_DAYS_OUT + ", Prediction Type: " + PRED_TYPE;
         logger.Log("Predictor", "predictAllStocksForDates", summary, "", false);
         
         //Weekend Test - From Date
@@ -117,7 +118,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DATE);
+                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DAYS_OUT);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
@@ -154,7 +155,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DATE);
+                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DAYS_OUT);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
@@ -171,11 +172,13 @@ public class Predictor {
 
     }
 
-    private Calendar getTargetDate(final int YEAR, final int MONTH, final int DATE, final int DAYS_OUT) {
+    private Calendar getTargetDate(final int YEAR, final int MONTH, final int DATE, final int DAYS_OUT) throws Exception {
 
         Calendar targetDate = Calendar.getInstance();
         targetDate.set(YEAR, MONTH - 1, DATE);
         int daysInAdvance = 0;
+        StockDataHandler sdh = new StockDataHandler();
+        Map<Date, String> holidayMap = sdh.getAllHolidays();
 
         for (;;) {
             
@@ -184,6 +187,9 @@ public class Predictor {
 
             //Weekend
             if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
+                targetDate.add(Calendar.DATE, 1);
+            //Holidays
+            else if (holidayMap.get(targetDate.getTime()).equals("Closed"))
                 targetDate.add(Calendar.DATE, 1);
             //Business Days
             else {

@@ -2291,23 +2291,21 @@ public class StockDataHandler {
         }
     }
 
-    public String getHolidays(Date date) throws Exception {
+    public Map<Date, String> getAllHolidays() throws Exception {
 
-        logger.Log("StockDataHandler", "getHolidays", "Date: " + date.toString(), "", false);
+        logger.Log("StockDataHandler", "getHolidays", "", "", false);
 
-        String code = "";
+        Map<Date, String> holidayMap = new HashMap<>();
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_IsHoliday (?)}")) {
-            
-            java.sql.Date dt = new java.sql.Date(date.getTime());
-            stmt.setDate(1, dt);
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_AllHolidays ()}")) {
             
             ResultSet rs = stmt.executeQuery();
             
-            if (rs.next()) 
-                code = rs.getString(1);
+            while (rs.next()) {
+                holidayMap.put(rs.getDate(1), rs.getString(2));
+            }
 
-            return code;
+            return holidayMap;
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "getHolidays", "Exception", exc.toString(), true);
