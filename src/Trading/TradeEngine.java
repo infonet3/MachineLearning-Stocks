@@ -396,7 +396,7 @@ public class TradeEngine implements EWrapper {
             }
         } //End If holdings > 0
         //No current stock holdings
-        else if (HOUR_OF_DAY == 9) { 
+        else if (HOUR_OF_DAY == 9 || HOUR_OF_DAY == 10) { 
             
             logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
 
