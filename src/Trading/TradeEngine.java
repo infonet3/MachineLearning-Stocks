@@ -396,43 +396,18 @@ public class TradeEngine implements EWrapper {
             }
         } //End If holdings > 0
         //No current stock holdings
-        else if (HOUR_OF_DAY == 9) {
+        else if (HOUR_OF_DAY == 9) { 
             
             logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
 
             //Honor 3 wait waiting period
-            final int WAITING_PERIOD = 3;
-            int daysWaited = 0;
             Date lastSale = sdh.getLastStockSaleDate();
-            Map<Date, String> mapHolidays = sdh.getAllHolidays();
             if (lastSale != null) {
                 Calendar calSale = Calendar.getInstance();
                 calSale.setTime(lastSale);
 
-                for (;;) {
-                    //Saturday
-                    if (calSale.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY)
-                        calSale.add(Calendar.DATE, 2);
-                    //Sunday
-                    else if (calSale.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
-                        calSale.add(Calendar.DATE, 1);
-                    //Monday - Friday
-                    else {
-                        String holidayCode = mapHolidays.get(calSale.getTime());
-                        if (holidayCode == null)
-                            holidayCode = "";
-                        
-                        if (holidayCode.equals("Closed"))
-                            calSale.add(Calendar.DATE, 1);
-                        else {
-                            calSale.add(Calendar.DATE, 1);
-                            daysWaited++;
-                        }
-                    }
-                    
-                    if (daysWaited == WAITING_PERIOD)
-                        break;
-                }
+                final int WAITING_PERIOD = 3;
+                calSale = Utilities.Dates.getTargetDate(calSale, WAITING_PERIOD);
 
                 //Exit if 3 day waiting period isn't yet met
                 if (calSale.compareTo(calNow) < 0) {
@@ -455,9 +430,15 @@ public class TradeEngine implements EWrapper {
             final BigDecimal CASH_RESERVE = new BigDecimal("100.00");
             BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
             BigDecimal stkPartition = availableFunds.subtract(CASH_RESERVE).divide(divisor, RoundingMode.DOWN);
-            Date yesterday = Utilities.Dates.getYesterday();
+
             Predictor p = new Predictor();
+            Date yesterday = Utilities.Dates.getYesterday();
             List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+            if (stkPicks.size() != MAX_STOCK_COUNT) {
+                logger.Log("TradeEngine", "runTrading", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
+                return;
+            }
+            
             for (int i = 0; i < MAX_STOCK_COUNT; i++) {
                 String ticker = stkPicks.get(i).getTicker();
 
@@ -473,11 +454,11 @@ public class TradeEngine implements EWrapper {
                 }
 
                 //Pay no more than 2% over Market
-                double tmpLimitPrice = stockQuote.multiply(new BigDecimal("1.02")).doubleValue();
-                String strValue = String.format("%.2f", tmpLimitPrice);
+                BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("1.02"));
+                String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
                 double limitPrice = Double.parseDouble(strValue);
                 
-                int numShares = stkPartition.divide(stockQuote, RoundingMode.DOWN).intValue();
+                int numShares = stkPartition.divide(tmpLimitPrice, RoundingMode.DOWN).intValue(); 
                 
                 if (!debug) {
                     int orderID = sdh.getStockOrderID();

@@ -125,8 +125,6 @@ public class Main {
                             break;
                             
                         case "Early": //Can only buy on such a day and not sell
-                            break;
-                            
                         default:
                             TradeEngine trade = new TradeEngine();
                             final int MAX_STOCK_COUNT = 5;

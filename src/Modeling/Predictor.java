@@ -118,7 +118,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DAYS_OUT);
+                        Calendar targetDate = Utilities.Dates.getTargetDate(curDate, TARGET_DAYS_OUT);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
@@ -155,7 +155,7 @@ public class Predictor {
                         curDate.set(year, month - 1, date);
 
                         //Move the target day N business days out
-                        Calendar targetDate = getTargetDate(year, month, date, TARGET_DAYS_OUT);
+                        Calendar targetDate = Utilities.Dates.getTargetDate(curDate, TARGET_DAYS_OUT);
 
                         //Save Prediction
                         BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
@@ -170,35 +170,6 @@ public class Predictor {
 
         }
 
-    }
-
-    private Calendar getTargetDate(final int YEAR, final int MONTH, final int DATE, final int DAYS_OUT) throws Exception {
-
-        Calendar targetDate = Calendar.getInstance();
-        targetDate.set(YEAR, MONTH - 1, DATE);
-        int daysInAdvance = 0;
-        StockDataHandler sdh = new StockDataHandler();
-        Map<Date, String> holidayMap = sdh.getAllHolidays();
-
-        for (;;) {
-            
-            if (daysInAdvance == DAYS_OUT)
-                break;
-
-            //Weekend
-            if (targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || targetDate.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)
-                targetDate.add(Calendar.DATE, 1);
-            //Holidays
-            else if (holidayMap.get(targetDate.getTime()).equals("Closed"))
-                targetDate.add(Calendar.DATE, 1);
-            //Business Days
-            else {
-                targetDate.add(Calendar.DATE, 1);
-                daysInAdvance++;
-            }
-        }
-        
-        return targetDate;
     }
     
     public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate) throws Exception {
