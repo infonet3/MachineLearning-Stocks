@@ -355,7 +355,7 @@ public class TradeEngine implements EWrapper {
             //Sell everything if expired
             Date now = new Date();
             Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
-            if (now.compareTo(expDt) >= 0 && HOUR_OF_DAY == 15) {
+            if (now.compareTo(expDt) >= 0 && HOUR_OF_DAY == 15) { 
 
                 String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
                 logger.Log("TradeEngine", "runTrading", "Holdings Expired", strExpOutput, false);
