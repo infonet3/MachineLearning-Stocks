@@ -324,7 +324,7 @@ public class TradeEngine implements EWrapper {
      */
     public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT, final boolean debug) throws Exception {
 
-        final int WAIT_TIME = 5000;
+        final int WAIT_TIME = 3000;
         
         Calendar calNow = Calendar.getInstance();
         final int HOUR_OF_DAY = calNow.get(Calendar.HOUR_OF_DAY);
@@ -355,14 +355,18 @@ public class TradeEngine implements EWrapper {
             //Sell everything if expired
             Date now = new Date();
             Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
-            if (now.compareTo(expDt) >= 0 && HOUR_OF_DAY == 15) { 
+            if (now.compareTo(expDt) >= 0) { 
 
+                if (HOUR_OF_DAY != 15)
+                    return;
+                
                 String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
                 logger.Log("TradeEngine", "runTrading", "Holdings Expired", strExpOutput, false);
 
                 for (int i = 0; i < listCurStocks.size(); i++) {
                     StockHolding stk = listCurStocks.get(i);
                     
+                    stockQuote = null;
                     reqStockQuote(client, i, stk.getTicker());
                     Thread.sleep(WAIT_TIME);
                     if (stockQuote == null) {
@@ -372,15 +376,15 @@ public class TradeEngine implements EWrapper {
                     
                     if (!debug) {
                         int orderID = sdh.getStockOrderID();
-                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.98 * stockQuote.doubleValue());
+                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), 0.99 * stockQuote.doubleValue());
                         Thread.sleep(WAIT_TIME);
                     }
                     
                     //Confirm the trade
-                    ExecutionFilter ef = new ExecutionFilter();
-                    ef.m_symbol = stk.getTicker();
-                    client.reqExecutions(i, ef);
-                    Thread.sleep(WAIT_TIME);
+                    //ExecutionFilter ef = new ExecutionFilter();
+                    //ef.m_symbol = stk.getTicker();
+                    //client.reqExecutions(i, ef);
+                    //Thread.sleep(WAIT_TIME);
                     
                     //Update DB
                     sdh.updateStockTrade(stk.getTicker());
@@ -453,8 +457,8 @@ public class TradeEngine implements EWrapper {
                     logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, stockQuote.toString(), false);
                 }
 
-                //Pay no more than 2% over Market
-                BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("1.02"));
+                //Pay no more than 1% over Market
+                BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("1.01"));
                 String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
                 double limitPrice = Double.parseDouble(strValue);
                 

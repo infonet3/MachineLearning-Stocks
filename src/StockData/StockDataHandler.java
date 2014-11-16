@@ -1951,6 +1951,176 @@ public class StockDataHandler {
         }
     }
 
+    private void insertQtrStockFundamentalsIntoDB(List<StockFundamentals> listFund) throws Exception {
+
+        logger.Log("StockDataHandler", "insertQtrStockFundamentalsIntoDB", "", "", false);
+
+        String row;
+        java.sql.Date sqlDt;
+       
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Qtr (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            final BigDecimal BLANK_VALUE = new BigDecimal("0.0");
+
+            for (int i = 0; i < listFund.size(); i++) {
+
+                StockFundamentals fund = listFund.get(i);
+                
+                stmt.setString(1, fund.getTicker());
+                
+                sqlDt = new java.sql.Date(fund.getDate().getTime());
+                stmt.setDate(2, sqlDt);
+                
+                if (fund.getAssets() != null)
+                    stmt.setBigDecimal(3, fund.getAssets());
+                else
+                    stmt.setBigDecimal(3, BLANK_VALUE);
+
+                if (fund.getDebt() != null)
+                    stmt.setBigDecimal(4, fund.getDebt());
+                else
+                    stmt.setBigDecimal(4, BLANK_VALUE);
+
+                if (fund.getEquity() != null)
+                    stmt.setBigDecimal(5, fund.getEquity());
+                else
+                    stmt.setBigDecimal(5, BLANK_VALUE);
+
+                if (fund.getLiabilities() != null)
+                    stmt.setBigDecimal(6, fund.getLiabilities());
+                else
+                    stmt.setBigDecimal(6, BLANK_VALUE);
+
+                if (fund.getRevenue() != null)
+                    stmt.setBigDecimal(7, fund.getRevenue());
+                else
+                    stmt.setBigDecimal(7, BLANK_VALUE);
+                
+                if (fund.getNetIncome() != null)
+                    stmt.setBigDecimal(8, fund.getNetIncome());
+                else
+                    stmt.setBigDecimal(8, BLANK_VALUE);
+
+                if (fund.getNetIncomeCommon() != null)
+                    stmt.setBigDecimal(9, fund.getNetIncomeCommon());
+                else
+                    stmt.setBigDecimal(9, BLANK_VALUE);
+
+                if (fund.getEbitda() != null)
+                    stmt.setBigDecimal(10, fund.getEbitda());
+                else
+                    stmt.setBigDecimal(10, BLANK_VALUE);
+
+                if (fund.getEbt() != null)
+                    stmt.setBigDecimal(11, fund.getEbt());
+                else
+                    stmt.setBigDecimal(11, BLANK_VALUE);
+                    
+                if (fund.getNcfo() != null)
+                    stmt.setBigDecimal(12, fund.getNcfo());
+                else
+                    stmt.setBigDecimal(12, BLANK_VALUE);
+
+                if (fund.getDps() != null)
+                    stmt.setBigDecimal(13, fund.getDps());
+                else
+                    stmt.setBigDecimal(13, BLANK_VALUE);
+                    
+                if (fund.getEps() != null)
+                    stmt.setBigDecimal(14, fund.getEps());
+                else
+                    stmt.setBigDecimal(14, BLANK_VALUE);
+
+                if (fund.getEpsDiluted() != null)
+                    stmt.setBigDecimal(15, fund.getEpsDiluted());
+                else
+                    stmt.setBigDecimal(15, BLANK_VALUE);
+
+                if (fund.getNumShares() != null)
+                    stmt.setLong(16, fund.getNumShares().longValue());
+                else
+                    stmt.setLong(16, 0);
+
+                if (fund.getIntExposure() != null)
+                    stmt.setBigDecimal(17, fund.getIntExposure());
+                else
+                    stmt.setBigDecimal(17, BLANK_VALUE);
+                    
+                if (fund.getWorkingCapital() != null)
+                    stmt.setBigDecimal(18, fund.getWorkingCapital());
+                else
+                    stmt.setBigDecimal(18, BLANK_VALUE);
+
+                if (fund.getFcf() != null)
+                    stmt.setBigDecimal(19, fund.getFcf());
+                else
+                    stmt.setBigDecimal(19, BLANK_VALUE);
+
+                if (fund.getFcfps() != null)
+                    stmt.setBigDecimal(20, fund.getFcfps());
+                else
+                    stmt.setBigDecimal(20, BLANK_VALUE);
+                
+                if (fund.getMarketCap() != null)
+                    stmt.setBigDecimal(21, fund.getMarketCap());
+                else
+                    stmt.setBigDecimal(21, BLANK_VALUE);
+
+                if (fund.getNetMargin() != null)
+                    stmt.setBigDecimal(22, fund.getNetMargin());
+                else
+                    stmt.setBigDecimal(22, BLANK_VALUE);
+                    
+                if (fund.getPriceBook() != null)
+                    stmt.setBigDecimal(23, fund.getPriceBook());
+                else
+                    stmt.setBigDecimal(23, BLANK_VALUE);
+
+                if (fund.getPriceEarnings() != null)
+                    stmt.setBigDecimal(24, fund.getPriceEarnings());
+                else
+                    stmt.setBigDecimal(24, BLANK_VALUE);
+                
+                if (fund.getPriceSales() != null)
+                    stmt.setBigDecimal(25, fund.getPriceSales());
+                else
+                    stmt.setBigDecimal(25, BLANK_VALUE);
+                
+                if (fund.getRoa() != null)
+                    stmt.setBigDecimal(26, fund.getRoa());
+                else
+                    stmt.setBigDecimal(26, BLANK_VALUE);
+                    
+                if (fund.getRoe() != null)
+                    stmt.setBigDecimal(27, fund.getRoe());
+                else
+                    stmt.setBigDecimal(27, BLANK_VALUE);
+                    
+                if (fund.getRos() != null)
+                    stmt.setBigDecimal(28, fund.getRos());
+                else
+                    stmt.setBigDecimal(28, BLANK_VALUE);
+                    
+                if (fund.getSps() != null)
+                    stmt.setBigDecimal(29, fund.getSps());
+                else
+                    stmt.setBigDecimal(29, BLANK_VALUE);
+                
+                stmt.addBatch();
+            }
+            
+            //Save to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "insertQtrStockFundamentalsIntoDB", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
     private void insertStockFundamentals_Quarter_IntoDB(List<StockFundamentals_Quarter> listStockFund) throws Exception {
 
         logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "", "", false);
@@ -2511,6 +2681,30 @@ public class StockDataHandler {
         }
     }
 
+    public Date getQtrStockFundamentals_UpdateDate(String ticker) throws Exception {
+
+        logger.Log("StockDataHandler", "getQtrStockFundamentals_UpdateDate", "Ticker: " + ticker, "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_QtrStockFundamentals_LastUpdate (?)}")) {
+
+            stmt.setString(1, ticker);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next())
+                return rs.getDate(1);
+            else {
+                Calendar c = GregorianCalendar.getInstance();
+                c.set(1990, 1, 1);
+                return c.getTime();
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getQtrStockFundamentals_UpdateDate", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
     public Date getUnemployment_UpdateDate() throws Exception {
 
         logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "", "", false);
@@ -2565,8 +2759,20 @@ public class StockDataHandler {
 
         logger.Log("StockDataHandler", "downloadAllStockData", "", "", false);
 
-        //M2 - Money Supply
+        //Fundamentals - Premium Data
         Date lastDt;
+        List<StockTicker> listOfAllStocks = getAllStockTickers();
+        for (StockTicker st : listOfAllStocks) {
+            
+            lastDt = getQtrStockFundamentals_UpdateDate(st.getTicker());
+            List<StockFundamentals> qtrFundamentalsList = getQtrStockFundamentals(st.getTicker(), lastDt);
+            if (qtrFundamentalsList != null)
+                insertQtrStockFundamentalsIntoDB(qtrFundamentalsList);
+        }
+        setStockFundamentals_Quarter_ValidDates();
+        setStockFundamentals_Quarter_PctChg();
+
+        //M2 - Money Supply
         final String M2 = "M2-Vel";
         lastDt = getEconomicData_UpdateDate(M2);
         if (isDataExpired(lastDt)) {
@@ -2599,21 +2805,21 @@ public class StockDataHandler {
         final String JAPAN = "JPY";
         lastDt = getCurrencyRatios_UpdateDate(JAPAN);
         if (isDataExpired(lastDt)) {
-            String usdJpy = downloadData("QUANDL/USDJPY", lastDt);
+            String usdJpy = downloadData("CURRFX/USDJPY", lastDt); //Old Code "QUANDL/USDJPY"
             insertCurrencyRatiosIntoDB(JAPAN, usdJpy);
         }        
         
         final String AUSTRALIA = "AUD";
         lastDt = getCurrencyRatios_UpdateDate(AUSTRALIA);
         if (isDataExpired(lastDt)) {
-            String usdAud = downloadData("QUANDL/USDAUD", lastDt);
+            String usdAud = downloadData("CURRFX/USDAUD", lastDt); //Old Code "QUANDL/USDAUD"
             insertCurrencyRatiosIntoDB(AUSTRALIA, usdAud);
         }        
         
         final String EURO = "EUR";
         lastDt = getCurrencyRatios_UpdateDate(EURO);
         if (isDataExpired(lastDt)) {
-            String usdEur = downloadData("QUANDL/USDEUR", lastDt);
+            String usdEur = downloadData("CURRFX/USDEUR", lastDt); //Old Code "QUANDL/USDEUR"
             insertCurrencyRatiosIntoDB(EURO, usdEur);
         }        
 
@@ -2753,7 +2959,6 @@ public class StockDataHandler {
         insertGDPDataIntoDB(listBEAData);
 
         //Stock Quotes
-        List<StockTicker> listOfAllStocks = getAllStockTickers();
         for (StockTicker st : listOfAllStocks) {
             lastDt = getStockQuote_UpdateDate(st.getTicker());
             if (isDataExpired(lastDt)) {
@@ -2761,7 +2966,8 @@ public class StockDataHandler {
                 insertStockPricesIntoDB(st.getTicker(), stockValues);
             }        
         }
-
+        
+        /*
         //Fundamentals - Annual
         MorningstarData mstar = new MorningstarData();
         List<StockFundamentals_Annual> listStockFundAnnual = new ArrayList<>();
@@ -2781,13 +2987,304 @@ public class StockDataHandler {
                 listStockFundQtr.add(fundamentals);
         }
         insertStockFundamentals_Quarter_IntoDB(listStockFundQtr);
-        setStockFundamentals_Quarter_ValidDates();
-        setStockFundamentals_Quarter_PctChg();
+        */
 
         //Remove bad data
         removeAllBadData();
     }
 
+    private List<StockFundamentals> getQtrStockFundamentals(String ticker, Date lastDt) throws Exception {
+
+        //Assets
+        String quandlCode = "SF1/" + ticker + "_ASSETS_ARQ";
+        String stockValues = downloadData(quandlCode, lastDt);
+        
+        //See if we have new data to process
+        Map<Date, BigDecimal> assetMap = new HashMap<>();
+        if (stockValues.split("\n").length > 1) 
+            insertFundamentalValuesIntoMap(stockValues, assetMap);
+        else 
+            return null; //No new data
+
+        //Revenue
+        quandlCode = "SF1/" + ticker + "_REVENUE_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> revenueMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, revenueMap);
+        
+        //Debt
+        quandlCode = "SF1/" + ticker + "_DEBT_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> debtMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, debtMap);
+                
+        //Equity
+        quandlCode = "SF1/" + ticker + "_EQUITY_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> equityMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, equityMap);
+        
+        //Liabilities
+        quandlCode = "SF1/" + ticker + "_LIABILITIES_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> liabilitiesMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, liabilitiesMap);
+        
+        //Net Income
+        quandlCode = "SF1/" + ticker + "_NETINC_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> netIncMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, netIncMap);
+        
+        //Net Income Common
+        quandlCode = "SF1/" + ticker + "_NETINCCMN_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> netIncCmnMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, netIncCmnMap);
+        
+        //EBITDA
+        quandlCode = "SF1/" + ticker + "_EBITDA_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ebitdaMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ebitdaMap);
+
+        //EBT
+        quandlCode = "SF1/" + ticker + "_EBT_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ebtMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ebtMap);
+
+        //NCFO
+        quandlCode = "SF1/" + ticker + "_NCFO_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ncfoMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ncfoMap);
+
+        //DPS
+        quandlCode = "SF1/" + ticker + "_DPS_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> dpsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, dpsMap);
+
+        //EPS
+        quandlCode = "SF1/" + ticker + "_EPS_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> epsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, epsMap);
+
+        //EPS Diluted
+        quandlCode = "SF1/" + ticker + "_EPSDIL_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> epsDilMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, epsDilMap);
+
+        //Number Shares
+        quandlCode = "SF1/" + ticker + "_SHARESBAS";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> numSharesMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, numSharesMap);
+
+        //Interest Exposure
+        quandlCode = "SF1/" + ticker + "_INTEXP_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> intExpMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, intExpMap);
+
+        //Working Capital
+        quandlCode = "SF1/" + ticker + "_WORKINGCAPITAL_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> workCapMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, workCapMap);
+
+        //Free Cash Flow
+        quandlCode = "SF1/" + ticker + "_FCF_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> fcfMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, fcfMap);
+
+        //Free Cash Flow - Per Share
+        quandlCode = "SF1/" + ticker + "_FCFPS_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> fcfpsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, fcfpsMap);
+
+        //Market Cap
+        quandlCode = "SF1/" + ticker + "_MARKETCAP";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> mktCapMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, mktCapMap);
+
+        //Net Margin
+        quandlCode = "SF1/" + ticker + "_NETMARGIN_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> netMarginMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, netMarginMap);
+        
+        //Price to Book
+        quandlCode = "SF1/" + ticker + "_PB_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> pbMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, pbMap);
+
+        //Price to Earnings
+        quandlCode = "SF1/" + ticker + "_PE_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> peMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, peMap);
+        
+        //Price to Sales
+        quandlCode = "SF1/" + ticker + "_PS_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> psMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, psMap);
+
+        //Return on Assets
+        quandlCode = "SF1/" + ticker + "_ROA_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> roaMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, roaMap);
+        
+        //Return on Equity
+        quandlCode = "SF1/" + ticker + "_ROE_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> roeMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, roeMap);
+
+        //Return on Sales
+        quandlCode = "SF1/" + ticker + "_ROS_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> rosMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, rosMap);
+        
+        //Sales Per Share
+        quandlCode = "SF1/" + ticker + "_SPS_ART";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> spsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, spsMap);
+
+        //Now create the complete record list - Loop through all available dates
+        List<StockFundamentals> listFundamentals = new ArrayList<>();
+        Set<Entry<Date, BigDecimal>> entrySet = revenueMap.entrySet();
+        for (Entry<Date, BigDecimal> entry : entrySet) {
+            StockFundamentals fund = new StockFundamentals();
+            
+            fund.setTicker(ticker);
+            
+            Date dt = entry.getKey();
+            BigDecimal revenue = entry.getValue();
+            
+            fund.setDate(dt);
+            fund.setRevenue(revenue);
+            
+            BigDecimal assets = assetMap.get(dt);
+            fund.setAssets(assets);
+            
+            BigDecimal debt = debtMap.get(dt);
+            fund.setDebt(debt);
+
+            BigDecimal equity = equityMap.get(dt);
+            fund.setEquity(equity);
+            
+            BigDecimal liabilities = liabilitiesMap.get(dt);
+            fund.setLiabilities(liabilities);
+            
+            BigDecimal netIncome = netIncMap.get(dt);
+            fund.setNetIncome(netIncome);
+            
+            BigDecimal netIncomeCommon = netIncCmnMap.get(dt);
+            fund.setNetIncomeCommon(netIncomeCommon);
+            
+            BigDecimal ebitda = ebitdaMap.get(dt);
+            fund.setEbitda(ebitda);
+            
+            BigDecimal ebt = ebtMap.get(dt);
+            fund.setEbt(ebt);
+            
+            BigDecimal ncfo = ncfoMap.get(dt);
+            fund.setNcfo(ncfo);
+            
+            BigDecimal dps = dpsMap.get(dt);
+            fund.setDps(dps);
+            
+            BigDecimal eps = epsMap.get(dt);
+            fund.setEps(eps);
+            
+            BigDecimal epsDil = epsDilMap.get(dt);
+            fund.setEpsDiluted(epsDil);
+            
+            BigDecimal numShares = numSharesMap.get(dt);
+            fund.setNumShares(numShares);
+            
+            BigDecimal intExp = intExpMap.get(dt);
+            fund.setIntExposure(intExp);
+            
+            BigDecimal workCap = workCapMap.get(dt);
+            fund.setWorkingCapital(workCap);
+            
+            BigDecimal fcf = fcfMap.get(dt);
+            fund.setFcf(fcf);
+            
+            BigDecimal fcfps = fcfpsMap.get(dt);
+            fund.setFcfps(fcfps);
+            
+            BigDecimal mktCap = mktCapMap.get(dt);
+            fund.setMarketCap(mktCap);
+            
+            BigDecimal netMargin = netMarginMap.get(dt);
+            fund.setNetMargin(netMargin);
+            
+            BigDecimal pb = pbMap.get(dt);
+            fund.setPriceBook(pb);
+            
+            BigDecimal pe = peMap.get(dt);
+            fund.setPriceEarnings(pe);
+            
+            BigDecimal ps = psMap.get(dt);
+            fund.setPriceSales(ps);
+            
+            BigDecimal roa = roaMap.get(dt);
+            fund.setRoa(roa);
+            
+            BigDecimal roe = roeMap.get(dt);
+            fund.setRoe(roe);
+            
+            BigDecimal ros = rosMap.get(dt);
+            fund.setRos(ros);
+            
+            BigDecimal sps = spsMap.get(dt);
+            fund.setSps(sps);
+            
+            listFundamentals.add(fund);
+        }
+        
+        return listFundamentals;
+    }
+    
+    private void insertFundamentalValuesIntoMap(String stockValues, Map<Date, BigDecimal> map) throws Exception {
+
+        logger.Log("StockDataHandler", "insertFundamentalValuesIntoMap", "", "", false);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date dt;
+        BigDecimal value;
+        String row;
+        String[] rows = stockValues.split("\n");
+
+        for (int i = 0; i < rows.length; i++) {
+            if (i == 0) //Skip the header row
+                continue;
+
+            row = rows[i];
+            String[] cells = row.split(",");
+            dt = sdf.parse(cells[0]);
+            value = new BigDecimal(cells[1]);
+
+            //Insert the record into the Map
+            map.put(dt, value);
+
+        } //End for
+    }
+    
     private List<BEA_Data> downloadBEAData() throws Exception {
 
         logger.Log("StockDataHandler", "downloadBEAData", "", "", false);
