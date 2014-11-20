@@ -823,9 +823,9 @@ public class StockDataHandler {
                     openPrice = new BigDecimal(cells[1]);
                     highPrice = new BigDecimal(cells[2]);
                     lowPrice = new BigDecimal(cells[3]);
-                    settlePrice = new BigDecimal(cells[4]);
-                    volume = new BigDecimal(cells[5]).intValue();
-                    openInterest = new BigDecimal(cells[6]).intValue();
+                    settlePrice = new BigDecimal(cells[6]);
+                    volume = new BigDecimal(cells[7]).intValue();
+                    openInterest = new BigDecimal(cells[8]).intValue();
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
@@ -2772,6 +2772,15 @@ public class StockDataHandler {
         setStockFundamentals_Quarter_ValidDates();
         setStockFundamentals_Quarter_PctChg();
 
+        //Stock Quotes
+        for (StockTicker st : listOfAllStocks) {
+            lastDt = getStockQuote_UpdateDate(st.getTicker());
+            if (isDataExpired(lastDt)) {
+                String stockValues = downloadData(st.getQuandlCode(), lastDt);
+                insertStockPricesIntoDB(st.getTicker(), stockValues);
+            }        
+        }
+
         //M2 - Money Supply
         final String M2 = "M2-Vel";
         lastDt = getEconomicData_UpdateDate(M2);
@@ -2827,14 +2836,14 @@ public class StockDataHandler {
         final String CRUDE_OIL = "CRUDE-OIL";
         lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
         if (isDataExpired(lastDt)) {
-            String crudeOilPrices = downloadData("OFDP/FUTURE_CL1", lastDt);
+            String crudeOilPrices = downloadData("CHRIS/CME_CL1", lastDt); //Old Code "OFDP/FUTURE_CL1"
             insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
         }
 
         final String NATURAL_GAS = "NATURL-GAS";
         lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
         if (isDataExpired(lastDt)) {
-            String naturalGasPrices = downloadData("OFDP/FUTURE_NG1", lastDt);
+            String naturalGasPrices = downloadData("CHRIS/CME_NG1", lastDt); //Old Code "OFDP/FUTURE_NG1"
             insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
         }
 
@@ -2957,15 +2966,6 @@ public class StockDataHandler {
         //GDP
         List<BEA_Data> listBEAData = downloadBEAData();
         insertGDPDataIntoDB(listBEAData);
-
-        //Stock Quotes
-        for (StockTicker st : listOfAllStocks) {
-            lastDt = getStockQuote_UpdateDate(st.getTicker());
-            if (isDataExpired(lastDt)) {
-                String stockValues = downloadData(st.getQuandlCode(), lastDt);
-                insertStockPricesIntoDB(st.getTicker(), stockValues);
-            }        
-        }
         
         /*
         //Fundamentals - Annual

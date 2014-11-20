@@ -12,7 +12,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 public class TradeEngine implements EWrapper {
 
@@ -287,7 +286,7 @@ public class TradeEngine implements EWrapper {
     private void reqTrade(EClientSocket client, final TradeAction ACTION_CD, int orderID, String ticker, int numShares, double curPrice) throws Exception {
 
         String strOutput = String.format("Action: %s, Ticker: %s, Shares: %d, Price: %f", ACTION_CD.toString(), ticker, numShares, curPrice);
-        logger.Log("TradeEngine", "reqBuyStock", strOutput, "", false);
+        logger.Log("TradeEngine", "reqTrade", strOutput, "", false);
 
         Contract contract = new Contract();
         contract.m_symbol = ticker.toUpperCase();
@@ -298,6 +297,7 @@ public class TradeEngine implements EWrapper {
         Order order = new Order();
         order.m_action = ACTION_CD.toString();
         order.m_totalQuantity = numShares;
+        //order.m_orderType = "MKT";
         order.m_orderType = "LMT";
         order.m_lmtPrice = curPrice;
         
@@ -322,7 +322,7 @@ public class TradeEngine implements EWrapper {
     /* Method: runTrading
      * Notes: This method will only buy at 9AM and will only sell at 3PM
      */
-    public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT, final boolean debug) throws Exception {
+    public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT) throws Exception {
 
         final int WAIT_TIME = 3000;
         
@@ -357,7 +357,7 @@ public class TradeEngine implements EWrapper {
                 Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
                 if (now.compareTo(expDt) >= 0) { 
 
-                    if (HOUR_OF_DAY != 15)
+                    if (HOUR_OF_DAY != 15) //Ensure its 3PM
                         return;
 
                     String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
@@ -369,22 +369,19 @@ public class TradeEngine implements EWrapper {
                         stockQuote = null;
                         reqStockQuote(client, i, stk.getTicker());
                         Thread.sleep(WAIT_TIME);
-                        if (stockQuote == null) {
+                        if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
                             logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
                             System.exit(6);
                         }
 
-                        if (!debug) {
-                            int orderID = sdh.getStockOrderID();
+                        //Limit order for 99.5% of value
+                        BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("0.995"));
+                        String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
+                        double limitPrice = Double.parseDouble(strValue);
 
-                            //Limit order for 99.5% of value
-                            BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("0.995"));
-                            String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
-                            double limitPrice = Double.parseDouble(strValue);
-
-                            reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), limitPrice);
-                            Thread.sleep(WAIT_TIME);
-                        }
+                        int orderID = sdh.getStockOrderID();
+                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), limitPrice);
+                        Thread.sleep(WAIT_TIME);
 
                         //Confirm the trade
                         //ExecutionFilter ef = new ExecutionFilter();
@@ -409,7 +406,7 @@ public class TradeEngine implements EWrapper {
             else if (HOUR_OF_DAY == 9 || HOUR_OF_DAY == 10) { 
 
                 logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
-
+                
                 //Honor 3 wait waiting period
                 Date lastSale = sdh.getLastStockSaleDate();
                 if (lastSale != null) {
@@ -470,11 +467,9 @@ public class TradeEngine implements EWrapper {
 
                     int numShares = stkPartition.divide(tmpLimitPrice, RoundingMode.DOWN).intValue(); 
 
-                    if (!debug) {
-                        int orderID = sdh.getStockOrderID();
-                        reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
-                        Thread.sleep(WAIT_TIME);
-                    }
+                    int orderID = sdh.getStockOrderID();
+                    reqTrade(client, TradeAction.BUY, orderID, ticker, numShares, limitPrice);
+                    Thread.sleep(WAIT_TIME);
 
                     //Save to DB
                     sdh.insertStockTrades(ticker, numShares, new Date(), stkPicks.get(i).getTargetDate());
@@ -514,8 +509,8 @@ public class TradeEngine implements EWrapper {
     
     @Override
     public void error(Exception e) {
-        System.out.println("error: desc: " + e);
-    }
+        System.out.println("error: " + e.toString());
+   }
 
     @Override
     public void error(String str) {

@@ -69,12 +69,12 @@ public class Logger {
         return conxn;
     }
     
-    public void Log(String className, String method, String summary, String fullDescription, boolean isError) throws Exception {
+    public void Log(String className, String method, String summary, String fullDescription, boolean isAlert) throws Exception {
         
-        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Error: %s", className, method, summary, fullDescription, String.valueOf(isError));
+        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Error: %s", className, method, summary, fullDescription, String.valueOf(isAlert));
         System.out.println(strOutput);
 
-        if (isError)
+        if (isAlert)
             Notifications.EmailActions.SendEmail("Log Error", strOutput);
         
         try (Connection conxn = getDBConnection();
@@ -84,7 +84,7 @@ public class Logger {
             stmt.setString(2, method);
             stmt.setString(3, summary);
             stmt.setString(4, fullDescription);
-            stmt.setBoolean(5, isError);
+            stmt.setBoolean(5, isAlert);
 
             stmt.executeUpdate();
             
