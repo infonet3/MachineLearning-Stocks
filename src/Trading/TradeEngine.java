@@ -417,7 +417,7 @@ public class TradeEngine implements EWrapper {
                     calSale = Utilities.Dates.getTargetDate(calSale, WAITING_PERIOD);
 
                     //Exit if 3 day waiting period isn't yet met
-                    if (calSale.compareTo(calNow) < 0) {
+                    if (calNow.compareTo(calSale) < 0) {
                         logger.Log("TradeEngine", "runTrading", "Waiting for 3 days to trade again", "", false);
                         return;
                     }

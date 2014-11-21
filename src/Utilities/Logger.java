@@ -71,11 +71,11 @@ public class Logger {
     
     public void Log(String className, String method, String summary, String fullDescription, boolean isAlert) throws Exception {
         
-        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Error: %s", className, method, summary, fullDescription, String.valueOf(isAlert));
+        String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Alert: %s", className, method, summary, fullDescription, String.valueOf(isAlert));
         System.out.println(strOutput);
 
         if (isAlert)
-            Notifications.EmailActions.SendEmail("Log Error", strOutput);
+            Notifications.EmailActions.SendEmail("Stock Program - Notification", strOutput);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?, ?)}")) {

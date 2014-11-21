@@ -20,7 +20,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
