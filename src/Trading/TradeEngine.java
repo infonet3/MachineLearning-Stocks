@@ -28,202 +28,389 @@ public class TradeEngine implements EWrapper {
     
     @Override
     public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
-        if (field == 9)
+        
+        final int CLOSE_PRICE = 9;
+        final int LAST_PRICE = 4;
+        
+        if (field == LAST_PRICE) //New change 11-23-14
             stockQuote = new BigDecimal(String.valueOf(price));
 
-        System.out.printf("tickPrice: field: %d, price: %f %n", field, price);
+        String outputMsg = String.format("Field = %d, Price = %f", field, price);
+        try {
+            logger.Log("TradeEngine", "tickPrice", outputMsg, "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickPrice");
+        }
     }
 
     @Override
     public void tickSize(int tickerId, int field, int size) {
-        System.out.println("tickSize");
+
+        try {
+            logger.Log("TradeEngine", "tickSize", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickSize");
+        }
     }
 
     @Override
     public void tickOptionComputation(int tickerId, int field, double impliedVol, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
-        System.out.println("tickOptionComputation");
+
+        try {
+            logger.Log("TradeEngine", "tickOptionComputation", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickOptionComputation");
+        }
     }
 
     @Override
     public void tickGeneric(int tickerId, int tickType, double value) {
-        System.out.printf("tickGeneric, type: %d, value: %f %n", tickType, value);
+
+        try {
+            logger.Log("TradeEngine", "tickGeneric", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickGeneric");
+        }
     }
 
     @Override
     public void tickString(int tickerId, int tickType, String value) {
-        System.out.println("tickString");
+
+        try {
+            logger.Log("TradeEngine", "tickString", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickString");
+        }
     }
 
     @Override
     public void tickEFP(int tickerId, int tickType, double basisPoints, String formattedBasisPoints, double impliedFuture, int holdDays, String futureExpiry, double dividendImpact, double dividendsToExpiry) {
-        System.out.println("tickEFP");
+
+        try {
+            logger.Log("TradeEngine", "tickEFP", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickEFP");
+        }
     }
 
     @Override
     public void orderStatus(int orderId, String status, int filled, int remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
-        System.out.println("orderStatus");
+
+        try {
+            logger.Log("TradeEngine", "orderStatus", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: orderStatus");
+        }
     }
 
     @Override
     public void openOrder(int orderId, Contract contract, Order order, OrderState orderState) {
-        String output = String.format("Order: %d, Ticker: %s, Order: %d, State: %s", orderId, contract.m_symbol, order.m_totalQuantity, orderState.m_status);
-        System.out.println(output);
+
+        String outputMsg = String.format("Order: %d, Ticker: %s, Order: %d, State: %s", orderId, contract.m_symbol, order.m_totalQuantity, orderState.m_status);
+        try {
+            logger.Log("TradeEngine", "openOrder", outputMsg, "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: openOrder");
+        }
     }
 
     @Override
     public void openOrderEnd() {
-        System.out.println("openOrderEnd");
+
+        try {
+            logger.Log("TradeEngine", "openOrderEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: openOrderEnd");
+        }
     }
 
     @Override
     public void updateAccountValue(String key, String value, String currency, String accountName) {
-        System.out.println("updateAccountValue");
+
+        try {
+            logger.Log("TradeEngine", "updateAccountValue", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updateAccountValue");
+        }
     }
 
     @Override
     public void updatePortfolio(Contract contract, int position, double marketPrice, double marketValue, double averageCost, double unrealizedPNL, double realizedPNL, String accountName) {
-        System.out.println("updatePortfolio");
+
+        try {
+            logger.Log("TradeEngine", "updatePortfolio", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updatePortfolio");
+        }
     }
 
     @Override
     public void updateAccountTime(String timeStamp) {
-        System.out.println("updateAccountTime");
+
+        try {
+            logger.Log("TradeEngine", "updateAccountTime", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updateAccountTime");
+        }
     }
 
     @Override
     public void accountDownloadEnd(String accountName) {
-        System.out.println("accountDownloadEnd");
+
+        try {
+            logger.Log("TradeEngine", "accountDownloadEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: accountDownloadEnd");
+        }
     }
 
     @Override
     public void nextValidId(int orderId) {
-        System.out.println("nextValidId");
+
+        try {
+            logger.Log("TradeEngine", "nextValidId", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: nextValidId");
+        }
     }
 
     @Override
     public void contractDetails(int reqId, ContractDetails contractDetails) {
-        System.out.println("contractDetails");
+
+        try {
+            logger.Log("TradeEngine", "contractDetails", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: contractDetails");
+        }
     }
 
     @Override
     public void bondContractDetails(int reqId, ContractDetails contractDetails) {
-        System.out.println("bondContractDetails");
+
+        try {
+            logger.Log("TradeEngine", "bondContractDetails", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: bondContractDetails");
+        }
     }
 
     @Override
     public void contractDetailsEnd(int reqId) {
-        System.out.println("contractDetailsEnd");
+
+        try {
+            logger.Log("TradeEngine", "contractDetailsEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: contractDetailsEnd");
+        }
     }
 
     @Override
     public void execDetails(int reqId, Contract contract, Execution execution) {
         String ticker = contract.m_symbol;
         double totalPrice = execution.m_price;
-        String output = String.format("Method: execDetails, reqId: %d, ticker: %s, price: %f", reqId, ticker, totalPrice);
+        String outputMsg = String.format("Method: execDetails, reqId: %d, ticker: %s, price: %f", reqId, ticker, totalPrice);
 
-        System.out.println(output);
+        try {
+            logger.Log("TradeEngine", "execDetails", outputMsg, "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: execDetails");
+        }
     }
 
     @Override
     public void execDetailsEnd(int reqId) {
-        System.out.println("execDetailsEnd");
+
+        try {
+            logger.Log("TradeEngine", "execDetailsEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: execDetailsEnd");
+        }
     }
 
     @Override
     public void updateMktDepth(int tickerId, int position, int operation, int side, double price, int size) {
-        System.out.println("updateMktDepth");
+
+        try {
+            logger.Log("TradeEngine", "updateMktDepth", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updateMktDepth");
+        }
     }
 
     @Override
     public void updateMktDepthL2(int tickerId, int position, String marketMaker, int operation, int side, double price, int size) {
-        System.out.println("updateMktDepthL2");
+
+        try {
+            logger.Log("TradeEngine", "updateMktDepthL2", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updateMktDepthL2");
+        }
     }
 
     @Override
     public void updateNewsBulletin(int msgId, int msgType, String message, String origExchange) {
-        System.out.println("updateNewsBulletin");
+
+        try {
+            logger.Log("TradeEngine", "updateNewsBulletin", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: updateNewsBulletin");
+        }
     }
 
     @Override
     public void managedAccounts(String accountsList) {
-        System.out.println("managedAccounts");
+    
+        try {
+            logger.Log("TradeEngine", "managedAccounts", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: managedAccounts");
+        }
     }
 
     @Override
     public void receiveFA(int faDataType, String xml) {
-        System.out.println("receiveFA");
+
+        try {
+            logger.Log("TradeEngine", "receiveFA", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: receiveFA");
+        }
     }
 
     @Override
     public void historicalData(int reqId, String date, double open, double high, double low, double close, int volume, int count, double WAP, boolean hasGaps) {
-        System.out.println("historicalData");
+
+        try {
+            logger.Log("TradeEngine", "historicalData", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: historicalData");
+        }
     }
 
     @Override
     public void scannerParameters(String xml) {
-        System.out.println("scannerParameters");
+
+        try {
+            logger.Log("TradeEngine", "scannerParameters", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: scannerParameters");
+        }
     }
 
     @Override
     public void scannerData(int reqId, int rank, ContractDetails contractDetails, String distance, String benchmark, String projection, String legsStr) {
-        System.out.println("scannerData");
+
+        try {
+            logger.Log("TradeEngine", "scannerData", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: scannerData");
+        }
     }
 
     @Override
     public void scannerDataEnd(int reqId) {
-        System.out.println("scannerDataEnd");
+
+        try {
+            logger.Log("TradeEngine", "scannerDataEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: scannerDataEnd");
+        }
     }
 
     @Override
     public void realtimeBar(int reqId, long time, double open, double high, double low, double close, long volume, double wap, int count) {
-        System.out.println("realtimeBar");
+
+        try {
+            logger.Log("TradeEngine", "realtimeBar", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: realtimeBar");
+        }
     }
 
     @Override
     public void currentTime(long time) {
-        System.out.println("currentTime");
+
+        try {
+            logger.Log("TradeEngine", "currentTime", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: currentTime");
+        }
     }
 
     @Override
     public void fundamentalData(int reqId, String data) {
-        System.out.println("fundamentalData");
+
+        try {
+            logger.Log("TradeEngine", "fundamentalData", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: fundamentalData");
+        }
     }
 
     @Override
     public void deltaNeutralValidation(int reqId, UnderComp underComp) {
-        System.out.println("deltaNeutralValidation");
+
+        try {
+            logger.Log("TradeEngine", "deltaNeutralValidation", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: deltaNeutralValidation");
+        }
     }
 
     @Override
     public void tickSnapshotEnd(int reqId) {
-        System.out.println("tickSnapshotEnd");
+
+        try {
+            logger.Log("TradeEngine", "tickSnapshotEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: tickSnapshotEnd");
+        }
     }
 
     @Override
     public void marketDataType(int reqId, int marketDataType) {
-        System.out.println("marketDataType");
+
+        try {
+            logger.Log("TradeEngine", "marketDataType", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: marketDataType");
+        }
     }
 
     @Override
     public void commissionReport(CommissionReport commissionReport) {
-        System.out.println("commissionReport");
+
+        try {
+            logger.Log("TradeEngine", "commissionReport", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: commissionReport");
+        }
     }
 
     @Override
     public void position(String account, Contract contract, int pos, double avgCost) {
 
         if (pos > 0) {
-            String output = String.format("Account: %s, Ticker: %s, Pos: %d, Cost: %f, Expiry: %s", account, contract.m_symbol, pos, avgCost, contract.m_expiry);
-            System.out.println(output);
-
             StockHolding holding = new StockHolding(contract.m_symbol, pos, null);
             listHoldings.add(holding);
+        }
+        
+        String outputMsg = String.format("Account: %s, Ticker: %s, Pos: %d, Cost: %f, Expiry: %s", account, contract.m_symbol, pos, avgCost, contract.m_expiry);
+        try {
+            logger.Log("TradeEngine", "position", outputMsg, "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: position");
         }
     }
 
     @Override
     public void positionEnd() {
-        System.out.println("positionEnd");
+
+        try {
+            logger.Log("TradeEngine", "positionEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: positionEnd");
+        }
     }
 
     @Override
@@ -234,33 +421,62 @@ public class TradeEngine implements EWrapper {
             availableFunds = new BigDecimal(value);
         }
         
-        String output = String.format("ReqID: %d, Acct: %s, Tag: %s, Value: %s, Currency: %s", reqId, account, tag, value, currency);
-        System.out.println(output);
+        String outputMsg = String.format("ReqID: %d, Acct: %s, Tag: %s, Value: %s, Currency: %s", reqId, account, tag, value, currency);
+        try {
+            logger.Log("TradeEngine", "accountSummary", outputMsg, "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: accountSummary");
+        }
     }
 
     @Override
     public void accountSummaryEnd(int reqId) {
-        System.out.println("accountSummaryEnd");
+
+        try {
+            logger.Log("TradeEngine", "accountSummaryEnd", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: accountSummaryEnd");
+        }
     }
 
     @Override
     public void verifyMessageAPI(String apiData) {
-        System.out.println("verifyMessageAPI");
+
+        try {
+            logger.Log("TradeEngine", "verifyMessageAPI", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: verifyMessageAPI");
+        }
     }
 
     @Override
     public void verifyCompleted(boolean isSuccessful, String errorText) {
-        System.out.println("verifyCompleted");
+
+        try {
+            logger.Log("TradeEngine", "verifyCompleted", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: verifyCompleted");
+        }
     }
 
     @Override
     public void displayGroupList(int reqId, String groups) {
-        System.out.println("displayGroupList");
+
+        try {
+            logger.Log("TradeEngine", "displayGroupList", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: displayGroupList");
+        }
     }
 
     @Override
     public void displayGroupUpdated(int reqId, String contractInfo) {
-        System.out.println("displayGroupUpdated");
+
+        try {
+            logger.Log("TradeEngine", "displayGroupUpdates", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: displayGroupUpdates");
+        }
     }
     
     private void reqStockQuote(EClientSocket client, int tickerID, String quote) {
@@ -319,12 +535,29 @@ public class TradeEngine implements EWrapper {
         Notifications.EmailActions.SendEmail(subject, sb.toString());
     }
     
+    private void emailCurrentHoldings() {
+        
+        try {
+            StringBuilder sb = new StringBuilder();
+            for (StockHolding stk : listHoldings) {
+                String stkMsg = String.format("Ticker = %s, Num Shares = %d", stk.getTicker(), stk.getSharesHeld());
+                sb.append(stkMsg).append("|");
+            }
+
+            logger.Log("TradeEngine", "emailCurrentHoldings", "Current Positions Held", sb.toString(), true);
+            
+        } catch(Exception exc) {
+            System.out.println("Exception in emailCurrentHoldings");
+        }
+    }
+    
     /* Method: runTrading
      * Notes: This method will only buy at 9AM and will only sell at 3PM
      */
     public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT) throws Exception {
 
         final int WAIT_TIME = 3000;
+        final double MIN_TRADE_PRICE = 5.0; //Min price for a stock, otherwise don't trade it
         
         Calendar calNow = Calendar.getInstance();
         final int HOUR_OF_DAY = calNow.get(Calendar.HOUR_OF_DAY);
@@ -339,6 +572,9 @@ public class TradeEngine implements EWrapper {
             Thread.sleep(WAIT_TIME);
             int holdingCount = listHoldings.size();
 
+            //Email current holdings
+            emailCurrentHoldings();
+            
             //Find expiration from DB
             StockDataHandler sdh = new StockDataHandler();
             if (holdingCount > 0) {
@@ -369,7 +605,7 @@ public class TradeEngine implements EWrapper {
                         stockQuote = null;
                         reqStockQuote(client, i, stk.getTicker());
                         Thread.sleep(WAIT_TIME);
-                        if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
+                        if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
                             logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
                             System.exit(6);
                         }
@@ -403,7 +639,7 @@ public class TradeEngine implements EWrapper {
                 }
             } //End If holdings > 0
             //No current stock holdings
-            else if (HOUR_OF_DAY == 9 || HOUR_OF_DAY == 10) { 
+            else if (HOUR_OF_DAY == 9 || HOUR_OF_DAY == 10) { //9-10AM to buy stocks
 
                 logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
                 
@@ -453,7 +689,7 @@ public class TradeEngine implements EWrapper {
                     reqStockQuote(client, i, ticker);
                     Thread.sleep(WAIT_TIME);
 
-                    if (stockQuote == null || stockQuote.doubleValue() < 0.0) {
+                    if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
                         logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, "Stock Quote not retrieved from IB", true);
                         continue; //Something is wrong, skip this stock
                     } else {
@@ -509,22 +745,44 @@ public class TradeEngine implements EWrapper {
     
     @Override
     public void error(Exception e) {
-        System.out.println("error: " + e.toString());
+
+        try {
+            logger.Log("TradeEngine", "error", "Exception", e.toString(), true);
+        } catch(Exception exc) {
+            System.out.println("Exception: error");
+        }
    }
 
     @Override
     public void error(String str) {
-        System.out.println("error: " + str);
+
+        try {
+            logger.Log("TradeEngine", "error", "Exception", str, true);
+        } catch(Exception exc) {
+            System.out.println("Exception: error");
+        }
     }
 
     @Override
     public void error(int id, int errorCode, String errorMsg) {
-        System.out.println("error: " + errorMsg);
+
+        String outputMsg = String.format("ID = %d, Error Code = %d, Msg = %s", id, errorCode, errorMsg);
+        
+        try {
+            logger.Log("TradeEngine", "error", "Exception", errorMsg, true);
+        } catch(Exception exc) {
+            System.out.println("Exception: error");
+        }
     }
 
     @Override
     public void connectionClosed() {
-        System.out.println("connectionClosed");
+
+        try {
+            logger.Log("TradeEngine", "connectionClosed", "", "", false);
+        } catch(Exception exc) {
+            System.out.println("Exception: connectionClosed");
+        }
     }
 
 }
