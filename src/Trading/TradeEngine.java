@@ -3,6 +3,7 @@ package Trading;
 import Modeling.Predictor;
 import StockData.StockDataHandler;
 import StockData.StockHolding;
+import StockData.StockQuote;
 import Trading.IB.*;
 import Utilities.Logger;
 import java.math.BigDecimal;
@@ -534,21 +535,39 @@ public class TradeEngine implements EWrapper {
         String subject = "Top Picks for: " + runDate.toString();
         Notifications.EmailActions.SendEmail(subject, sb.toString());
     }
-    
-    private void emailCurrentHoldings() {
-        
-        try {
-            StringBuilder sb = new StringBuilder();
-            for (StockHolding stk : listHoldings) {
-                String stkMsg = String.format("Ticker = %s, Num Shares = %d", stk.getTicker(), stk.getSharesHeld());
-                sb.append(stkMsg).append("|");
-            }
 
-            logger.Log("TradeEngine", "emailCurrentHoldings", "Current Positions Held", sb.toString(), true);
-            
-        } catch(Exception exc) {
-            System.out.println("Exception in emailCurrentHoldings");
+    private boolean isPriceCloseToYesterdayClose(String ticker) throws Exception {
+
+        //Ensure price is similar to yesterday's close, 10% max
+        StockDataHandler sdh = new StockDataHandler();
+        StockQuote quote = sdh.getStockQuote(ticker, Utilities.Dates.getYesterday());
+        BigDecimal yesterdayClose = quote.getClose();
+        
+        double ratio = yesterdayClose.doubleValue() / stockQuote.doubleValue();
+        
+        //10% max deviation
+        if (ratio < 0.9 || ratio > 1.1) 
+            return false;
+        else 
+            return true;
+    }
+    
+    private boolean isStockQuoteValid(String ticker) throws Exception {
+
+        final double MIN_TRADE_PRICE = 5.0; //Min price for a stock, otherwise don't trade it
+                                
+        if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
+            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is null OR less than Min trade price!", true);
+            return false;
         }
+
+        boolean isPriceCloseToYesterday = isPriceCloseToYesterdayClose(ticker);
+        if (!isPriceCloseToYesterday) {
+            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is 10% or more different from yesterdays close!", true);
+            return false;
+        }
+        
+        return true;
     }
     
     /* Method: runTrading
@@ -557,7 +576,6 @@ public class TradeEngine implements EWrapper {
     public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT) throws Exception {
 
         final int WAIT_TIME = 3000;
-        final double MIN_TRADE_PRICE = 5.0; //Min price for a stock, otherwise don't trade it
         
         Calendar calNow = Calendar.getInstance();
         final int HOUR_OF_DAY = calNow.get(Calendar.HOUR_OF_DAY);
@@ -572,14 +590,10 @@ public class TradeEngine implements EWrapper {
             Thread.sleep(WAIT_TIME);
             int holdingCount = listHoldings.size();
 
-            //Email current holdings
-            emailCurrentHoldings();
-            
             //Find expiration from DB
             StockDataHandler sdh = new StockDataHandler();
             if (holdingCount > 0) {
                 List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
-
                 logger.Log("TradeEngine", "runTrading", "Current Holdings = " + listCurStocks.size(), "", false);
 
                 //Sanity check
@@ -605,9 +619,9 @@ public class TradeEngine implements EWrapper {
                         stockQuote = null;
                         reqStockQuote(client, i, stk.getTicker());
                         Thread.sleep(WAIT_TIME);
-                        if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
-                            logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Failed to receive a stock quote", true);
-                            System.exit(6);
+                        if (!isStockQuoteValid(stk.getTicker())) {
+                            logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Invalid Stock Quote!", true);
+                            continue;
                         }
 
                         //Limit order for 99.5% of value
@@ -618,12 +632,6 @@ public class TradeEngine implements EWrapper {
                         int orderID = sdh.getStockOrderID();
                         reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), limitPrice);
                         Thread.sleep(WAIT_TIME);
-
-                        //Confirm the trade
-                        //ExecutionFilter ef = new ExecutionFilter();
-                        //ef.m_symbol = stk.getTicker();
-                        //client.reqExecutions(i, ef);
-                        //Thread.sleep(WAIT_TIME);
 
                         //Update DB
                         sdh.updateStockTrade(stk.getTicker());
@@ -666,7 +674,7 @@ public class TradeEngine implements EWrapper {
                     logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Account Balance wasn't retrieved from IB", true);
                     System.exit(6);
                 }
-
+                
                 //Enter buy orders
                 logger.Log("TradeEngine", "runTrading", "Buying Stocks", "", false);
 
@@ -688,12 +696,9 @@ public class TradeEngine implements EWrapper {
                     stockQuote = null;
                     reqStockQuote(client, i, ticker);
                     Thread.sleep(WAIT_TIME);
-
-                    if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
-                        logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, "Stock Quote not retrieved from IB", true);
-                        continue; //Something is wrong, skip this stock
-                    } else {
-                        logger.Log("TradeEngine", "runTrading", "Stock Quote: " + ticker, stockQuote.toString(), false);
+                    if (!isStockQuoteValid(ticker)) {
+                        logger.Log("TradeEngine", "runTrading", ticker, "Invalid Stock Quote!", true);
+                        continue;
                     }
 
                     //Pay no more than 0.5% over Market
@@ -710,9 +715,6 @@ public class TradeEngine implements EWrapper {
                     //Save to DB
                     sdh.insertStockTrades(ticker, numShares, new Date(), stkPicks.get(i).getTargetDate());
                 }
-
-                //Open Orders
-                //client.reqAllOpenOrders();
             }
             
         } finally {
