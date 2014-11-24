@@ -690,6 +690,7 @@ public class TradeEngine implements EWrapper {
                     return;
                 }
 
+                //Create the buy orders for the top stocks
                 for (int i = 0; i < MAX_STOCK_COUNT; i++) {
                     String ticker = stkPicks.get(i).getTicker();
 
