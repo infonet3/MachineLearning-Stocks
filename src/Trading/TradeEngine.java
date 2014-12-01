@@ -5,6 +5,7 @@ import StockData.StockDataHandler;
 import StockData.StockHolding;
 import StockData.StockQuote;
 import Trading.IB.*;
+import Utilities.Dates;
 import Utilities.Logger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -524,7 +525,8 @@ public class TradeEngine implements EWrapper {
     public void emailTodaysStockPicks(final int MAX_STOCK_COUNT, Date runDate) throws Exception {
 
         Predictor p = new Predictor();
-        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate);
+        final String PRED_TYPE = "CURRENT";
+        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate, PRED_TYPE);
         
         StringBuilder sb = new StringBuilder("Today's top stock picks: ");
         for (StockHolding stk : stkPicks) {
@@ -539,8 +541,9 @@ public class TradeEngine implements EWrapper {
     private boolean isPriceCloseToYesterdayClose(String ticker) throws Exception {
 
         //Ensure price is similar to yesterday's close, 10% max
+        Dates dates = new Dates();
         StockDataHandler sdh = new StockDataHandler();
-        StockQuote quote = sdh.getStockQuote(ticker, Utilities.Dates.getYesterday());
+        StockQuote quote = sdh.getStockQuote(ticker, dates.getYesterday());
         BigDecimal yesterdayClose = quote.getClose();
         
         double ratio = yesterdayClose.doubleValue() / stockQuote.doubleValue();
@@ -651,6 +654,8 @@ public class TradeEngine implements EWrapper {
 
                 logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
                 
+                Dates dates = new Dates();
+                
                 //Honor 3 wait waiting period
                 Date lastSale = sdh.getLastStockSaleDate();
                 if (lastSale != null) {
@@ -658,7 +663,7 @@ public class TradeEngine implements EWrapper {
                     calSale.setTime(lastSale);
 
                     final int WAITING_PERIOD = 3;
-                    calSale = Utilities.Dates.getTargetDate(calSale, WAITING_PERIOD);
+                    calSale = dates.getTargetDate(calSale, WAITING_PERIOD);
 
                     //Exit if 3 day waiting period isn't yet met
                     if (calNow.compareTo(calSale) < 0) {
@@ -683,8 +688,9 @@ public class TradeEngine implements EWrapper {
                 BigDecimal stkPartition = availableFunds.subtract(CASH_RESERVE).divide(divisor, RoundingMode.DOWN);
 
                 Predictor p = new Predictor();
-                Date yesterday = Utilities.Dates.getYesterday();
-                List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday);
+                Date yesterday = dates.getYesterday();
+                final String PRED_TYPE = "CURRENT";
+                List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday, PRED_TYPE);
                 if (stkPicks.size() != MAX_STOCK_COUNT) {
                     logger.Log("TradeEngine", "runTrading", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
                     return;

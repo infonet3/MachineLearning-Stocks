@@ -14,7 +14,16 @@ import java.util.Map;
  * @author Matt Jones
  */
 public class Dates {
-    public static Date getYesterday() throws Exception {
+    
+    Map<Date, String> mapHolidays;
+    
+    public Dates() throws Exception {
+    
+        StockDataHandler sdh = new StockDataHandler();
+        mapHolidays = sdh.getAllHolidays();
+    }
+    
+    public Date getYesterday() throws Exception {
 
         //Move one trading day behind
         Calendar today = Calendar.getInstance();
@@ -26,8 +35,6 @@ public class Dates {
             today.add(Calendar.DATE, -1); //Move to yesterday
 
         //Ensure previous trading day isn't a holiday
-        StockDataHandler sdh = new StockDataHandler();
-        Map<Date, String> mapHolidays = sdh.getAllHolidays();
         String holidayCd = mapHolidays.get(today.getTime());
         if (holidayCd == null) 
             holidayCd = "";
@@ -42,13 +49,19 @@ public class Dates {
         return today.getTime();
     }
     
-    public static Calendar getTargetDate(final Calendar INPUT_CAL, final int DAYS_OUT) throws Exception {
+    public Calendar getTargetDate(Calendar inputCal, final int DAYS_OUT) throws Exception {
 
+        //Convert input date to cancel out hour, min, sec, and ms
+        inputCal.set(Calendar.AM_PM, Calendar.AM);
+        inputCal.set(Calendar.HOUR, 0);
+        inputCal.set(Calendar.MINUTE, 0);
+        inputCal.set(Calendar.SECOND, 0);
+        inputCal.set(Calendar.MILLISECOND, 0);
+        
+        //Now derive the target sale date
         Calendar targetDate = Calendar.getInstance();
-        targetDate.setTime(INPUT_CAL.getTime());
+        targetDate.setTime(inputCal.getTime());
         int daysInAdvance = 0;
-        StockDataHandler sdh = new StockDataHandler();
-        Map<Date, String> holidayMap = sdh.getAllHolidays();
 
         for (;;) {
             
@@ -58,11 +71,9 @@ public class Dates {
             //Business Days
             else {
                 //Holidays
-                String holidayCode = holidayMap.get(targetDate.getTime());
-                if (holidayCode == null)
-                    holidayCode = "";
-                
-                if (holidayCode.equals("Closed"))
+                Date dt = targetDate.getTime();
+                String holidayCode = mapHolidays.get(dt);
+                if (holidayCode != null && holidayCode.equals("Closed"))
                     targetDate.add(Calendar.DATE, 1);
                 else {
                     targetDate.add(Calendar.DATE, 1);

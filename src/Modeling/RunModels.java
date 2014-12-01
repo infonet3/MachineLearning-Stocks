@@ -14,6 +14,7 @@ import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
@@ -68,24 +69,22 @@ public class RunModels {
             System.gc();
             
             try {
-                //Pull data for this stock from the DB
-                String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
-
                 //Now Build the Models
                 double accuracy = 0.0;
-                StringReader sr;
                 Instances train;
                 Evaluation eval;
                 String newFileName;
                 Path p;
+                
+                //Pull records from DB
+                String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
+                try (StringReader sr = new StringReader(dataExamples)) {
+                    train = new Instances(sr);
+                }
+                train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
+               
                 switch (MODEL) {
                     case RAND_FORST:
-                        
-                        sr = new StringReader(dataExamples);
-                        train = new Instances(sr);
-                        sr.close();
-
-                        train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
         
                         RandomForest rf = new RandomForest();
                         rf.setNumTrees(NUM_TREES);
@@ -101,18 +100,12 @@ public class RunModels {
                         p = Paths.get(newFileName);
                         if (Files.exists(p))
                             Files.delete(p);
-                        
+
                         SerializationHelper.write(newFileName, rf);
                         
                         break;
                     
                     case M5P:
-
-                        sr = new StringReader(dataExamples);
-                        train = new Instances(sr);
-                        sr.close();
-
-                        train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
         
                         M5P mp = new M5P();
                         mp.buildClassifier(train);
@@ -130,14 +123,6 @@ public class RunModels {
 
                         SerializationHelper.write(newFileName, mp);
                         
-                        break;
-                        
-                    case SVM:
-                        break;
-
-                    case LINEAR_REG:
-                        break;
-                    case LOGIST_REG:
                         break;
                 }
 

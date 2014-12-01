@@ -9,6 +9,7 @@ import Modeling.Predictor;
 import Modeling.RunModels;
 import StockData.StockDataHandler;
 import Trading.TradeEngine;
+import Utilities.Dates;
 import Utilities.Logger;
 import java.util.Calendar;
 import java.util.Date;
@@ -34,7 +35,8 @@ public class Main {
             long startTime = System.currentTimeMillis();
             
             final int DAYS_IN_FUTURE = 10; //Business Days
-            Date yesterday = Utilities.Dates.getYesterday();
+            Dates dates = new Dates();
+            Date yesterday = dates.getYesterday();
             Predictor pred = new Predictor();
 
             //Loop through the required actions
@@ -81,18 +83,18 @@ public class Main {
                     case 'B':
                         logger.Log("Main", "main", "Option B", "Perform Backtesting", false);
 
-                        final String PRED_TYPE_BACKTEST = "BACKTEST";
-
                         Calendar fromDate = Calendar.getInstance();
-                        fromDate.set(2014, 0, 4);
+                        fromDate.set(2014, 5, 1);
 
                         Calendar toDate = Calendar.getInstance();
 
+                        sdh.removeBacktestingData();
+                        final String PRED_TYPE_BACKTEST = "BACKTEST";
                         pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
                         pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
 
-                        pred.backtest(ModelTypes.RAND_FORST, fromDate.getTime(), toDate.getTime());
-                        pred.backtest(ModelTypes.M5P, fromDate.getTime(), toDate.getTime());
+                        //pred.backtest(ModelTypes.RAND_FORST, fromDate.getTime(), toDate.getTime());
+                        //pred.backtest(ModelTypes.M5P, fromDate.getTime(), toDate.getTime());
                         pred.topNBacktest(5, fromDate.getTime(), toDate.getTime());
 
                         break;

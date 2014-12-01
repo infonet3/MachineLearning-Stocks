@@ -10,6 +10,7 @@ import static Modeling.ModelTypes.LINEAR_REG;
 import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
 import StockData.*;
+import Utilities.Dates;
 import Utilities.Logger;
 import java.io.FileInputStream;
 import java.io.StringReader;
@@ -20,7 +21,9 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import weka.classifiers.Classifier;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
@@ -73,10 +76,11 @@ public class Predictor {
             calTo.add(Calendar.DATE, -2);
         
         //Loop through all stocks for the given day
+        Dates dates = new Dates();
         StockDataHandler sdh = new StockDataHandler();
         List<StockTicker> stockList = sdh.getAllStockTickers(); 
         for (StockTicker ticker : stockList) {
-
+            
             System.gc();
             
             //Get Features for the selected dates
@@ -84,94 +88,67 @@ public class Predictor {
             
             //Load the model
             String modelPath;
-            StringReader sr;
-            Instances test;
-            List<PredictionValues> listPredictions;
+            Classifier classifier = null;
             switch (MODEL_TYPE) {
-                case LINEAR_REG:
-                    break;
-                case LOGIST_REG:
-                    break;
+
                 case M5P:
-                    
                     modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-M5P.model";
                     M5P mp = (M5P)SerializationHelper.read(modelPath);
-
-                    sr = new StringReader(dataExamples);
-                    test = new Instances(sr);
-                    sr.close();
-                    
-                    test.setClassIndex(test.numAttributes() - 1);
-                    
-                    // label instances
-                    listPredictions = new ArrayList<>();
-                    for (int i = 0; i < test.numInstances(); i++) {
-                        double clsLabel = mp.classifyInstance(test.instance(i));
-
-                        double[] array = test.instance(i).toDoubleArray();
-                        int year = (int)array[0];
-                        int month = (int)array[1];
-                        int date = (int)(int)array[2];
-                        
-                        Calendar curDate = Calendar.getInstance();
-                        curDate.set(year, month - 1, date);
-
-                        //Move the target day N business days out
-                        Calendar targetDate = Utilities.Dates.getTargetDate(curDate, TARGET_DAYS_OUT);
-
-                        //Save Prediction
-                        BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
-                        PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
-                        listPredictions.add(val);
-                    }
-                    
-                    //Save Predictions to DB - Save all predictions for one stock at a time
-                    sdh.insertStockPredictions(listPredictions);
+                    classifier = mp;
                     break;
 
                 case RAND_FORST:
-                    
                     modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-RandomForest.model";
                     RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
-
-                    sr = new StringReader(dataExamples);
-                    test = new Instances(sr);
-                    sr.close();
-                    
-                    test.setClassIndex(test.numAttributes() - 1);
-                    
-                    // label instances
-                    listPredictions = new ArrayList<>();
-                    for (int i = 0; i < test.numInstances(); i++) {
-                        double clsLabel = rf.classifyInstance(test.instance(i));
-
-                        double[] array = test.instance(i).toDoubleArray();
-                        int year = (int)array[0];
-                        int month = (int)array[1];
-                        int date = (int)(int)array[2];
-                        
-                        Calendar curDate = Calendar.getInstance();
-                        curDate.set(year, month - 1, date);
-
-                        //Move the target day N business days out
-                        Calendar targetDate = Utilities.Dates.getTargetDate(curDate, TARGET_DAYS_OUT);
-
-                        //Save Prediction
-                        BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
-                        PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
-                        listPredictions.add(val);
-                    }
-                    
-                    //Save Predictions to DB - Save all predictions for one stock at a time
-                    sdh.insertStockPredictions(listPredictions);
+                    classifier = rf;
                     break;
-             }
+                    
+            } //End Switch
 
-        }
+            //Sanity Check
+            if (classifier == null) {
+                logger.Log("Predictor", "predictAllStocksForDates", "Loading Classifier", "Failed to Load Classifier!", true);
+                throw new Exception("Failed to Load Classifier!");
+            }
 
+            //Load in the records to classify
+            Instances test;
+            try (StringReader sr = new StringReader(dataExamples)) {
+                test = new Instances(sr);
+            }
+            test.setClassIndex(test.numAttributes() - 1);
+
+            //Label instances
+            List<PredictionValues> listPredictions = new ArrayList<>();
+            for (int i = 0; i < test.numInstances(); i++) {
+                double clsLabel = classifier.classifyInstance(test.instance(i));
+
+                double[] array = test.instance(i).toDoubleArray();
+                int year = (int)array[0];
+                int month = (int)array[1];
+                int date = (int)(int)array[2];
+
+                Calendar curDate = Calendar.getInstance();
+                curDate.set(year, month - 1, date);
+
+                //Move the target day N business days out
+                Calendar targetDate = dates.getTargetDate(curDate, TARGET_DAYS_OUT);
+
+                //Save Prediction
+                BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
+                PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
+                listPredictions.add(val);
+                
+            } //End of Instance Loop
+
+            //Save Predictions to DB - Save all predictions for one stock at a time
+            sdh.insertStockPredictions(listPredictions);
+            
+        } //End ticker list loop
+        
     }
     
-    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate) throws Exception {
+    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate, final String PRED_TYPE) throws Exception {
 
         logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "", false);
         
@@ -180,14 +157,14 @@ public class Predictor {
         try {
             //Get List of Stocks forecasted to go up
             StockDataHandler sdh = new StockDataHandler();
-            List<String> stockList = sdh.getPostiveClassificationPredictions(runDate);
+            List<String> stockList = sdh.getPostiveClassificationPredictions(runDate, PRED_TYPE);
             if (stockList.size() >= NUM_STOCKS) {
 
                 //Get the Forecasted Percent Change for each stock
                 FuturePrice fp;
                 List<FuturePrice> fpList = new ArrayList<>();
                 for (String stock : stockList) {
-                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate);
+                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate, PRED_TYPE);
                     fpList.add(fp);
                 }
 
@@ -219,6 +196,11 @@ public class Predictor {
         
         Calendar curDate = Calendar.getInstance();
         curDate.setTime(FROM_DATE);
+        curDate.set(Calendar.AM_PM, Calendar.AM);
+        curDate.set(Calendar.HOUR, 0);
+        curDate.set(Calendar.MINUTE, 0);
+        curDate.set(Calendar.SECOND, 0);
+        curDate.set(Calendar.MILLISECOND, 0);
         
         Calendar finalDate = Calendar.getInstance();
         finalDate.setTime(TO_DATE);
@@ -234,6 +216,8 @@ public class Predictor {
         
         int dayOfWeek;
         StockDataHandler sdh = new StockDataHandler();
+        Map<Date, String> mapHolidays = sdh.getAllHolidays();
+
         for (;;) {
 
             if (curDate.compareTo(finalDate) >= 0)
@@ -247,8 +231,9 @@ public class Predictor {
             }
 
             //Holiday Test
-            StockQuote testQuote = sdh.getStockQuote("AXP", curDate.getTime());
-            if (testQuote == null) {
+            Date dt = curDate.getTime();
+            String holidayCode = mapHolidays.get(dt);
+            if (holidayCode != null && holidayCode.equals("Closed")) {
                 curDate.add(Calendar.DATE, 1);
                 continue;
             }
@@ -278,6 +263,7 @@ public class Predictor {
             while (stockOrders.size() > 0) {
                 PendingOrder order = stockOrders.get(0);
                 StockQuote quote = sdh.getStockQuote(order.getTicker(), curDate.getTime());
+                
                 BigDecimal curPrice = quote.getOpen();
                 BigDecimal numShares = new BigDecimal(String.valueOf(order.getNumShares()));
                 
@@ -339,43 +325,30 @@ public class Predictor {
             int openings = NUM_STOCKS - stockHoldings.size();
             if (openings > 0) {
 
-                //Get List of Stocks forecasted to go up
-                List<String> stockList = sdh.getPostiveClassificationPredictions(curDate.getTime());
-                if (stockList.size() > 0) {
-
-                    //Get the Forecasted Percent Change for each stock
-                    FuturePrice fp;
-                    List<FuturePrice> fpList = new ArrayList<>();
-                    for (String stock : stockList) {
-                        fp = sdh.getTargetValueRegressionPredictions(stock, curDate.getTime());
-                        fpList.add(fp);
-                    }
+                final String PRED_TYPE = "BACKTEST";
+                List<StockHolding> topStocks = topStockPicks(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
                     
-                    //Filter to the top N stocks by the forecasted % change
-                    Collections.sort(fpList);
-                    
-                    //Generate buy orders
-                    int size = fpList.size();
-                    if (size >= NUM_STOCKS) {
-                        
-                        for (int i = size - 1; i > (size - 1 - openings); i--) {
+                //Generate buy orders
+                int size = topStocks.size();
+                if (size == NUM_STOCKS) {
 
-                            String ticker = fpList.get(i).getTicker();
-                            Date projDt = fpList.get(i).getProjectedDt();
+                    for (StockHolding holding : topStocks) {
 
-                            StockQuote quote = sdh.getStockQuote(ticker, curDate.getTime());
-                            BigDecimal curPrice = quote.getClose();
+                        String ticker = holding.getTicker();
+                        Date projDt = holding.getTargetDate();
 
-                            BigDecimal numOpenings = new BigDecimal(String.valueOf(openings));
-                            int numShares = currentCapital.subtract(MIN_CASH)
-                                            .divide(numOpenings, RoundingMode.HALF_DOWN)
-                                            .divide(curPrice, RoundingMode.HALF_DOWN)
-                                            .intValue();
+                        StockQuote quote = sdh.getStockQuote(ticker, curDate.getTime());
+                        BigDecimal curPrice = quote.getClose();
 
-                            PendingOrder order = new PendingOrder(OrderType.BUY, ticker, numShares, projDt);
-                            stockOrders.add(order);
-                        } //End Buy orders Loop
-                    } //Minimum Viable Stocks IF
+                        BigDecimal numOpenings = new BigDecimal(String.valueOf(openings));
+                        int numShares = currentCapital.subtract(MIN_CASH)
+                                        .divide(numOpenings, RoundingMode.HALF_DOWN)
+                                        .divide(curPrice, RoundingMode.HALF_DOWN)
+                                        .intValue();
+
+                        PendingOrder order = new PendingOrder(OrderType.BUY, ticker, numShares, projDt);
+                        stockOrders.add(order);
+                    } //End Buy orders Loop
                 } //Stock List IF
             } //Openings IF
             

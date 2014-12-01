@@ -103,6 +103,21 @@ public class StockDataHandler {
         return conxn;
     }
 
+    public void removeBacktestingData() throws Exception {
+        
+        logger.Log("StockDataHandler", "removeBacktestingData", "", "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Remove_BackTest_Data()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "removeBacktestingData", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
     public void computeMovingAverages(final int DAYS_BACK) throws Exception {
         
         String summary = String.format("Days Back: %d", DAYS_BACK);
@@ -436,20 +451,22 @@ public class StockDataHandler {
         }
     }
 
-    public FuturePrice getTargetValueRegressionPredictions(String stock, Date date) throws Exception {
+    public FuturePrice getTargetValueRegressionPredictions(String stock, Date date, final String PRED_TYPE) throws Exception {
 
         String summary = String.format("Stock: %s, Date: %s", stock, date.toString());
         logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "", false);
 
         FuturePrice fp;
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?, ?)}")) {
 
             stmt.setString(1, stock);
             
             java.sql.Date dt = new java.sql.Date(date.getTime());
             stmt.setDate(2, dt);
 
+            stmt.setString(3, PRED_TYPE);
+            
             ResultSet rs = stmt.executeQuery();
             
             BigDecimal curPrice;
@@ -473,7 +490,7 @@ public class StockDataHandler {
         return fp;
     }
     
-    public List<String> getPostiveClassificationPredictions(Date date) throws Exception {
+    public List<String> getPostiveClassificationPredictions(Date date, final String PRED_TYPE) throws Exception {
 
         String summary = String.format("Date: %s", date.toString());
         logger.Log("StockDataHandler", "getPositiveClassificationPredictions", summary, "", false);
@@ -481,11 +498,13 @@ public class StockDataHandler {
         List<String> stockList = new ArrayList<>();
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Classification_Upward (?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Classification_Upward (?, ?)}")) {
 
             java.sql.Date dt = new java.sql.Date(date.getTime());
             stmt.setDate(1, dt);
 
+            stmt.setString(2, PRED_TYPE);
+            
             ResultSet rs = stmt.executeQuery();
             
             String stock;
@@ -2463,7 +2482,7 @@ public class StockDataHandler {
 
     public Map<Date, String> getAllHolidays() throws Exception {
 
-        logger.Log("StockDataHandler", "getHolidays", "", "", false);
+        logger.Log("StockDataHandler", "getAllHolidays", "", "", false);
 
         Map<Date, String> holidayMap = new HashMap<>();
         try (Connection conxn = getDBConnection();
@@ -2472,7 +2491,9 @@ public class StockDataHandler {
             ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
-                holidayMap.put(rs.getDate(1), rs.getString(2));
+                Date dt = rs.getDate(1);
+                String val = rs.getString(2);
+                holidayMap.put(dt, val);
             }
 
             return holidayMap;
