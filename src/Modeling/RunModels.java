@@ -69,20 +69,19 @@ public class RunModels {
             System.gc();
             
             try {
-                //Now Build the Models
-                double accuracy = 0.0;
-                Instances train;
-                Evaluation eval;
-                String newFileName;
-                Path p;
-                
                 //Pull records from DB
                 String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, null, null);
+                Instances train;
                 try (StringReader sr = new StringReader(dataExamples)) {
                     train = new Instances(sr);
                 }
                 train.setClassIndex(train.numAttributes() - 1); //Last item is the class label
-               
+
+                //Now Build the Models
+                double accuracy = 0.0;
+                Evaluation eval;
+                String newFileName;
+                Path p;
                 switch (MODEL) {
                     case RAND_FORST:
         
