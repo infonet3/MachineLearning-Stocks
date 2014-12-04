@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import weka.classifiers.Classifier;
+import weka.classifiers.functions.LinearRegression;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
@@ -84,7 +85,7 @@ public class Predictor {
             System.gc();
             
             //Get Features for the selected dates
-            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime());
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime(), false);
             
             //Load the model
             String modelPath;
@@ -101,6 +102,12 @@ public class Predictor {
                     modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-RandomForest.model";
                     RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
                     classifier = rf;
+                    break;
+                    
+                case LINEAR_REG:
+                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-LinearRegression.model";
+                    LinearRegression linReg = (LinearRegression)SerializationHelper.read(modelPath);
+                    classifier = linReg;
                     break;
                     
             } //End Switch
@@ -163,8 +170,9 @@ public class Predictor {
                 //Get the Forecasted Percent Change for each stock
                 FuturePrice fp;
                 List<FuturePrice> fpList = new ArrayList<>();
+                final String MODEL_TYPE = "M5P";
                 for (String stock : stockList) {
-                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate, PRED_TYPE);
+                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate, PRED_TYPE, MODEL_TYPE);
                     fpList.add(fp);
                 }
 
@@ -176,8 +184,13 @@ public class Predictor {
                 for (int i = size - 1; i > (size - 1 - NUM_STOCKS); i--) {
                     String ticker = fpList.get(i).getTicker();
                     Date projDt = fpList.get(i).getProjectedDt();
+                    double pctChg = fpList.get(i).getForecastPctChg();
+
                     StockHolding stk = new StockHolding(ticker, 0, projDt);
                     topStocks.add(stk);
+                    
+                    String output = String.format("Ticker: %s, Forecast Pct Chg: %f, Target Date: %s", ticker, pctChg, projDt.toString());
+                    logger.Log("Predictor", "topStockPicks", output, "", false);
                 } 
             }
             
@@ -189,11 +202,11 @@ public class Predictor {
         return topStocks;
     }
     
-    public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE) throws Exception {
+    public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE, final int YEARS_BACK, final int DAYS_IN_FUTURE) throws Exception {
         
         String summary = "Number Stocks: " + NUM_STOCKS + ", From: " + FROM_DATE + ", To: " + TO_DATE;
         logger.Log("Predictor", "topNBacktest", summary, "", false);
-        
+
         Calendar curDate = Calendar.getInstance();
         curDate.setTime(FROM_DATE);
         curDate.set(Calendar.AM_PM, Calendar.AM);
@@ -216,12 +229,43 @@ public class Predictor {
         
         int dayOfWeek;
         StockDataHandler sdh = new StockDataHandler();
+
         Map<Date, String> mapHolidays = sdh.getAllHolidays();
 
-        for (;;) {
+        for (int day = 0; ; day++) {
 
             if (curDate.compareTo(finalDate) >= 0)
                 break;
+            
+            //Generate models
+            final int DAYS_FORECAST = 90;
+            if (day == 0 || (day % DAYS_FORECAST == 0)) {
+                sdh.removeBacktestingData();
+                Date dt = curDate.getTime();
+                
+                Calendar toCal = Calendar.getInstance();
+                toCal.setTime(dt);
+                toCal.add(Calendar.DATE, DAYS_FORECAST);
+                Date toDt = toCal.getTime();
+                
+                Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                
+                tRandForst.start();
+                tM5P.start();
+                //tLinReg.start();
+                
+                tRandForst.join();
+                tM5P.join();
+                //tLinReg.join();
+                
+                Predictor pred = new Predictor();
+                final String PRED_TYPE_BACKTEST = "BACKTEST";
+                pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
+                pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
+                //pred.predictAllStocksForDates(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
+            }
             
             //Weekend Test
             dayOfWeek = curDate.get(Calendar.DAY_OF_WEEK);
@@ -238,6 +282,13 @@ public class Predictor {
                 continue;
             }
 
+            //In case we don't have some holidays listed
+            StockQuote quote = sdh.getStockQuote("AAPL", curDate.getTime());
+            if (quote == null) {
+                curDate.add(Calendar.DATE, 1);
+                continue;
+            }
+            
             /*
             //Portfolio Value
             BigDecimal acctValue = new BigDecimal(currentCapital.toString());
@@ -262,7 +313,7 @@ public class Predictor {
             //Execute pending stock orders
             while (stockOrders.size() > 0) {
                 PendingOrder order = stockOrders.get(0);
-                StockQuote quote = sdh.getStockQuote(order.getTicker(), curDate.getTime());
+                quote = sdh.getStockQuote(order.getTicker(), curDate.getTime());
                 
                 BigDecimal curPrice = quote.getOpen();
                 BigDecimal numShares = new BigDecimal(String.valueOf(order.getNumShares()));
@@ -299,7 +350,7 @@ public class Predictor {
                         //Last order?
                         if (stockOrders.size() == 1) {
                             String sumValue = String.format("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
-                            logger.Log("Predictor", "topNBacktest", sumValue, "", false);
+                            logger.Log("Predictor", "topNBacktest", sumValue, "", true);
                         }
                         
                         break;
@@ -337,7 +388,7 @@ public class Predictor {
                         String ticker = holding.getTicker();
                         Date projDt = holding.getTargetDate();
 
-                        StockQuote quote = sdh.getStockQuote(ticker, curDate.getTime());
+                        quote = sdh.getStockQuote(ticker, curDate.getTime());
                         BigDecimal curPrice = quote.getClose();
 
                         BigDecimal numOpenings = new BigDecimal(String.valueOf(openings));

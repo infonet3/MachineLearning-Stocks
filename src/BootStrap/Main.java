@@ -35,6 +35,7 @@ public class Main {
             long startTime = System.currentTimeMillis();
             
             final int DAYS_IN_FUTURE = 10; //Business Days
+            final int YEARS_BACK = 5; //How much data to train on
             Dates dates = new Dates();
             Date yesterday = dates.getYesterday();
             Predictor pred = new Predictor();
@@ -63,10 +64,18 @@ public class Main {
                     case 'M':
                         logger.Log("Main", "main", "Option M", "Generating Models", false);
 
-                        RunModels models = new RunModels();
-                        models.runModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE);
-                        models.runModels(ModelTypes.M5P, DAYS_IN_FUTURE);
+                        Thread tRandForest = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, null));
+                        Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, null));
+                        //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, null));
 
+                        tRandForest.start();
+                        tM5P.start();
+                        //tLinReg.start();
+                        
+                        tRandForest.join();
+                        tM5P.join();
+                        //tLinReg.join();
+                        
                         break;
 
                     //Current Predictions
@@ -76,6 +85,7 @@ public class Main {
                         final String PRED_TYPE_CURRENT = "CURRENT";
                         pred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
                         pred.predictAllStocksForDates(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
+                        //pred.predictAllStocksForDates(ModelTypes.LINEAR_REG, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
 
                         break;
 
@@ -83,19 +93,16 @@ public class Main {
                     case 'B':
                         logger.Log("Main", "main", "Option B", "Perform Backtesting", false);
 
-                        Calendar fromDate = Calendar.getInstance();
-                        fromDate.set(2014, 5, 1);
+                        Calendar fromCal = Calendar.getInstance();
+                        fromCal.set(2010, 0, 2);
+                        Date fromDt = fromCal.getTime();
 
-                        Calendar toDate = Calendar.getInstance();
+                        Calendar toCal = Calendar.getInstance();
+                        Date toDt = toCal.getTime();
 
-                        sdh.removeBacktestingData();
-                        final String PRED_TYPE_BACKTEST = "BACKTEST";
-                        pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
-                        pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, fromDate.getTime(), toDate.getTime(), PRED_TYPE_BACKTEST);
-
-                        //pred.backtest(ModelTypes.RAND_FORST, fromDate.getTime(), toDate.getTime());
-                        //pred.backtest(ModelTypes.M5P, fromDate.getTime(), toDate.getTime());
-                        pred.topNBacktest(5, fromDate.getTime(), toDate.getTime());
+                        //pred.backtest(ModelTypes.RAND_FORST, fromDt, toDt);  //Broken Code
+                        //pred.backtest(ModelTypes.M5P, fromDt, toDt);   //Broken Code
+                        pred.topNBacktest(5, fromDt, toDt, YEARS_BACK, DAYS_IN_FUTURE);
 
                         break;
 

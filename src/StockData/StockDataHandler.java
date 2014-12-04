@@ -15,6 +15,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import com.mysql.jdbc.jdbc2.optional.*;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -53,7 +55,8 @@ public class StockDataHandler {
     
     final String CONF_FILE = "Resources/settings.conf";
     final String STOCK_TICKERS_PATH;
-
+    final String MODEL_DATA_OUTPUT_PATH;
+    
     final String MYSQL_SERVER_HOST;
     final String MYSQL_SERVER_PORT;
     final String MYSQL_SERVER_DB;
@@ -77,6 +80,7 @@ public class StockDataHandler {
             MYSQL_SERVER_PASSWORD = p.getProperty("mysql_server_password");
     
             STOCK_TICKERS_PATH = p.getProperty("stock_tickers_path");
+            MODEL_DATA_OUTPUT_PATH = p.getProperty("model_data_output_path");
             
             QUANDL_AUTH_TOKEN = p.getProperty("quandl_auth_token");
             QUANDL_BASE_URL = p.getProperty("quandl_base_url");
@@ -451,14 +455,14 @@ public class StockDataHandler {
         }
     }
 
-    public FuturePrice getTargetValueRegressionPredictions(String stock, Date date, final String PRED_TYPE) throws Exception {
+    public FuturePrice getTargetValueRegressionPredictions(String stock, Date date, final String PRED_TYPE, final String MODEL_TYPE) throws Exception {
 
         String summary = String.format("Stock: %s, Date: %s", stock, date.toString());
         logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "", false);
 
         FuturePrice fp;
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?, ?, ?)}")) {
 
             stmt.setString(1, stock);
             
@@ -466,6 +470,7 @@ public class StockDataHandler {
             stmt.setDate(2, dt);
 
             stmt.setString(3, PRED_TYPE);
+            stmt.setString(4, MODEL_TYPE);
             
             ResultSet rs = stmt.executeQuery();
             
@@ -638,7 +643,7 @@ public class StockDataHandler {
         return stockPrices;
     }
     
-    public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt) throws Exception {
+    public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt, boolean saveToFile) throws Exception {
 
         String summary = String.format("Ticker: %s, Days In Future: %d, Model: %s", stockTicker, daysInFuture, approach);
         logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", summary, "", false);
@@ -702,6 +707,7 @@ public class StockDataHandler {
             
             //Output column values
             dataExamples.append("@DATA \n");
+            int recordCount = 0;
             while(rs.next()) {
 
                 String s;
@@ -716,12 +722,26 @@ public class StockDataHandler {
                     dataExamples.append(s);
                 }
                 dataExamples.append("\n");
-
+                recordCount++;
+            }
+            
+            //Ensure that records were returned
+            if (recordCount == 0) {
+                throw new Exception("No records were returned from the DB!");
             }
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", "Exception", exc.toString(), true);
             throw exc;
+        }
+        
+        //Save to file if needed
+        if (saveToFile) {
+            String str = MODEL_DATA_OUTPUT_PATH + "/" + stockTicker + "-" + approach + ".arff";
+            Path p = Paths.get(str);
+            try (BufferedWriter bw = Files.newBufferedWriter(p, Charset.defaultCharset(), StandardOpenOption.CREATE)) {
+               bw.write(dataExamples.toString());
+            }
         }
         
         return dataExamples.toString();

@@ -526,6 +526,7 @@ public class TradeEngine implements EWrapper {
 
         Predictor p = new Predictor();
         final String PRED_TYPE = "CURRENT";
+        final String MODEL_TYPE = "M5P";
         List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate, PRED_TYPE);
         
         StringBuilder sb = new StringBuilder("Today's top stock picks: ");
@@ -690,6 +691,7 @@ public class TradeEngine implements EWrapper {
                 Predictor p = new Predictor();
                 Date yesterday = dates.getYesterday();
                 final String PRED_TYPE = "CURRENT";
+                final String MODEL_TYPE = "M5P";
                 List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday, PRED_TYPE);
                 if (stkPicks.size() != MAX_STOCK_COUNT) {
                     logger.Log("TradeEngine", "runTrading", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
