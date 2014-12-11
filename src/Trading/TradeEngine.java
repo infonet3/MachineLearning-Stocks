@@ -34,7 +34,7 @@ public class TradeEngine implements EWrapper {
         final int CLOSE_PRICE = 9;
         final int LAST_PRICE = 4;
         
-        if (field == LAST_PRICE) //New change 11-23-14
+        if (field == LAST_PRICE) 
             stockQuote = new BigDecimal(String.valueOf(price));
 
         String outputMsg = String.format("Field = %d, Price = %f", field, price);
@@ -526,7 +526,6 @@ public class TradeEngine implements EWrapper {
 
         Predictor p = new Predictor();
         final String PRED_TYPE = "CURRENT";
-        final String MODEL_TYPE = "M5P";
         List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate, PRED_TYPE);
         
         StringBuilder sb = new StringBuilder("Today's top stock picks: ");
@@ -621,8 +620,14 @@ public class TradeEngine implements EWrapper {
                         StockHolding stk = listCurStocks.get(i);
 
                         stockQuote = null;
-                        reqStockQuote(client, i, stk.getTicker());
-                        Thread.sleep(WAIT_TIME);
+                        for (int j = 0; j < 3; j++) {
+                            reqStockQuote(client, i, stk.getTicker());
+                            Thread.sleep(WAIT_TIME);
+                            if (stockQuote != null)
+                                break;
+                        }
+                        
+                        //Now ensure the quote is valid
                         if (!isStockQuoteValid(stk.getTicker())) {
                             logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Invalid Stock Quote!", true);
                             continue;
@@ -703,8 +708,14 @@ public class TradeEngine implements EWrapper {
                     String ticker = stkPicks.get(i).getTicker();
 
                     stockQuote = null;
-                    reqStockQuote(client, i, ticker);
-                    Thread.sleep(WAIT_TIME);
+                    for (int j = 0; j < 3; j++) {
+                        reqStockQuote(client, i, ticker);
+                        Thread.sleep(WAIT_TIME);
+                        if (stockQuote != null)
+                            break;
+                    }
+
+                    //Now ensure the quote is valid
                     if (!isStockQuoteValid(ticker)) {
                         logger.Log("TradeEngine", "runTrading", ticker, "Invalid Stock Quote!", true);
                         continue;

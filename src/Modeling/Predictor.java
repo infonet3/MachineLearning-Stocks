@@ -7,7 +7,6 @@ package Modeling;
 import StockData.StockHolding;
 import StockData.PredictionValues;
 import static Modeling.ModelTypes.LINEAR_REG;
-import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
 import StockData.*;
 import Utilities.Dates;
@@ -34,11 +33,18 @@ import weka.core.SerializationHelper;
  *
  * @author Matt Jones
  */
-public class Predictor {
+public class Predictor implements Runnable {
 
     static Logger logger = new Logger();
     final String CONF_FILE = "Resources/settings.conf";
-    final String MODEL_PATH;
+    String modelPathRoot;
+    
+    ModelTypes modelType;
+    int daysInFutureModel;
+    int targetDaysOut;
+    Date fromDate;
+    Date toDate;
+    String predType;
 
     public Predictor() throws Exception {
 
@@ -46,10 +52,38 @@ public class Predictor {
         Properties p = new Properties();
         try (FileInputStream fis = new FileInputStream(CONF_FILE)) {
             p.load(fis);
-            MODEL_PATH = p.getProperty("model_directory");
+            modelPathRoot = p.getProperty("model_directory");
         }
     }
-    
+
+    //Used when multithreading is needed to generate predictions
+    public Predictor(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date FROM_DATE, final Date TO_DATE, final String PRED_TYPE) throws Exception {
+
+        this();
+        
+        this.modelType = MODEL_TYPE;
+        this.daysInFutureModel = DAYS_IN_FUTURE_MODEL;
+        this.targetDaysOut = TARGET_DAYS_OUT;
+        this.fromDate = FROM_DATE;
+        this.toDate = TO_DATE;
+        this.predType = PRED_TYPE;
+    }
+
+    @Override
+    public void run() {
+
+        try {
+            predictAllStocksForDates(modelType, daysInFutureModel, targetDaysOut, fromDate, toDate, predType);
+        } catch(Exception exc) {
+            try {
+                logger.Log("Predictor", "run", "Exception", exc.toString(), true);
+            } catch(Exception exc2) {
+                System.out.println(exc2.toString());
+            }
+            
+            System.exit(25);
+        }
+    }
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
 
@@ -88,25 +122,25 @@ public class Predictor {
             String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime(), false);
             
             //Load the model
-            String modelPath;
+            String curModelPath;
             Classifier classifier = null;
             switch (MODEL_TYPE) {
 
                 case M5P:
-                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-M5P.model";
-                    M5P mp = (M5P)SerializationHelper.read(modelPath);
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-M5P.model";
+                    M5P mp = (M5P)SerializationHelper.read(curModelPath);
                     classifier = mp;
                     break;
 
                 case RAND_FORST:
-                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-RandomForest.model";
-                    RandomForest rf = (RandomForest)SerializationHelper.read(modelPath);
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-RandomForest.model";
+                    RandomForest rf = (RandomForest)SerializationHelper.read(curModelPath);
                     classifier = rf;
                     break;
                     
                 case LINEAR_REG:
-                    modelPath = MODEL_PATH + "/" + ticker.getTicker() + "-LinearRegression.model";
-                    LinearRegression linReg = (LinearRegression)SerializationHelper.read(modelPath);
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-LinearRegression.model";
+                    LinearRegression linReg = (LinearRegression)SerializationHelper.read(curModelPath);
                     classifier = linReg;
                     break;
                     
@@ -219,27 +253,37 @@ public class Predictor {
         finalDate.setTime(TO_DATE);
 
         //Financial Amounts
-        final BigDecimal TRADING_COST = new BigDecimal("10.00");
+        final BigDecimal TRADING_COST = new BigDecimal("5.00");
         final BigDecimal STARTING_CAPITAL = new BigDecimal("40000.00");
         final BigDecimal MIN_CASH = new BigDecimal("200.00");
         BigDecimal currentCapital = new BigDecimal(STARTING_CAPITAL.toString());
         
         List<StockHolding> stockHoldings = new ArrayList<>();
         List<PendingOrder> stockOrders = new ArrayList<>();
+        List<BacktestingResults> testResults = new ArrayList<>();
         
         int dayOfWeek;
         StockDataHandler sdh = new StockDataHandler();
 
         Map<Date, String> mapHolidays = sdh.getAllHolidays();
 
+        Date buyDate = null;
+        Date sellDate = null;
+        BigDecimal tmpCapital = null;
         for (int day = 0; ; day++) {
 
             if (curDate.compareTo(finalDate) >= 0)
                 break;
             
-            //Generate models
+            //Generate models - 3 Months
             final int DAYS_FORECAST = 90;
             if (day == 0 || (day % DAYS_FORECAST == 0)) {
+                
+                if (testResults.size() > 0) {
+                    sdh.setStockBacktestingIntoDB(testResults);
+                    testResults.clear();
+                }
+                
                 sdh.removeBacktestingData();
                 Date dt = curDate.getTime();
                 
@@ -250,21 +294,22 @@ public class Predictor {
                 
                 Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
-                //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 
                 tRandForst.start();
                 tM5P.start();
-                //tLinReg.start();
                 
                 tRandForst.join();
                 tM5P.join();
-                //tLinReg.join();
                 
-                Predictor pred = new Predictor();
                 final String PRED_TYPE_BACKTEST = "BACKTEST";
-                pred.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
-                pred.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
-                //pred.predictAllStocksForDates(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST);
+                Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
+                Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
+                
+                tRandForstPreds.start();
+                tM5PPreds.start();
+                
+                tRandForstPreds.join();
+                tM5PPreds.join();
             }
             
             //Weekend Test
@@ -289,27 +334,6 @@ public class Predictor {
                 continue;
             }
             
-            /*
-            //Portfolio Value
-            BigDecimal acctValue = new BigDecimal(currentCapital.toString());
-            for (int i = 0; i < stockHoldings.size(); i++) {
-                StockHolding holding = stockHoldings.get(i);
-                StockQuote quote = sdh.getStockQuote(holding.getTicker(), curDate.getTime());
-                BigDecimal numShares = new BigDecimal(String.valueOf(holding.getSharesHeld()));
-                BigDecimal stockValue = quote.getClose().multiply(numShares);
-
-                acctValue = acctValue.add(stockValue);
-            }
-            
-            System.out.printf("Portfolio Value: %s %n", acctValue.toString());
-
-            //Broke Test
-            if (acctValue.doubleValue() < 1000) {
-                System.out.println("YOUR BROKE!");
-                break;
-            }
-            */
-            
             //Execute pending stock orders
             while (stockOrders.size() > 0) {
                 PendingOrder order = stockOrders.get(0);
@@ -320,12 +344,18 @@ public class Predictor {
                 
                 switch (order.getType()) {
                     case BUY:
+                        
+                        if (stockHoldings.isEmpty())
+                            tmpCapital = new BigDecimal(currentCapital.toString());
+                        
                         BigDecimal orderCost = curPrice.multiply(numShares);
                         currentCapital = currentCapital.subtract(orderCost).subtract(TRADING_COST); //Commission
                 
                         StockHolding stock = new StockHolding(order.getTicker(), order.getNumShares(), order.getProjectedDt());
                         stockHoldings.add(stock);
 
+                        buyDate = curDate.getTime();
+                        
                         String buyActivity = String.format("BUY: Ticker: %s, Shares: %d, Cost: %s, Projected Date: %s %n", order.getTicker(), order.getNumShares(), curPrice.toPlainString(), order.getProjectedDt().toString());
                         logger.Log("Predictor", "topNBacktest", buyActivity, "", false);
                         
@@ -346,11 +376,21 @@ public class Predictor {
                                 break;
                             }
                         }
+                        
+                        sellDate = curDate.getTime();
 
                         //Last order?
                         if (stockOrders.size() == 1) {
                             String sumValue = String.format("Value = %.2f, Date = %s %n", currentCapital.doubleValue(), curDate.getTime().toString());
                             logger.Log("Predictor", "topNBacktest", sumValue, "", true);
+
+                            BigDecimal sp500PctChg = sdh.getSP500PercentChange(buyDate, sellDate);
+                            BigDecimal pctChg = currentCapital.divide(tmpCapital, RoundingMode.HALF_UP);
+                            BacktestingResults results = new BacktestingResults(buyDate, sellDate, currentCapital, pctChg, sp500PctChg);
+                            testResults.add(results);
+                            
+                            if (currentCapital.doubleValue() < 1000.00)
+                                throw new Exception("YOUR BROKE!");
                         }
                         
                         break;
@@ -407,152 +447,5 @@ public class Predictor {
             curDate.add(Calendar.DATE, 1);
         }
     }
-    
-    //Method: backtest
-    //Description: Looks through all the stocks and backtests single stock and single model at a time
-    public void backtest(final ModelTypes MODEL_TYPE, final Date FROM_DATE, final Date TO_DATE) throws Exception {
-
-        //Commissions
-        final BigDecimal TRADING_COST = new BigDecimal("10.00");
-        
-        //Loop through all stocks
-        List<BacktestingResults> listResults = new ArrayList<>();
-        StockDataHandler sdh = new StockDataHandler();
-        List<StockTicker> stockList = sdh.getAllStockTickers(); 
-        for (StockTicker ticker : stockList) {
-        
-            try {
-                logger.Log("Predictor", "backtest", ticker.getTicker(), "", false);
-
-                //Run through all predictions for a given stock
-                List<PredictionValues> listPredictions = sdh.getStockBackTesting(ticker.getTicker(), 
-                                                                                 MODEL_TYPE.toString(), 
-                                                                                 FROM_DATE, TO_DATE);
-                BigDecimal capital = new BigDecimal("10000.0");
-                int sharesOwned = 0;
-                int numTrades = 0;
-                BigDecimal curClosePrice = null;
-                BigDecimal curOpenPrice = null;
-                boolean buyFlag = false;
-                boolean sellFlag = false;
-                int waitDays = 0;
-                Date projectedDate = null;
-                
-                //Used for Buy and Hold values
-                boolean isFirstDate = true;
-                BigDecimal firstPrice = null;
-
-                Prices:
-                for (PredictionValues pred : listPredictions) {
-                    curOpenPrice = pred.getCurOpenValue();
-                    curClosePrice = pred.getCurCloseValue();
-                    
-                    //Used for Buy and Hold
-                    if (isFirstDate) {
-                        firstPrice = curOpenPrice;
-                        isFirstDate = false;
-                    }
-
-                    if (waitDays > 0)
-                        waitDays--;
-
-                    //Buy Stock
-                    if (buyFlag && sharesOwned == 0 && waitDays == 0) {
-
-                        buyFlag = false;
-                        projectedDate = pred.getProjectedDate(); //Must hold the stock until the projected date
-
-                        //Broke Test
-                        if (capital.doubleValue() < 1000) {
-                            logger.Log("Predictor", "backtest", "Broke", "Backtesting funds are lower than $1,000", false);
-                            break Prices;
-                        }
-
-                        capital = capital.add(TRADING_COST.negate()); //Commission
-                        sharesOwned = capital.divide(curOpenPrice, 0, RoundingMode.DOWN).intValue();
-                        BigDecimal cost = curOpenPrice.multiply(new BigDecimal(sharesOwned));
-                        capital = capital.add(cost.negate());
-                        numTrades++;
-                    }
-                    //Sell Stock
-                    else if (sellFlag && sharesOwned > 0 && pred.getDate().getTime() >= projectedDate.getTime()) {
-
-                        sellFlag = false;
-                        waitDays = 3; //Due to Free Ride restrictions in Roth IRA, THIS HURTS PERFORMANCE BAD!!!
-
-                        BigDecimal proceeds = curOpenPrice.multiply(new BigDecimal(sharesOwned));
-                        capital = capital.add(proceeds);
-                        capital = capital.add(TRADING_COST.negate()); //Commission
-                        sharesOwned = 0;
-                        numTrades++;
-                    }
-                    //Hold for another week
-                    else if (buyFlag && sharesOwned > 0 && pred.getDate().getTime() >= projectedDate.getTime()) {
-                        projectedDate = pred.getProjectedDate(); //Must hold the stock until the projected date
-                    }
-                    
-                    //Evaluate Models for Buy and Sell decisions
-                    switch (MODEL_TYPE) {
-                        case M5P:
-                        case LINEAR_REG:
-                            //Buy
-                            if (pred.getEstimatedValue().doubleValue() > curOpenPrice.doubleValue()) 
-                                buyFlag = true;
-                            //Sell
-                            else if (pred.getEstimatedValue().doubleValue() < curOpenPrice.doubleValue())
-                                sellFlag = true;
-
-                            break;
-
-                        case LOGIST_REG:
-                            //Buy
-                            if (pred.getEstimatedValue().doubleValue() > 0.50) 
-                                buyFlag = true;
-                            //Sell
-                            else if (pred.getEstimatedValue().doubleValue() < 0.50) 
-                                sellFlag = true;
-
-                            break;
-                            
-                        case RAND_FORST: //Will only return 1.0 or 0.0
-                            //Buy
-                            if (pred.getEstimatedValue().doubleValue() > 0.50) 
-                                buyFlag = true;
-                            //Sell
-                            else if (pred.getEstimatedValue().doubleValue() < 0.50) 
-                                sellFlag = true;
-
-                            break;
-                    }
-
-                } //End for loop
-
-                //Sum up all assets
-                final BigDecimal ORIG_CAPITAL = new BigDecimal("10000.00");
-                final BigDecimal MULTIPLIER = new BigDecimal("100.00");
-
-                BigDecimal totalAssets = curClosePrice.multiply(new BigDecimal(sharesOwned)).add(capital);
-                BigDecimal pctChg = totalAssets.add(ORIG_CAPITAL.negate())
-                                               .divide(ORIG_CAPITAL, 2, RoundingMode.UP)
-                                               .multiply(MULTIPLIER);
-
-                BigDecimal buyAndHoldChg = curClosePrice.add(firstPrice.negate())
-                                                        .divide(firstPrice, 2, RoundingMode.HALF_UP)
-                                                        .multiply(MULTIPLIER);
-
-                BacktestingResults results = new BacktestingResults(ticker.getTicker(), MODEL_TYPE.toString(), 
-                        FROM_DATE, TO_DATE, numTrades, pctChg, buyAndHoldChg);
-                
-                listResults.add(results);
-
-            } catch(Exception exc) {
-                logger.Log("Predictor", "backtest", "Exception", ticker.getTicker() + ": " + exc.toString(), true);
-                throw exc;
-            }
-
-        } //End ticker loop
-        
-        //Save to DB
-        sdh.setStockBacktestingIntoDB(listResults);
-    }
+   
 }

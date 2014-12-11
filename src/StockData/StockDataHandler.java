@@ -645,7 +645,19 @@ public class StockDataHandler {
     
     public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt, boolean saveToFile) throws Exception {
 
-        String summary = String.format("Ticker: %s, Days In Future: %d, Model: %s", stockTicker, daysInFuture, approach);
+        String strFromDt;
+        if (fromDt == null)
+            strFromDt = "null";
+        else
+            strFromDt = fromDt.toString();
+        
+        String strToDt;
+        if (toDt == null)
+            strToDt = "null";
+        else
+            strToDt = toDt.toString();
+        
+        String summary = String.format("Ticker: %s, Days In Future: %d, Model: %s, From: %s, To: %s", stockTicker, daysInFuture, approach, strFromDt, strToDt);
         logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", summary, "", false);
 
         StringBuilder dataExamples = new StringBuilder();
@@ -708,9 +720,12 @@ public class StockDataHandler {
             //Output column values
             dataExamples.append("@DATA \n");
             int recordCount = 0;
+            String s;
+            StringBuffer row;
+            
             while(rs.next()) {
-
-                String s;
+                
+                row = new StringBuffer();
                 for (int i = 1; i <= colCount; i++) {
                     double d = rs.getDouble(i);
                     
@@ -719,15 +734,17 @@ public class StockDataHandler {
                     else
                         s = String.valueOf(d);
                     
-                    dataExamples.append(s);
+                    row.append(s);
                 }
+                dataExamples.append(row);
                 dataExamples.append("\n");
                 recordCount++;
             }
             
             //Ensure that records were returned
             if (recordCount == 0) {
-                throw new Exception("No records were returned from the DB!");
+                String excOutput = String.format("Ticker: %s, No records were returned from the DB!", stockTicker);
+                throw new Exception(excOutput);
             }
             
         } catch(Exception exc) {
@@ -739,7 +756,8 @@ public class StockDataHandler {
         if (saveToFile) {
             String str = MODEL_DATA_OUTPUT_PATH + "/" + stockTicker + "-" + approach + ".arff";
             Path p = Paths.get(str);
-            try (BufferedWriter bw = Files.newBufferedWriter(p, Charset.defaultCharset(), StandardOpenOption.CREATE)) {
+            
+            try (BufferedWriter bw = Files.newBufferedWriter(p, Charset.defaultCharset(), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
                bw.write(dataExamples.toString());
             }
         }
@@ -992,7 +1010,7 @@ public class StockDataHandler {
         logger.Log("StockDataHandler", "setStockBacktestingIntoDB", "", "", false);
 
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BackTesting (?, ?, ?, ?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BackTesting (?, ?, ?, ?, ?)}")) {
             
             conxn.setAutoCommit(false);
             
@@ -1000,13 +1018,11 @@ public class StockDataHandler {
                 java.sql.Date startDt = new java.sql.Date(r.getStartDt().getTime());
                 java.sql.Date endDt = new java.sql.Date(r.getEndDt().getTime());
                 
-                stmt.setString(1, r.getTicker());
-                stmt.setString(2, r.getModelType());
-                stmt.setDate(3, startDt);
-                stmt.setDate(4, endDt);
-                stmt.setInt(5, r.getNumTrades());
-                stmt.setBigDecimal(6, r.getAssetValuePctChg());
-                stmt.setBigDecimal(7, r.getBuyAndHoldPctChg());
+                stmt.setDate(1, startDt);
+                stmt.setDate(2, endDt);
+                stmt.setBigDecimal(3, r.getAssetValue());
+                stmt.setBigDecimal(4, r.getPctChg());
+                stmt.setBigDecimal(5, r.getSp500PctChg());
                 
                 stmt.addBatch();
             }
@@ -1998,7 +2014,7 @@ public class StockDataHandler {
         java.sql.Date sqlDt;
        
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Qtr (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Qtr (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
             
             conxn.setAutoCommit(false);
             final BigDecimal BLANK_VALUE = new BigDecimal("0.0");
@@ -2012,140 +2028,143 @@ public class StockDataHandler {
                 sqlDt = new java.sql.Date(fund.getDate().getTime());
                 stmt.setDate(2, sqlDt);
                 
+                sqlDt = new java.sql.Date(fund.getReportingDt().getTime());
+                stmt.setDate(3, sqlDt);
+                
                 if (fund.getAssets() != null)
-                    stmt.setBigDecimal(3, fund.getAssets());
-                else
-                    stmt.setBigDecimal(3, BLANK_VALUE);
-
-                if (fund.getDebt() != null)
-                    stmt.setBigDecimal(4, fund.getDebt());
+                    stmt.setBigDecimal(4, fund.getAssets());
                 else
                     stmt.setBigDecimal(4, BLANK_VALUE);
 
-                if (fund.getEquity() != null)
-                    stmt.setBigDecimal(5, fund.getEquity());
+                if (fund.getDebt() != null)
+                    stmt.setBigDecimal(5, fund.getDebt());
                 else
                     stmt.setBigDecimal(5, BLANK_VALUE);
 
-                if (fund.getLiabilities() != null)
-                    stmt.setBigDecimal(6, fund.getLiabilities());
+                if (fund.getEquity() != null)
+                    stmt.setBigDecimal(6, fund.getEquity());
                 else
                     stmt.setBigDecimal(6, BLANK_VALUE);
 
-                if (fund.getRevenue() != null)
-                    stmt.setBigDecimal(7, fund.getRevenue());
+                if (fund.getLiabilities() != null)
+                    stmt.setBigDecimal(7, fund.getLiabilities());
                 else
                     stmt.setBigDecimal(7, BLANK_VALUE);
-                
-                if (fund.getNetIncome() != null)
-                    stmt.setBigDecimal(8, fund.getNetIncome());
+
+                if (fund.getRevenue() != null)
+                    stmt.setBigDecimal(8, fund.getRevenue());
                 else
                     stmt.setBigDecimal(8, BLANK_VALUE);
-
-                if (fund.getNetIncomeCommon() != null)
-                    stmt.setBigDecimal(9, fund.getNetIncomeCommon());
+                
+                if (fund.getNetIncome() != null)
+                    stmt.setBigDecimal(9, fund.getNetIncome());
                 else
                     stmt.setBigDecimal(9, BLANK_VALUE);
 
-                if (fund.getEbitda() != null)
-                    stmt.setBigDecimal(10, fund.getEbitda());
+                if (fund.getNetIncomeCommon() != null)
+                    stmt.setBigDecimal(10, fund.getNetIncomeCommon());
                 else
                     stmt.setBigDecimal(10, BLANK_VALUE);
 
-                if (fund.getEbt() != null)
-                    stmt.setBigDecimal(11, fund.getEbt());
+                if (fund.getEbitda() != null)
+                    stmt.setBigDecimal(11, fund.getEbitda());
                 else
                     stmt.setBigDecimal(11, BLANK_VALUE);
-                    
-                if (fund.getNcfo() != null)
-                    stmt.setBigDecimal(12, fund.getNcfo());
+
+                if (fund.getEbt() != null)
+                    stmt.setBigDecimal(12, fund.getEbt());
                 else
                     stmt.setBigDecimal(12, BLANK_VALUE);
-
-                if (fund.getDps() != null)
-                    stmt.setBigDecimal(13, fund.getDps());
+                    
+                if (fund.getNcfo() != null)
+                    stmt.setBigDecimal(13, fund.getNcfo());
                 else
                     stmt.setBigDecimal(13, BLANK_VALUE);
-                    
-                if (fund.getEps() != null)
-                    stmt.setBigDecimal(14, fund.getEps());
+
+                if (fund.getDps() != null)
+                    stmt.setBigDecimal(14, fund.getDps());
                 else
                     stmt.setBigDecimal(14, BLANK_VALUE);
-
-                if (fund.getEpsDiluted() != null)
-                    stmt.setBigDecimal(15, fund.getEpsDiluted());
+                    
+                if (fund.getEps() != null)
+                    stmt.setBigDecimal(15, fund.getEps());
                 else
                     stmt.setBigDecimal(15, BLANK_VALUE);
 
-                if (fund.getNumShares() != null)
-                    stmt.setLong(16, fund.getNumShares().longValue());
+                if (fund.getEpsDiluted() != null)
+                    stmt.setBigDecimal(16, fund.getEpsDiluted());
                 else
-                    stmt.setLong(16, 0);
+                    stmt.setBigDecimal(16, BLANK_VALUE);
+
+                if (fund.getNumShares() != null)
+                    stmt.setLong(17, fund.getNumShares().longValue());
+                else
+                    stmt.setLong(17, 0);
 
                 if (fund.getIntExposure() != null)
-                    stmt.setBigDecimal(17, fund.getIntExposure());
-                else
-                    stmt.setBigDecimal(17, BLANK_VALUE);
-                    
-                if (fund.getWorkingCapital() != null)
-                    stmt.setBigDecimal(18, fund.getWorkingCapital());
+                    stmt.setBigDecimal(18, fund.getIntExposure());
                 else
                     stmt.setBigDecimal(18, BLANK_VALUE);
-
-                if (fund.getFcf() != null)
-                    stmt.setBigDecimal(19, fund.getFcf());
+                    
+                if (fund.getWorkingCapital() != null)
+                    stmt.setBigDecimal(19, fund.getWorkingCapital());
                 else
                     stmt.setBigDecimal(19, BLANK_VALUE);
 
-                if (fund.getFcfps() != null)
-                    stmt.setBigDecimal(20, fund.getFcfps());
+                if (fund.getFcf() != null)
+                    stmt.setBigDecimal(20, fund.getFcf());
                 else
                     stmt.setBigDecimal(20, BLANK_VALUE);
-                
-                if (fund.getMarketCap() != null)
-                    stmt.setBigDecimal(21, fund.getMarketCap());
+
+                if (fund.getFcfps() != null)
+                    stmt.setBigDecimal(21, fund.getFcfps());
                 else
                     stmt.setBigDecimal(21, BLANK_VALUE);
-
-                if (fund.getNetMargin() != null)
-                    stmt.setBigDecimal(22, fund.getNetMargin());
+                
+                if (fund.getMarketCap() != null)
+                    stmt.setBigDecimal(22, fund.getMarketCap());
                 else
                     stmt.setBigDecimal(22, BLANK_VALUE);
-                    
-                if (fund.getPriceBook() != null)
-                    stmt.setBigDecimal(23, fund.getPriceBook());
+
+                if (fund.getNetMargin() != null)
+                    stmt.setBigDecimal(23, fund.getNetMargin());
                 else
                     stmt.setBigDecimal(23, BLANK_VALUE);
-
-                if (fund.getPriceEarnings() != null)
-                    stmt.setBigDecimal(24, fund.getPriceEarnings());
+                    
+                if (fund.getPriceBook() != null)
+                    stmt.setBigDecimal(24, fund.getPriceBook());
                 else
                     stmt.setBigDecimal(24, BLANK_VALUE);
-                
-                if (fund.getPriceSales() != null)
-                    stmt.setBigDecimal(25, fund.getPriceSales());
+
+                if (fund.getPriceEarnings() != null)
+                    stmt.setBigDecimal(25, fund.getPriceEarnings());
                 else
                     stmt.setBigDecimal(25, BLANK_VALUE);
                 
-                if (fund.getRoa() != null)
-                    stmt.setBigDecimal(26, fund.getRoa());
+                if (fund.getPriceSales() != null)
+                    stmt.setBigDecimal(26, fund.getPriceSales());
                 else
                     stmt.setBigDecimal(26, BLANK_VALUE);
-                    
-                if (fund.getRoe() != null)
-                    stmt.setBigDecimal(27, fund.getRoe());
+                
+                if (fund.getRoa() != null)
+                    stmt.setBigDecimal(27, fund.getRoa());
                 else
                     stmt.setBigDecimal(27, BLANK_VALUE);
                     
-                if (fund.getRos() != null)
-                    stmt.setBigDecimal(28, fund.getRos());
+                if (fund.getRoe() != null)
+                    stmt.setBigDecimal(28, fund.getRoe());
                 else
                     stmt.setBigDecimal(28, BLANK_VALUE);
                     
-                if (fund.getSps() != null)
-                    stmt.setBigDecimal(29, fund.getSps());
+                if (fund.getRos() != null)
+                    stmt.setBigDecimal(29, fund.getRos());
                 else
                     stmt.setBigDecimal(29, BLANK_VALUE);
+                    
+                if (fund.getSps() != null)
+                    stmt.setBigDecimal(30, fund.getSps());
+                else
+                    stmt.setBigDecimal(30, BLANK_VALUE);
                 
                 stmt.addBatch();
             }
@@ -2365,6 +2384,38 @@ public class StockDataHandler {
             logger.Log("StockDataHandler", "getAvgNewHomePrices_UpdateDate", "Exception", exc.toString(), true);
             throw exc;
         }
+    }
+
+    public BigDecimal getSP500PercentChange(Date startDt, Date endDt) throws Exception {
+
+        String summary = String.format("Start Date: %s, End Date: %s", startDt.toString(), endDt.toString());
+        logger.Log("StockDataHandler", "getSP500PercentChange", summary, "", false);
+
+        BigDecimal pctChg;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_SP500Chg (?, ?)}")) {
+
+            java.sql.Date sDt = new java.sql.Date(startDt.getTime());
+            stmt.setDate(1, sDt);
+
+            java.sql.Date eDt = new java.sql.Date(endDt.getTime());
+            stmt.setDate(2, eDt);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                pctChg = rs.getBigDecimal(1);
+            }
+            else {
+                return null;
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getSP500PercentChange", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return pctChg;
     }
     
     public StockQuote getStockQuote(String ticker, Date date) throws Exception {
@@ -2873,21 +2924,6 @@ public class StockDataHandler {
             insertCurrencyRatiosIntoDB(EURO, usdEur);
         }        
 
-        //Energy Prices
-        final String CRUDE_OIL = "CRUDE-OIL";
-        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
-        if (isDataExpired(lastDt)) {
-            String crudeOilPrices = downloadData("CHRIS/CME_CL1", lastDt); //Old Code "OFDP/FUTURE_CL1"
-            insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
-        }
-
-        final String NATURAL_GAS = "NATURL-GAS";
-        lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
-        if (isDataExpired(lastDt)) {
-            String naturalGasPrices = downloadData("CHRIS/CME_NG1", lastDt); //Old Code "OFDP/FUTURE_NG1"
-            insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
-        }
-
         //Precious Metals
         final String GOLD = "GOLD";
         lastDt = getPreciousMetals_UpdateDate(GOLD);
@@ -2909,35 +2945,6 @@ public class StockDataHandler {
         if (isDataExpired(lastDt)) {
             String platinumPrices = downloadData("LPPM/PLAT", lastDt);
             insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
-        }        
-
-        //Global Stock Indexes
-        final String SP500 = "S&P500";
-        lastDt = getStockIndex_UpdateDate(SP500);
-        if (isDataExpired(lastDt)) {
-            String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt);
-            insertStockIndexDataIntoDB(SP500, spIndex);
-        }
-
-        final String DAX = "DAX";
-        lastDt = getStockIndex_UpdateDate(DAX);
-        if (isDataExpired(lastDt)) {
-            String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt);
-            insertStockIndexDataIntoDB(DAX, daxIndex);
-        }        
-
-        final String HANGSENG = "HANGSENG";
-        lastDt = getStockIndex_UpdateDate(HANGSENG);
-        if (isDataExpired(lastDt)) {
-            String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt);
-            insertStockIndexDataIntoDB(HANGSENG, hangSengIndex);
-        }
-
-        final String NIKEII = "NIKEII";
-        lastDt = getStockIndex_UpdateDate(NIKEII);
-        if (isDataExpired(lastDt)) {
-            String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt);
-            insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
 
         //Interest Rates - Prime
@@ -3008,27 +3015,49 @@ public class StockDataHandler {
         List<BEA_Data> listBEAData = downloadBEAData();
         insertGDPDataIntoDB(listBEAData);
         
-        /*
-        //Fundamentals - Annual
-        MorningstarData mstar = new MorningstarData();
-        List<StockFundamentals_Annual> listStockFundAnnual = new ArrayList<>();
-        for (StockTicker st : listOfAllStocks) {
-            StockFundamentals_Annual fundamentals = mstar.getStockFundamentals_Annual(st);
-            if (fundamentals != null) 
-                listStockFundAnnual.add(fundamentals);
+        //Global Stock Indexes
+        final String SP500 = "S&P500";
+        lastDt = getStockIndex_UpdateDate(SP500);
+        if (isDataExpired(lastDt)) {
+            String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt);
+            insertStockIndexDataIntoDB(SP500, spIndex);
         }
-        insertStockFundamentals_Annual_IntoDB(listStockFundAnnual);
-        setStockFundamentals_Annual_PctChg();
 
-        //Fundamentals - Quarterly
-        List<StockFundamentals_Quarter> listStockFundQtr = new ArrayList<>();
-        for (StockTicker st : listOfAllStocks) {
-            StockFundamentals_Quarter fundamentals = mstar.getStockFundamentals_Quarterly(st);
-            if (fundamentals != null) 
-                listStockFundQtr.add(fundamentals);
+        final String DAX = "DAX";
+        lastDt = getStockIndex_UpdateDate(DAX);
+        if (isDataExpired(lastDt)) {
+            String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt);
+            insertStockIndexDataIntoDB(DAX, daxIndex);
+        }        
+
+        final String HANGSENG = "HANGSENG";
+        lastDt = getStockIndex_UpdateDate(HANGSENG);
+        if (isDataExpired(lastDt)) {
+            String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt);
+            insertStockIndexDataIntoDB(HANGSENG, hangSengIndex);
         }
-        insertStockFundamentals_Quarter_IntoDB(listStockFundQtr);
-        */
+
+        final String NIKEII = "NIKEII";
+        lastDt = getStockIndex_UpdateDate(NIKEII);
+        if (isDataExpired(lastDt)) {
+            String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt);
+            insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
+        }        
+
+        //Energy Prices
+        final String CRUDE_OIL = "CRUDE-OIL";
+        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
+        if (isDataExpired(lastDt)) {
+            String crudeOilPrices = downloadData("CHRIS/CME_CL1", lastDt); //Old Code "OFDP/FUTURE_CL1"
+            insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
+        }
+
+        final String NATURAL_GAS = "NATURL-GAS";
+        lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
+        if (isDataExpired(lastDt)) {
+            String naturalGasPrices = downloadData("CHRIS/CME_NG1", lastDt); //Old Code "OFDP/FUTURE_NG1"
+            insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
+        }
 
         //Remove bad data
         removeAllBadData();
@@ -3036,23 +3065,29 @@ public class StockDataHandler {
 
     private List<StockFundamentals> getQtrStockFundamentals(String ticker, Date lastDt) throws Exception {
 
-        //Assets
-        String quandlCode = "SF1/" + ticker + "_ASSETS_ARQ";
+        //Revenue
+        String quandlCode = "SF1/" + ticker + "_REVENUE_ARQ";
         String stockValues = downloadData(quandlCode, lastDt);
-        
+
         //See if we have new data to process
-        Map<Date, BigDecimal> assetMap = new HashMap<>();
+        Map<Date, BigDecimal> revenueMap = new HashMap<>();
         if (stockValues.split("\n").length > 1) 
-            insertFundamentalValuesIntoMap(stockValues, assetMap);
+            insertFundamentalValuesIntoMap(stockValues, revenueMap);
         else 
             return null; //No new data
 
-        //Revenue
-        quandlCode = "SF1/" + ticker + "_REVENUE_ARQ";
+        //Filing Date to Reporting Date
+        quandlCode = "SF1/" + ticker + "_FILINGDATE";
         stockValues = downloadData(quandlCode, lastDt);
-        Map<Date, BigDecimal> revenueMap = new HashMap<>();
-        insertFundamentalValuesIntoMap(stockValues, revenueMap);
+        Map<Date, BigDecimal> reportingDtMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, reportingDtMap);
         
+        //Assets
+        quandlCode = "SF1/" + ticker + "_ASSETS_ARQ";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> assetMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, assetMap);
+
         //Debt
         quandlCode = "SF1/" + ticker + "_DEBT_ARQ";
         stockValues = downloadData(quandlCode, lastDt);
@@ -3212,10 +3247,26 @@ public class StockDataHandler {
             fund.setTicker(ticker);
             
             Date dt = entry.getKey();
-            BigDecimal revenue = entry.getValue();
-            
             fund.setDate(dt);
+
+            BigDecimal revenue = entry.getValue();
             fund.setRevenue(revenue);
+
+            //Set the Financial Reporting Date
+            try {
+                String reportingDt = reportingDtMap.get(dt).toPlainString();
+                int year = Integer.parseInt(reportingDt.substring(0, 4));
+                int month = Integer.parseInt(reportingDt.substring(4, 6));
+                int day = Integer.parseInt(reportingDt.substring(6, 8));
+
+                Calendar calRptDt = Calendar.getInstance();
+                calRptDt.set(year, month, day);
+                fund.setReportingDt(calRptDt.getTime());
+                
+            } catch (Exception exc) {
+                logger.Log("StockDataHandler", "getQtrStockFundamentals", "Exception", exc.toString(), true);
+                fund.setReportingDt(dt);
+            }
             
             BigDecimal assets = assetMap.get(dt);
             fund.setAssets(assets);
@@ -3564,17 +3615,18 @@ public class StockDataHandler {
         return responseStr.toString();
     }
     
-    private String downloadData(final String QUANDL_CODE, final Date fromDt) throws Exception {
+    private String downloadData(final String QUANDL_CODE, final Date FROM_DT) throws Exception {
 
-        String summary = String.format("Code: %s, From: %s", QUANDL_CODE, fromDt.toString());
+        String summary = String.format("Code: %s, From: %s", QUANDL_CODE, FROM_DT.toString());
         logger.Log("StockDataHandler", "downloadData", summary, "", false);
 
         //Move the date ONE day ahead
         final long DAY_IN_MILLIS = 86400000;
-        fromDt.setTime(fromDt.getTime() + DAY_IN_MILLIS);
+        Date newFromDt = new Date();
+        newFromDt.setTime(FROM_DT.getTime() + DAY_IN_MILLIS);
         
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        String dtStr = sdf.format(fromDt);
+        String dtStr = sdf.format(newFromDt);
         
         String quandlQuery = QUANDL_BASE_URL + QUANDL_CODE + ".csv?auth_token=" + QUANDL_AUTH_TOKEN + "&trim_start=" + dtStr + "&sort_order=asc";
         

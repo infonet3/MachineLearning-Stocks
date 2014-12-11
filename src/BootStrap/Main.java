@@ -66,15 +66,12 @@ public class Main {
 
                         Thread tRandForest = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, null));
                         Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, null));
-                        //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, null));
 
                         tRandForest.start();
                         tM5P.start();
-                        //tLinReg.start();
                         
                         tRandForest.join();
                         tM5P.join();
-                        //tLinReg.join();
                         
                         break;
 
@@ -83,10 +80,15 @@ public class Main {
                         logger.Log("Main", "main", "Option C", "Get Current Predictions", false);
 
                         final String PRED_TYPE_CURRENT = "CURRENT";
-                        pred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
-                        pred.predictAllStocksForDates(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
-                        //pred.predictAllStocksForDates(ModelTypes.LINEAR_REG, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT);
+                        Thread tRandForestCurPred = new Thread(new Predictor(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT));
+                        Thread tM5PCurPred = new Thread(new Predictor(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT));
 
+                        tRandForestCurPred.start();
+                        tM5PCurPred.start();
+                        
+                        tRandForestCurPred.join();
+                        tM5PCurPred.join();
+                        
                         break;
 
                     //Backtest
@@ -94,15 +96,14 @@ public class Main {
                         logger.Log("Main", "main", "Option B", "Perform Backtesting", false);
 
                         Calendar fromCal = Calendar.getInstance();
-                        fromCal.set(2010, 0, 2);
+                        fromCal.set(2010, 1, 5);
                         Date fromDt = fromCal.getTime();
 
                         Calendar toCal = Calendar.getInstance();
                         Date toDt = toCal.getTime();
 
-                        //pred.backtest(ModelTypes.RAND_FORST, fromDt, toDt);  //Broken Code
-                        //pred.backtest(ModelTypes.M5P, fromDt, toDt);   //Broken Code
-                        pred.topNBacktest(5, fromDt, toDt, YEARS_BACK, DAYS_IN_FUTURE);
+                        final int NUM_STOCKS = 5;
+                        pred.topNBacktest(NUM_STOCKS, fromDt, toDt, YEARS_BACK, DAYS_IN_FUTURE);
 
                         break;
 

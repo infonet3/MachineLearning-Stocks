@@ -13,7 +13,8 @@ import java.util.Date;
  */
 public class StockFundamentals {
     private String ticker;
-    private Date date;
+    private Date date; //Filing Date
+    private Date reportingDt; //Reporting Date
 
     private BigDecimal assets;
     private BigDecimal debt;
@@ -273,5 +274,13 @@ public class StockFundamentals {
 
     public void setSps(BigDecimal sps) {
         this.sps = sps;
+    }
+
+    public Date getReportingDt() {
+        return reportingDt;
+    }
+
+    public void setReportingDt(Date reportingDt) {
+        this.reportingDt = reportingDt;
     }
 }

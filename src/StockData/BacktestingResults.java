@@ -12,51 +12,58 @@ import java.util.Date;
  * @author Matt Jones
  */
 public class BacktestingResults {
-    private String ticker;
-    private String modelType;
     private Date startDt;
     private Date endDt;
-    private int numTrades;
-    private BigDecimal assetValuePctChg;
-    private BigDecimal buyAndHoldPctChg;
+    private BigDecimal assetValue;
+    private BigDecimal pctChg;
+    private BigDecimal sp500PctChg;
 
-    public BacktestingResults(String ticker, String modelType, Date startDt, Date endDt, int numTrades, BigDecimal assetValuePctChg, BigDecimal buyAndHoldPctChg) {
-        this.ticker = ticker;
-        this.modelType = modelType;
+    public BacktestingResults(Date startDt, Date endDt, BigDecimal assetValue, BigDecimal pctChg, BigDecimal sp500PctChg) {
         this.startDt = startDt;
         this.endDt = endDt;
-        this.numTrades = numTrades;
-        this.assetValuePctChg = assetValuePctChg;
-        this.buyAndHoldPctChg = buyAndHoldPctChg;
-    }
-
-    public String getTicker() {
-        return ticker;
-    }
-
-    public String getModelType() {
-        return modelType;
+        this.assetValue = assetValue;
+        this.pctChg = pctChg;
+        this.sp500PctChg = sp500PctChg;
     }
 
     public Date getStartDt() {
         return startDt;
     }
 
+    public void setStartDt(Date startDt) {
+        this.startDt = startDt;
+    }
+
     public Date getEndDt() {
         return endDt;
     }
 
-    public int getNumTrades() {
-        return numTrades;
+    public void setEndDt(Date endDt) {
+        this.endDt = endDt;
     }
 
-    public BigDecimal getAssetValuePctChg() {
-        return assetValuePctChg;
+    public BigDecimal getAssetValue() {
+        return assetValue;
     }
 
-    public BigDecimal getBuyAndHoldPctChg() {
-        return buyAndHoldPctChg;
+    public void setAssetValue(BigDecimal assetValue) {
+        this.assetValue = assetValue;
     }
 
+    public BigDecimal getPctChg() {
+        return pctChg;
+    }
+
+    public void setPctChg(BigDecimal pctChg) {
+        this.pctChg = pctChg;
+    }
+
+    public BigDecimal getSp500PctChg() {
+        return sp500PctChg;
+    }
+
+    public void setSp500PctChg(BigDecimal sp500PctChg) {
+        this.sp500PctChg = sp500PctChg;
+    }
 
 }
