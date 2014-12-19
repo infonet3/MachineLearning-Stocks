@@ -880,9 +880,9 @@ public class StockDataHandler {
                     openPrice = new BigDecimal(cells[1]);
                     highPrice = new BigDecimal(cells[2]);
                     lowPrice = new BigDecimal(cells[3]);
-                    settlePrice = new BigDecimal(cells[6]);
-                    volume = new BigDecimal(cells[7]).intValue();
-                    openInterest = new BigDecimal(cells[8]).intValue();
+                    settlePrice = new BigDecimal(cells[4]);
+                    volume = new BigDecimal(cells[5]).intValue();
+                    openInterest = new BigDecimal(cells[6]).intValue();
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
@@ -2850,7 +2850,7 @@ public class StockDataHandler {
     public void downloadAllStockData() throws Exception {
 
         logger.Log("StockDataHandler", "downloadAllStockData", "", "", false);
-
+        
         //Fundamentals - Premium Data
         Date lastDt;
         List<StockTicker> listOfAllStocks = getAllStockTickers();
@@ -2860,6 +2860,9 @@ public class StockDataHandler {
             List<StockFundamentals> qtrFundamentalsList = getQtrStockFundamentals(st.getTicker(), lastDt);
             if (qtrFundamentalsList != null)
                 insertQtrStockFundamentalsIntoDB(qtrFundamentalsList);
+
+            //Slow Down
+            Thread.sleep(2100); 
         }
         setStockFundamentals_Quarter_ValidDates();
         setStockFundamentals_Quarter_PctChg();
@@ -2870,7 +2873,25 @@ public class StockDataHandler {
             if (isDataExpired(lastDt)) {
                 String stockValues = downloadData(st.getQuandlCode(), lastDt);
                 insertStockPricesIntoDB(st.getTicker(), stockValues);
+                
+                //Slow Down
+                Thread.sleep(2100); 
             }        
+        }
+
+        //Energy Prices
+        final String CRUDE_OIL = "CRUDE-OIL";
+        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
+        if (isDataExpired(lastDt)) {
+            String crudeOilPrices = downloadData("SCF/CME_CL1_EN", lastDt); // CHRIS/CME_CL1
+            insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
+        }
+
+        final String NATURAL_GAS = "NATURL-GAS";
+        lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
+        if (isDataExpired(lastDt)) {
+            String naturalGasPrices = downloadData("SCF/CME_NG1_EN", lastDt); // CHRIS/CME_NG1
+            insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
         }
 
         //M2 - Money Supply
@@ -3043,21 +3064,6 @@ public class StockDataHandler {
             String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt);
             insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
-
-        //Energy Prices
-        final String CRUDE_OIL = "CRUDE-OIL";
-        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
-        if (isDataExpired(lastDt)) {
-            String crudeOilPrices = downloadData("CHRIS/CME_CL1", lastDt); //Old Code "OFDP/FUTURE_CL1"
-            insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
-        }
-
-        final String NATURAL_GAS = "NATURL-GAS";
-        lastDt = getEnergyPrices_UpdateDate(NATURAL_GAS);
-        if (isDataExpired(lastDt)) {
-            String naturalGasPrices = downloadData("CHRIS/CME_NG1", lastDt); //Old Code "OFDP/FUTURE_NG1"
-            insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
-        }
 
         //Remove bad data
         removeAllBadData();
@@ -3375,6 +3381,9 @@ public class StockDataHandler {
             map.put(dt, value);
 
         } //End for
+        
+        //Slow Down
+        Thread.sleep(2100);
     }
     
     private List<BEA_Data> downloadBEAData() throws Exception {

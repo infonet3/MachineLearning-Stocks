@@ -8,6 +8,7 @@ import Modeling.ModelTypes;
 import Modeling.Predictor;
 import Modeling.RunModels;
 import StockData.StockDataHandler;
+
 import Trading.TradeEngine;
 import Utilities.Dates;
 import Utilities.Logger;
@@ -102,7 +103,7 @@ public class Main {
                         Calendar toCal = Calendar.getInstance();
                         Date toDt = toCal.getTime();
 
-                        final int NUM_STOCKS = 5;
+                        final int NUM_STOCKS = 7;
                         pred.topNBacktest(NUM_STOCKS, fromDt, toDt, YEARS_BACK, DAYS_IN_FUTURE);
 
                         break;
@@ -133,7 +134,7 @@ public class Main {
                             case "Early": //Can only buy on such a day and not sell
                             default:
                                 TradeEngine trade = new TradeEngine();
-                                final int MAX_STOCK_COUNT = 5;
+                                final int MAX_STOCK_COUNT = 7;
                                 trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
 
                                 trade.runTrading(MAX_STOCK_COUNT, port);
