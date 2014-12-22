@@ -573,6 +573,17 @@ public class TradeEngine implements EWrapper {
         return true;
     }
     
+    private void retrieveStockQuote(EClientSocket client, final int ID, final String TICKER, final int WAIT_TIME) throws Exception {
+
+        stockQuote = null;
+        for (int i = 0; i < 5; i++) {
+            reqStockQuote(client, ID, TICKER);
+            Thread.sleep(WAIT_TIME);
+            if (stockQuote != null)
+                break;
+        }
+    }
+    
     /* Method: runTrading
      * Notes: This method will only buy at 9AM and will only sell at 3PM
      */
@@ -619,13 +630,7 @@ public class TradeEngine implements EWrapper {
                     for (int i = 0; i < listCurStocks.size(); i++) {
                         StockHolding stk = listCurStocks.get(i);
 
-                        stockQuote = null;
-                        for (int j = 0; j < 3; j++) {
-                            reqStockQuote(client, i, stk.getTicker());
-                            Thread.sleep(WAIT_TIME);
-                            if (stockQuote != null)
-                                break;
-                        }
+                        retrieveStockQuote(client, i, stk.getTicker(), WAIT_TIME);
                         
                         //Now ensure the quote is valid
                         if (!isStockQuoteValid(stk.getTicker())) {
@@ -707,13 +712,7 @@ public class TradeEngine implements EWrapper {
                 for (int i = 0; i < MAX_STOCK_COUNT; i++) {
                     String ticker = stkPicks.get(i).getTicker();
 
-                    stockQuote = null;
-                    for (int j = 0; j < 3; j++) {
-                        reqStockQuote(client, i, ticker);
-                        Thread.sleep(WAIT_TIME);
-                        if (stockQuote != null)
-                            break;
-                    }
+                    retrieveStockQuote(client, i, ticker, WAIT_TIME);
 
                     //Now ensure the quote is valid
                     if (!isStockQuoteValid(ticker)) {

@@ -2860,9 +2860,6 @@ public class StockDataHandler {
             List<StockFundamentals> qtrFundamentalsList = getQtrStockFundamentals(st.getTicker(), lastDt);
             if (qtrFundamentalsList != null)
                 insertQtrStockFundamentalsIntoDB(qtrFundamentalsList);
-
-            //Slow Down
-            Thread.sleep(2100); 
         }
         setStockFundamentals_Quarter_ValidDates();
         setStockFundamentals_Quarter_PctChg();
@@ -2873,9 +2870,6 @@ public class StockDataHandler {
             if (isDataExpired(lastDt)) {
                 String stockValues = downloadData(st.getQuandlCode(), lastDt);
                 insertStockPricesIntoDB(st.getTicker(), stockValues);
-                
-                //Slow Down
-                Thread.sleep(2100); 
             }        
         }
 
@@ -3381,9 +3375,6 @@ public class StockDataHandler {
             map.put(dt, value);
 
         } //End for
-        
-        //Slow Down
-        Thread.sleep(2100);
     }
     
     private List<BEA_Data> downloadBEAData() throws Exception {
@@ -3629,6 +3620,9 @@ public class StockDataHandler {
         String summary = String.format("Code: %s, From: %s", QUANDL_CODE, FROM_DT.toString());
         logger.Log("StockDataHandler", "downloadData", summary, "", false);
 
+        //Slow Down
+        Thread.sleep(2100);
+        
         //Move the date ONE day ahead
         final long DAY_IN_MILLIS = 86400000;
         Date newFromDt = new Date();
