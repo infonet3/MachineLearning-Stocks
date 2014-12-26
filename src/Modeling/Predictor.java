@@ -235,10 +235,13 @@ public class Predictor implements Runnable {
         
         return topStocks;
     }
-    
+
+    /*Method: topNBacktest
+     *Description: Always trades at the open price 
+     */
     public void topNBacktest(int NUM_STOCKS, final Date FROM_DATE, final Date TO_DATE, final int YEARS_BACK, final int DAYS_IN_FUTURE) throws Exception {
-        
-        String summary = "Number Stocks: " + NUM_STOCKS + ", From: " + FROM_DATE + ", To: " + TO_DATE;
+
+        String summary = String.format("Num Stocks: %d, Days In Future: %d, From Date: %s, To Date: %s", NUM_STOCKS, DAYS_IN_FUTURE, FROM_DATE.toString(), TO_DATE.toString());
         logger.Log("Predictor", "topNBacktest", summary, "", false);
 
         Calendar curDate = Calendar.getInstance();
@@ -278,7 +281,8 @@ public class Predictor implements Runnable {
             //Generate models - 3 Months
             final int DAYS_FORECAST = 90;
             if (day == 0 || (day % DAYS_FORECAST == 0)) {
-                
+
+                //Save results to DB
                 if (testResults.size() > 0) {
                     sdh.setStockBacktestingIntoDB(testResults);
                     testResults.clear();
@@ -291,7 +295,8 @@ public class Predictor implements Runnable {
                 toCal.setTime(dt);
                 toCal.add(Calendar.DATE, DAYS_FORECAST);
                 Date toDt = toCal.getTime();
-                
+
+                //Generate models
                 Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 
@@ -300,7 +305,8 @@ public class Predictor implements Runnable {
                 
                 tRandForst.join();
                 tM5P.join();
-                
+
+                //Use model to create predictions
                 final String PRED_TYPE_BACKTEST = "BACKTEST";
                 Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
                 Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
@@ -416,9 +422,25 @@ public class Predictor implements Runnable {
             int openings = NUM_STOCKS - stockHoldings.size();
             if (openings > 0) {
 
+                //Honor 3 wait waiting period - given the trade is execute the day after the buy order, only wait two days
+                if (sellDate != null) {
+                    Calendar calSale = Calendar.getInstance();
+                    calSale.setTime(sellDate);
+
+                    final int WAITING_PERIOD = 2;
+                    Dates dates = new Dates();
+                    calSale = dates.getTargetDate(calSale, WAITING_PERIOD);
+
+                    //Exit if 3 day waiting period isn't yet met
+                    if (curDate.compareTo(calSale) < 0) {
+                        curDate.add(Calendar.DATE, 1);
+                        continue;
+                    }
+                }
+                
                 final String PRED_TYPE = "BACKTEST";
                 List<StockHolding> topStocks = topStockPicks(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
-                    
+
                 //Generate buy orders
                 int size = topStocks.size();
                 if (size == NUM_STOCKS) {

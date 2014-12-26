@@ -35,7 +35,7 @@ public class Main {
 
             long startTime = System.currentTimeMillis();
             
-            final int DAYS_IN_FUTURE = 10; //Business Days
+            final int DAYS_IN_FUTURE = 15; //Business Days
             final int YEARS_BACK = 5; //How much data to train on
             Dates dates = new Dates();
             Date yesterday = dates.getYesterday();
@@ -96,15 +96,28 @@ public class Main {
                     case 'B':
                         logger.Log("Main", "main", "Option B", "Perform Backtesting", false);
 
+                        //Cmd Line Arguments must equal 3 - B NUM_STOCKS DAYS_IN_FUTURE
+                        if (args.length != 3) {
+                            logger.Log("Main", "main", "Program Arguments", "For B Option - Must have three Arguments [D NUM_STOCKS DAYS_IN_FUTURE].", true);
+                            System.out.println("Missing argument for B Option!");
+                            System.exit(1);
+                        }
+                        
+                        final int NUM_STOCKS = Integer.parseInt(args[1]);
+                        final int BACKTEST_DAYS_IN_FUTURE = Integer.parseInt(args[2]);
+                        
+                        String strOutput = String.format("Num Stocks: %d, Days In Future: %d", NUM_STOCKS, BACKTEST_DAYS_IN_FUTURE);
+                        logger.Log("Main", "main", "Option B", strOutput, true);
+                        
                         Calendar fromCal = Calendar.getInstance();
+                        
                         fromCal.set(2010, 1, 5);
                         Date fromDt = fromCal.getTime();
 
                         Calendar toCal = Calendar.getInstance();
                         Date toDt = toCal.getTime();
 
-                        final int NUM_STOCKS = 7;
-                        pred.topNBacktest(NUM_STOCKS, fromDt, toDt, YEARS_BACK, DAYS_IN_FUTURE);
+                        pred.topNBacktest(NUM_STOCKS, fromDt, toDt, YEARS_BACK, BACKTEST_DAYS_IN_FUTURE);
 
                         break;
 
@@ -114,7 +127,7 @@ public class Main {
 
                         //Cmd Line Arguments must equal 2 - T IB_GateWay_Port
                         if (args.length != 2) {
-                            logger.Log("Main", "main", "Program Arguments", "For T Option - Must have two Arguments.", true);
+                            logger.Log("Main", "main", "Program Arguments", "For T Option - Must have two Arguments [T PORT].", true);
                             System.out.println("Missing argument for T Option!");
                             System.exit(1);
                         }
@@ -122,6 +135,9 @@ public class Main {
                         //2nd Argument - IB Gateway Port
                         int port = Integer.parseInt(args[1]);
 
+                        //How many stocks to hold in our portfolio
+                        final int MAX_STOCK_COUNT = 7;
+                        
                         //Holiday Check
                         String holidayCode = mapHolidays.get(yesterday);
                         if (holidayCode == null)
@@ -134,7 +150,6 @@ public class Main {
                             case "Early": //Can only buy on such a day and not sell
                             default:
                                 TradeEngine trade = new TradeEngine();
-                                final int MAX_STOCK_COUNT = 7;
                                 trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
 
                                 trade.runTrading(MAX_STOCK_COUNT, port);

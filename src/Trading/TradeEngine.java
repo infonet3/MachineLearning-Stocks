@@ -573,8 +573,11 @@ public class TradeEngine implements EWrapper {
         return true;
     }
     
+    /* Method: retrieveStockQuote
+     * Description: Make 5 attempts to pull a stock quote
+     */
     private void retrieveStockQuote(EClientSocket client, final int ID, final String TICKER, final int WAIT_TIME) throws Exception {
-
+        
         stockQuote = null;
         for (int i = 0; i < 5; i++) {
             reqStockQuote(client, ID, TICKER);

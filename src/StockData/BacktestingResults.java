@@ -27,7 +27,7 @@ public class BacktestingResults {
     }
 
     public Date getStartDt() {
-        return startDt;
+        return this.startDt;
     }
 
     public void setStartDt(Date startDt) {
@@ -35,7 +35,7 @@ public class BacktestingResults {
     }
 
     public Date getEndDt() {
-        return endDt;
+        return this.endDt;
     }
 
     public void setEndDt(Date endDt) {
