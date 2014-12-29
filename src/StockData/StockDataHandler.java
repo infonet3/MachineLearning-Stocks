@@ -122,94 +122,118 @@ public class StockDataHandler {
         }
     }
     
-    public void computeMovingAverages(final int DAYS_BACK) throws Exception {
+    public void computeMovingAverages() throws Exception {
         
-        String summary = String.format("Days Back: %d", DAYS_BACK);
-        logger.Log("StockDataHandler", "computeMovingAverages", summary, "", false);
+        logger.Log("StockDataHandler", "computeMovingAverages", "", "", false);
         
         List<StockTicker> tickers = getAllStockTickers(); 
         
+        final int FIVE = 5;
+        final int TWENTY = 20;
+        final int SIXTY = 60;
+
         //Iterate through all stock tickers
         for (StockTicker stockTicker : tickers) {
             
             //Iterate through the stock prices
             List<MovingAverage> listMAs = new ArrayList<>();
-            List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker(), DAYS_BACK);
+            List<StockPrice> priceList = getAllStockQuotes(stockTicker.getTicker()); //Desc order
 
-            //Price MAs
-            Queue<StockPrice> fiveDayMAQueue = new LinkedList<>();
-            Queue<StockPrice> twentyDayMAQueue = new LinkedList<>();
-            Queue<StockPrice> sixtyDayMAQueue = new LinkedList<>();
-            BigDecimal fiveDayMA = null;
-            BigDecimal twentyDayMA = null;
-            BigDecimal sixtyDayMA = null;
-            
-            //Volume MAs
-            BigDecimal fiveDayVolMA = null;
-            BigDecimal twentyDayVolMA = null;
-            BigDecimal sixtyDayVolMA = null;
-            
-            final int FIVE = 5;
-            final int TWENTY = 20;
-            final int SIXTY = 60;
-
-            logger.Log("StockDataHandler", "computeMovingAverages", "Ticker: " + stockTicker.getTicker(), "", false);
-        
-            //Look through a stock's price history
-            for (StockPrice price : priceList) {
+            int numPrices = priceList.size();
+            for (int i = 0; i < numPrices; i++) {
                 
-                //5 Day MA
-                fiveDayMAQueue.add(price);
-                if (fiveDayMAQueue.size() >= FIVE) {
-                    BigDecimal priceSum = new BigDecimal(0.0);
-                    BigDecimal volSum = new BigDecimal(0.0);
-                    
-                    for (StockPrice sp : fiveDayMAQueue) {
-                        priceSum = priceSum.add(sp.getPrice());
-                        volSum = volSum.add(sp.getVolume());
+                StockPrice stkPrice = priceList.get(i);
+                boolean isUpdated = false;
+                
+                //Five Day MA
+                BigDecimal fiveDayMA = new BigDecimal("0.0");
+                if (stkPrice.getFiveDayMA() == null && (i + FIVE - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < FIVE; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        fiveDayMA = fiveDayMA.add(tmpPrice.getPrice());
                     }
-                
-                    fiveDayMA = priceSum.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
-                    fiveDayVolMA = volSum.divide(new BigDecimal(FIVE), RoundingMode.HALF_UP);
-                    fiveDayMAQueue.remove();
+                    fiveDayMA = fiveDayMA.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    fiveDayMA = stkPrice.getFiveDayMA();
                 }
-                    
-                //20 Day MA
-                twentyDayMAQueue.add(price);
-                if (twentyDayMAQueue.size() >= TWENTY) {
-                    BigDecimal priceSum = new BigDecimal(0.0);
-                    BigDecimal volSum = new BigDecimal(0.0);
 
-                    for (StockPrice sp : twentyDayMAQueue) {
-                        priceSum = priceSum.add(sp.getPrice());
-                        volSum = volSum.add(sp.getVolume());
+                //Twenty Day MA
+                BigDecimal twentyDayMA = new BigDecimal("0.0");
+                if (stkPrice.getTwentyDayMA() == null && (i + TWENTY - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < TWENTY; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        twentyDayMA = twentyDayMA.add(tmpPrice.getPrice());
                     }
-                
-                    twentyDayMA = priceSum.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
-                    twentyDayVolMA = volSum.divide(new BigDecimal(TWENTY), RoundingMode.HALF_UP);
-                    twentyDayMAQueue.remove();
+                    twentyDayMA = twentyDayMA.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    twentyDayMA = stkPrice.getTwentyDayMA();
                 }
-                
-                //60 Day MA
-                sixtyDayMAQueue.add(price);
-                if (sixtyDayMAQueue.size() >= SIXTY) {
-                    BigDecimal priceSum = new BigDecimal(0.0);
-                    BigDecimal volSum = new BigDecimal(0.0);
 
-                    for (StockPrice sp : sixtyDayMAQueue) {
-                        priceSum = priceSum.add(sp.getPrice());
-                        volSum = volSum.add(sp.getVolume());
+                //Sixty Day MA
+                BigDecimal sixtyDayMA = new BigDecimal("0.0");
+                if (stkPrice.getSixtyDayMA() == null && (i + SIXTY - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < SIXTY; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        sixtyDayMA = sixtyDayMA.add(tmpPrice.getPrice());
                     }
-                
-                    sixtyDayMA = priceSum.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
-                    sixtyDayVolMA = volSum.divide(new BigDecimal(SIXTY), RoundingMode.HALF_UP);
-                    sixtyDayMAQueue.remove();
+                    sixtyDayMA = sixtyDayMA.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    sixtyDayMA = stkPrice.getSixtyDayMA();
+                }
+
+                //Five Day Volume MA
+                BigDecimal fiveDayVolMA = new BigDecimal("0.0");
+                if (stkPrice.getFiveDayVolMA() == null && (i + FIVE - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < FIVE; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        fiveDayVolMA = fiveDayVolMA.add(tmpPrice.getVolume());
+                    }
+                    fiveDayVolMA = fiveDayVolMA.divide(new BigDecimal(FIVE), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    fiveDayVolMA = stkPrice.getFiveDayVolMA();
+                }
+
+                //Twenty Day Volume MA
+                BigDecimal twentyDayVolMA = new BigDecimal("0.0");
+                if (stkPrice.getTwentyDayVolMA() == null && (i + TWENTY - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < TWENTY; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        twentyDayVolMA = twentyDayVolMA.add(tmpPrice.getVolume());
+                    }
+                    twentyDayVolMA = twentyDayVolMA.divide(new BigDecimal(TWENTY), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    twentyDayVolMA = stkPrice.getTwentyDayVolMA();
+                }
+
+                //Sixty Day MA
+                BigDecimal sixtyDayVolMA = new BigDecimal("0.0");
+                if (stkPrice.getSixtyDayVolMA() == null && (i + SIXTY - 1) <= (numPrices - 1)) {
+                    for (int j = 0; j < SIXTY; j++) {
+                        StockPrice tmpPrice = priceList.get(i + j);
+                        sixtyDayVolMA = sixtyDayVolMA.add(tmpPrice.getVolume());
+                    }
+                    sixtyDayVolMA = sixtyDayVolMA.divide(new BigDecimal(SIXTY), 2, RoundingMode.HALF_UP);
+                    isUpdated = true;
+                } 
+                else {
+                    sixtyDayVolMA = stkPrice.getSixtyDayVolMA();
                 }
                 
                 //Save MAs to list
-                MovingAverage avg = new MovingAverage(stockTicker.getTicker(), price.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA, fiveDayVolMA, twentyDayVolMA, sixtyDayVolMA);
-                listMAs.add(avg);
-                
+                if (isUpdated) {
+                    MovingAverage avg = new MovingAverage(stockTicker.getTicker(), stkPrice.getDate(), fiveDayMA, twentyDayMA, sixtyDayMA, fiveDayVolMA, twentyDayVolMA, sixtyDayVolMA);
+                    listMAs.add(avg);
+                }
                 
             } //End of PriceList loop
 
@@ -219,10 +243,9 @@ public class StockDataHandler {
         } //End of ticker loop
     }
 
-    public void computeStockQuoteSlopes(final int DAYS_BACK) throws Exception {
+    public void computeStockQuoteSlopes() throws Exception {
         
-        String summary = String.format("Days Back: %d", DAYS_BACK);
-        logger.Log("StockDataHandler", "computeStockQuoteSlopes", summary, "", false);
+        logger.Log("StockDataHandler", "computeStockQuoteSlopes", "", "", false);
         
         List<StockTicker> tickers = getAllStockTickers(); 
         
@@ -230,53 +253,58 @@ public class StockDataHandler {
         for (StockTicker stockTicker : tickers) {
             
             //Iterate through the 5 Day Moving Averages
-            List<StockPrice> priceList = getAll5DayMAs(stockTicker.getTicker(), DAYS_BACK);
+            List<StockPrice> priceList = getAllMAs(stockTicker.getTicker());
             List<StockQuoteSlope> slopeList = new ArrayList<>();
-            BigDecimal fiveDayDelta = null;
-            BigDecimal twentyDayDelta = null;
-            BigDecimal sixtyDayDelta = null;
-            BigDecimal curMA = null;
-            BigDecimal slope = null;
+            
             final int FIVE = 5;
             final int TWENTY = 20;
             final int SIXTY = 60;
 
             logger.Log("StockDataHandler", "computeStockQuoteSlopes", "Ticker: " + stockTicker.getTicker(), "", false);
 
-            //Look through the 5 Day MAs
-            for (int i = 0; i < priceList.size() - FIVE; i++) {
-                curMA = priceList.get(i).getPrice();
-                fiveDayDelta = priceList.get(i + FIVE).getPrice();
-                
-                slope = curMA.add(fiveDayDelta.negate()).divide(new BigDecimal(FIVE), 5, RoundingMode.HALF_UP);
-                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), FIVE, slope);
-                slopeList.add(sqSlope);
-            } 
+            //Loop through the prices
+            int numPrices = priceList.size();
+            for (int i = 0; i < numPrices; i++) {
+
+                StockPrice stkPrice = priceList.get(i);
+                BigDecimal curMA = stkPrice.getFiveDayMA();
+
+                //5 Day Slope
+                if (stkPrice.getFiveDaySlope() == null && (i + FIVE) <= (numPrices - 1)) {
+
+                    BigDecimal fiveDayDelta = priceList.get(i + FIVE).getFiveDayMA();
+                    
+                    BigDecimal slope = curMA.add(fiveDayDelta.negate()).divide(new BigDecimal(FIVE), 5, RoundingMode.HALF_UP);
+                    StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), FIVE, slope);
+                    slopeList.add(sqSlope);
+                }
+
+                //20 Day Slope
+                if (stkPrice.getTwentyDaySlope() == null && (i + TWENTY) <= (numPrices - 1)) {
+
+                    BigDecimal twentyDayDelta = priceList.get(i + TWENTY).getFiveDayMA();
+                    
+                    BigDecimal slope = curMA.add(twentyDayDelta.negate()).divide(new BigDecimal(TWENTY), 5, RoundingMode.HALF_UP);
+                    StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), TWENTY, slope);
+                    slopeList.add(sqSlope);
+                }
+
+                //60 Day Slope
+                if (stkPrice.getSixtyDaySlope() == null && (i + SIXTY) <= (numPrices - 1)) {
+
+                    BigDecimal sixtyDayDelta = priceList.get(i + SIXTY).getFiveDayMA();
+                    
+                    BigDecimal slope = curMA.add(sixtyDayDelta.negate()).divide(new BigDecimal(SIXTY), 5, RoundingMode.HALF_UP);
+                    StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), SIXTY, slope);
+                    slopeList.add(sqSlope);
+                }
+
+            } //End of price loop
             
-            //Look through the 20 Day MAs
-            for (int i = 0; i < priceList.size() - TWENTY; i++) {
-                curMA = priceList.get(i).getPrice();
-                twentyDayDelta = priceList.get(i + TWENTY).getPrice();
-
-                slope = curMA.add(twentyDayDelta.negate()).divide(new BigDecimal(TWENTY), 5, RoundingMode.HALF_UP);
-                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), TWENTY, slope);
-                slopeList.add(sqSlope);
-            } 
-            
-            //Look through the 60 Day MAs
-            for (int i = 0; i < priceList.size() - SIXTY; i++) {
-                curMA = priceList.get(i).getPrice();
-                sixtyDayDelta = priceList.get(i + SIXTY).getPrice();
-
-                slope = curMA.add(sixtyDayDelta.negate()).divide(new BigDecimal(SIXTY), 5, RoundingMode.HALF_UP);
-                StockQuoteSlope sqSlope = new StockQuoteSlope(stockTicker.getTicker(), priceList.get(i).getDate(), SIXTY, slope);
-                slopeList.add(sqSlope);
-            } 
-
             //Send data to DB
             setStockQuoteSlope(slopeList);
-            
             System.gc();
+            
         } //End of ticker loop
     }
 
@@ -526,23 +554,26 @@ public class StockDataHandler {
         return stockList;
     }
     
-    private List<StockPrice> getAllStockQuotes(String ticker, int daysBack) throws Exception {
+    /*Method: getAllStockQuotes
+     *Description: return prices in descending order 
+     */
+    private List<StockPrice> getAllStockQuotes(String ticker) throws Exception {
 
-        String summary = String.format("Ticker: %s, Days Back: %d", ticker, daysBack);
+        String summary = String.format("Ticker: %s", ticker);
         logger.Log("StockDataHandler", "getAllStockQuotes", summary, "", false);
         
         List<StockPrice> stockPrices = new ArrayList<>();
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockQuotes(?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_StockQuotes(?)}")) {
             
             stmt.setString(1, ticker);
-            stmt.setInt(2, daysBack);
 
             ResultSet rs = stmt.executeQuery();
             
             StockPrice price;
             while(rs.next()) {
-                price = new StockPrice(rs.getDate(1), rs.getBigDecimal(2), rs.getBigDecimal(3));
+                price = new StockPrice(rs.getDate(1), rs.getBigDecimal(2), rs.getBigDecimal(3), rs.getBigDecimal(4), rs.getBigDecimal(5), 
+                        rs.getBigDecimal(6), rs.getBigDecimal(7), rs.getBigDecimal(8), rs.getBigDecimal(9));
                 stockPrices.add(price);
             }
                 
@@ -615,23 +646,25 @@ public class StockDataHandler {
         }
     }
     
-    private List<StockPrice> getAll5DayMAs(String ticker, int daysBack) throws Exception {
+    /*Method: getAll5DayMAs
+     *Description: Return 5 Day MAs in DESC order 
+     */
+    private List<StockPrice> getAllMAs(String ticker) throws Exception {
 
-        String summary = String.format("Ticker: %s, Days Back: %d", ticker, daysBack);
-        logger.Log("StockDataHandler", "getAll5DayMAs", summary, "", false);
+        String summary = String.format("Ticker: %s", ticker);
+        logger.Log("StockDataHandler", "getAllMAs", summary, "", false);
 
         List<StockPrice> stockPrices = new ArrayList<>();
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_5DayMovingAvgs(?, ?)}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_RetrieveAll_MovingAvgs(?)}")) {
             
             stmt.setString(1, ticker);
-            stmt.setInt(2, daysBack);
 
             ResultSet rs = stmt.executeQuery();
             
             StockPrice price;
             while(rs.next()) {
-                price = new StockPrice(rs.getDate(1), rs.getBigDecimal(2));
+                price = new StockPrice(rs.getDate(1), rs.getBigDecimal(2), rs.getBigDecimal(3), rs.getBigDecimal(4), rs.getBigDecimal(5));
                 stockPrices.add(price);
             }
                 
@@ -2873,6 +2906,10 @@ public class StockDataHandler {
             }        
         }
 
+        //Compute moving averages
+        computeMovingAverages();
+        computeStockQuoteSlopes();
+        
         //Energy Prices
         final String CRUDE_OIL = "CRUDE-OIL";
         lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);

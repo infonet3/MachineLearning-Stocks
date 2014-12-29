@@ -55,10 +55,6 @@ public class Main {
 
                         sdh.downloadAllStockData();
 
-                        final int DAYS_BACK = 0;
-                        sdh.computeMovingAverages(DAYS_BACK);
-                        sdh.computeStockQuoteSlopes(DAYS_BACK);
-
                         break;
 
                     //Generate Models    
@@ -111,7 +107,7 @@ public class Main {
                         
                         Calendar fromCal = Calendar.getInstance();
                         
-                        fromCal.set(2010, 1, 5);
+                        fromCal.set(2010, 0, 22);
                         Date fromDt = fromCal.getTime();
 
                         Calendar toCal = Calendar.getInstance();
