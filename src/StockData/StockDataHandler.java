@@ -2880,24 +2880,13 @@ public class StockDataHandler {
             return false;
     }
     
-    public void downloadAllStockData() throws Exception {
-
-        logger.Log("StockDataHandler", "downloadAllStockData", "", "", false);
-        
-        //Fundamentals - Premium Data
-        Date lastDt;
-        List<StockTicker> listOfAllStocks = getAllStockTickers();
-        for (StockTicker st : listOfAllStocks) {
-            
-            lastDt = getQtrStockFundamentals_UpdateDate(st.getTicker());
-            List<StockFundamentals> qtrFundamentalsList = getQtrStockFundamentals(st.getTicker(), lastDt);
-            if (qtrFundamentalsList != null)
-                insertQtrStockFundamentalsIntoDB(qtrFundamentalsList);
-        }
-        setStockFundamentals_Quarter_ValidDates();
-        setStockFundamentals_Quarter_PctChg();
+    public void downloadFundamentalsAndQuotes() throws Exception {
+    
+        logger.Log("StockDataHandler", "downloadFundamentalsAndQuotes", "", "", false);
 
         //Stock Quotes
+        Date lastDt;
+        List<StockTicker> listOfAllStocks = getAllStockTickers();
         for (StockTicker st : listOfAllStocks) {
             lastDt = getStockQuote_UpdateDate(st.getTicker());
             if (isDataExpired(lastDt)) {
@@ -2909,10 +2898,29 @@ public class StockDataHandler {
         //Compute moving averages
         computeMovingAverages();
         computeStockQuoteSlopes();
+
+        //Fundamentals - Premium Data
+        for (StockTicker st : listOfAllStocks) {
+            
+            lastDt = getQtrStockFundamentals_UpdateDate(st.getTicker());
+            List<StockFundamentals> qtrFundamentalsList = getQtrStockFundamentals(st.getTicker(), lastDt);
+            if (qtrFundamentalsList != null)
+                insertQtrStockFundamentalsIntoDB(qtrFundamentalsList);
+        }
+        setStockFundamentals_Quarter_ValidDates();
+        setStockFundamentals_Quarter_PctChg();
+
+        //Remove bad data
+        removeAllBadData();
+    }    
+    
+    public void downloadOtherStockData() throws Exception {
+
+        logger.Log("StockDataHandler", "downloadOtherStockData", "", "", false);
         
         //Energy Prices
         final String CRUDE_OIL = "CRUDE-OIL";
-        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
+        Date lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
         if (isDataExpired(lastDt)) {
             String crudeOilPrices = downloadData("SCF/CME_CL1_EN", lastDt); // CHRIS/CME_CL1
             insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
@@ -3096,8 +3104,6 @@ public class StockDataHandler {
             insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
 
-        //Remove bad data
-        removeAllBadData();
     }
 
     private List<StockFundamentals> getQtrStockFundamentals(String ticker, Date lastDt) throws Exception {

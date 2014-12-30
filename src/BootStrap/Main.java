@@ -49,14 +49,22 @@ public class Main {
                 
                 char curAction = firstArg.charAt(i);
                 switch(curAction) {
-                    //Download Data
-                    case 'D':
-                        logger.Log("Main", "main", "Option D", "Downloading Data", false);
+                    //Download Fundamental Data and Quotes
+                    case '1':
+                        logger.Log("Main", "main", "Option 1", "Downloading Data - Fundamentals and Quotes", false);
 
-                        sdh.downloadAllStockData();
+                        sdh.downloadFundamentalsAndQuotes();
 
                         break;
 
+                    //Download Macro Economic Data
+                    case '2':
+                        logger.Log("Main", "main", "Option 2", "Downloading Data - Other Data", false);
+
+                        sdh.downloadOtherStockData();
+                        
+                        break;
+                        
                     //Generate Models    
                     case 'M':
                         logger.Log("Main", "main", "Option M", "Generating Models", false);
