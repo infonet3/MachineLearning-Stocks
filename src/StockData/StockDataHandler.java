@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -841,7 +842,10 @@ public class StockDataHandler {
                     
                     lowPrice = new BigDecimal(cells[3]);
                     settlePrice = new BigDecimal(cells[4]);
+                    volume = new BigDecimal(cells[5]);
+                    adjClosePrice = new BigDecimal(cells[6]);
 
+                    /*ONLY USE IF PULLING FROM QUANDL!!!
                     //Parse NIKEII differently
                     if (stockIndex.equals("NIKEII")) {
                         volume = new BigDecimal(0.0);
@@ -851,6 +855,7 @@ public class StockDataHandler {
                         volume = new BigDecimal(cells[5]);
                         adjClosePrice = new BigDecimal(cells[6]);
                     }
+                    */ 
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
@@ -3079,28 +3084,32 @@ public class StockDataHandler {
         final String SP500 = "S&P500";
         lastDt = getStockIndex_UpdateDate(SP500);
         if (isDataExpired(lastDt)) {
-            String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt);
+            //String spIndex = downloadData("YAHOO/INDEX_GSPC", lastDt); //Quandl Data
+            String spIndex = downloadYahooData("%5EGSPC", lastDt);
             insertStockIndexDataIntoDB(SP500, spIndex);
         }
 
         final String DAX = "DAX";
         lastDt = getStockIndex_UpdateDate(DAX);
         if (isDataExpired(lastDt)) {
-            String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt);
+            //String daxIndex = downloadData("YAHOO/INDEX_GDAXI", lastDt); //Quandl Data
+            String daxIndex = downloadYahooData("%5EGDAXI", lastDt);
             insertStockIndexDataIntoDB(DAX, daxIndex);
         }        
 
         final String HANGSENG = "HANGSENG";
         lastDt = getStockIndex_UpdateDate(HANGSENG);
         if (isDataExpired(lastDt)) {
-            String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt);
+            //String hangSengIndex = downloadData("YAHOO/INDEX_HSI", lastDt); //Quandl Data
+            String hangSengIndex = downloadYahooData("%5EHSI", lastDt);
             insertStockIndexDataIntoDB(HANGSENG, hangSengIndex);
         }
 
         final String NIKEII = "NIKEII";
         lastDt = getStockIndex_UpdateDate(NIKEII);
         if (isDataExpired(lastDt)) {
-            String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt);
+            //String nikeiiIndex = downloadData("YAHOO/INDEX_N225", lastDt); //Quandl Data
+            String nikeiiIndex = downloadYahooData("%5EN225", lastDt);
             insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
 
@@ -3420,6 +3429,79 @@ public class StockDataHandler {
         } //End for
     }
     
+    private String downloadYahooData(final String CODE, final Date FROM_DT) throws Exception {
+        
+        String summary = String.format("Code: %s, From: %s", CODE, FROM_DT.toString());
+        logger.Log("StockDataHandler", "downloadYahooData", summary, "", false);
+        
+        //Move the date ONE day ahead
+        final long DAY_IN_MILLIS = 86400000;
+        Date newFromDt = new Date();
+        newFromDt.setTime(FROM_DT.getTime() + DAY_IN_MILLIS);
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        String dtStr = sdf.format(newFromDt);
+        String sYear = dtStr.substring(0, 4);
+        String sMonth = dtStr.substring(5, 7);
+        sMonth = String.valueOf(Integer.parseInt(sMonth) - 1);
+        String sDay = dtStr.substring(8, 10);
+        
+        String curDtStr = sdf.format(new Date());
+        String eYear = curDtStr.substring(0, 4);
+        String eMonth = curDtStr.substring(5, 7);
+        eMonth = String.valueOf(Integer.parseInt(eMonth) - 1);
+        String eDay = curDtStr.substring(8, 10);
+        
+        String yahooQuery = "http://real-chart.finance.yahoo.com/table.csv?s=" + CODE + "&a=" + sMonth + "&b=" + sDay + "&c=" + sYear + 
+                                                                                        "&d=" + eMonth + "&e=" + eDay + "&f=" + eYear + "&g=d";
+        
+        StringBuilder responseStr = new StringBuilder();
+
+        try {
+            URL url = new URL(yahooQuery);
+
+            //Try 3 times for a good response
+            URLConnection conxn = null;
+            boolean isGood = false;
+            for (int i = 0; i < 3; i++) {
+                conxn = url.openConnection();
+                HttpURLConnection httpConxn = (HttpURLConnection)conxn;
+                if (httpConxn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    isGood = true;
+                    break;
+                }
+                
+                Thread.sleep(5000);
+                logger.Log("StockDataHandler", "downloadYahooData", "Retrying", url.toString(), true);
+            }
+
+            //Ensure we finally got a good response
+            if (!isGood) 
+                throw new Exception("Bad response from URL: " + url.toString());
+            
+            logger.Log("StockDataHandler", "downloadYahooData", "Downloading", yahooQuery, false);
+            
+            //Pull back the data as CSV
+            try (InputStream is = conxn.getInputStream()) {
+                
+                int b;
+                for(;;) {
+                    b = is.read();
+                    if (b == -1)
+                        break;
+                    
+                    responseStr.append((char) b);
+                }
+            }
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "downloadYahooData", "Exception", exc.toString(), true);
+        }
+
+        return responseStr.toString();
+    }
+    
     private List<BEA_Data> downloadBEAData() throws Exception {
 
         logger.Log("StockDataHandler", "downloadBEAData", "", "", false);
@@ -3680,8 +3762,26 @@ public class StockDataHandler {
 
         try {
             URL url = new URL(quandlQuery);
-            URLConnection conxn = url.openConnection();
 
+            //Try 3 times for a good response
+            URLConnection conxn = null;
+            boolean isGood = false;
+            for (int i = 0; i < 3; i++) {
+                conxn = url.openConnection();
+                HttpURLConnection httpConxn = (HttpURLConnection)conxn;
+                if (httpConxn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    isGood = true;
+                    break;
+                }
+                
+                Thread.sleep(5000);
+                logger.Log("StockDataHandler", "downloadData", "Retrying", url.toString(), true);
+            }
+
+            //Ensure we finally got a good response
+            if (!isGood) 
+                throw new Exception("Bad response from URL: " + url.toString());
+            
             logger.Log("StockDataHandler", "downloadData", "Downloading", quandlQuery, false);
             
             //Pull back the data as CSV
