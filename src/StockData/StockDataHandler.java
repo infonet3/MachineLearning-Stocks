@@ -68,7 +68,9 @@ public class StockDataHandler {
     final String QUANDL_BASE_URL;
     
     final String BEA_USER_ID;
-    
+
+    final int SVC_THROTTLE;
+
     public StockDataHandler() throws Exception {
         //Load the file settings
         Properties p = new Properties();
@@ -87,6 +89,8 @@ public class StockDataHandler {
             QUANDL_BASE_URL = p.getProperty("quandl_base_url");
             
             BEA_USER_ID = p.getProperty("bea_user_id");
+            
+            SVC_THROTTLE = Integer.parseInt(p.getProperty("throttle"));
         }
     }
     
@@ -1107,7 +1111,7 @@ public class StockDataHandler {
                     dt = sdf.parse(cells[0]);
                     sqlDt = new java.sql.Date(dt.getTime());
                     
-                    price = new BigDecimal(cells[1]);
+                    price = new BigDecimal(cells[4]);
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
@@ -2993,22 +2997,21 @@ public class StockDataHandler {
         final String GOLD = "GOLD";
         lastDt = getPreciousMetals_UpdateDate(GOLD);
         if (isDataExpired(lastDt)) {
-            String goldPrices = downloadData("WGC/GOLD_DAILY_USD", lastDt);
-            //Backup Source FRED/GOLDPMGBD228NLBM - Federal Reserve
+            String goldPrices = downloadData("SCF/CME_GC1_EN", lastDt); //Old Code "WGC/GOLD_DAILY_USD"
             insertPreciousMetalsPricesIntoDB(GOLD, goldPrices);
         }
         
         final String SILVER = "SILVER";
         lastDt = getPreciousMetals_UpdateDate(SILVER);
         if (isDataExpired(lastDt)) {
-            String silverPrices = downloadData("LBMA/SILVER", lastDt);
+            String silverPrices = downloadData("SCF/CME_SI1_EN", lastDt); //Old Code "LBMA/SILVER"
             insertPreciousMetalsPricesIntoDB(SILVER, silverPrices);
         }
 
         final String PLATINUM = "PLATINUM";
         lastDt = getPreciousMetals_UpdateDate(PLATINUM);
         if (isDataExpired(lastDt)) {
-            String platinumPrices = downloadData("LPPM/PLAT", lastDt);
+            String platinumPrices = downloadData("SCF/CME_PL1_EN", lastDt); //Old Code "LPPM/PLAT"
             insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
         }        
 
@@ -3746,7 +3749,7 @@ public class StockDataHandler {
         logger.Log("StockDataHandler", "downloadData", summary, "", false);
 
         //Slow Down
-        Thread.sleep(2100);
+        Thread.sleep(SVC_THROTTLE);
         
         //Move the date ONE day ahead
         final long DAY_IN_MILLIS = 86400000;
@@ -3769,13 +3772,14 @@ public class StockDataHandler {
             for (int i = 0; i < 3; i++) {
                 conxn = url.openConnection();
                 HttpURLConnection httpConxn = (HttpURLConnection)conxn;
-                if (httpConxn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                int httpResponseCode = httpConxn.getResponseCode();
+                if (httpResponseCode == HttpURLConnection.HTTP_OK) {
                     isGood = true;
                     break;
                 }
                 
                 Thread.sleep(5000);
-                logger.Log("StockDataHandler", "downloadData", "Retrying", url.toString(), true);
+                logger.Log("StockDataHandler", "downloadData", "Retrying, HTTP Code: " + httpResponseCode, url.toString(), false);
             }
 
             //Ensure we finally got a good response
