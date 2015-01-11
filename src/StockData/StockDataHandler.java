@@ -45,6 +45,12 @@ import java.util.Queue;
 import java.util.Set;
 import javax.json.Json;
 import javax.json.stream.JsonParser;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 /**
  *
@@ -68,7 +74,8 @@ public class StockDataHandler {
     final String QUANDL_BASE_URL;
     
     final String BEA_USER_ID;
-
+    final String FRED_KEY;
+    
     final int SVC_THROTTLE;
 
     public StockDataHandler() throws Exception {
@@ -89,6 +96,7 @@ public class StockDataHandler {
             QUANDL_BASE_URL = p.getProperty("quandl_base_url");
             
             BEA_USER_ID = p.getProperty("bea_user_id");
+            FRED_KEY = p.getProperty("fred_key");
             
             SVC_THROTTLE = Integer.parseInt(p.getProperty("throttle"));
         }
@@ -1337,8 +1345,6 @@ public class StockDataHandler {
             conxn.setAutoCommit(false);
             
             for (i = 0; i < rows.length; i++) {
-                if (i == 0) //Skip the header row
-                    continue;
 
                 //Parse the record
                 try {
@@ -1496,8 +1502,6 @@ public class StockDataHandler {
             conxn.setAutoCommit(false);
             
             for (i = 0; i < rows.length; i++) {
-                if (i == 0) //Skip the header row
-                    continue;
 
                 //Parse the record
                 try {
@@ -2926,10 +2930,32 @@ public class StockDataHandler {
     public void downloadOtherStockData() throws Exception {
 
         logger.Log("StockDataHandler", "downloadOtherStockData", "", "", false);
+
+        //Precious Metals
+        final String GOLD = "GOLD";
+        Date lastDt = getPreciousMetals_UpdateDate(GOLD);
+        if (isDataExpired(lastDt)) {
+            String goldPrices = downloadData("SCF/CME_GC1_EN", lastDt); //Old Code "WGC/GOLD_DAILY_USD"
+            insertPreciousMetalsPricesIntoDB(GOLD, goldPrices);
+        }
         
+        final String SILVER = "SILVER";
+        lastDt = getPreciousMetals_UpdateDate(SILVER);
+        if (isDataExpired(lastDt)) {
+            String silverPrices = downloadData("SCF/CME_SI1_EN", lastDt); //Old Code "LBMA/SILVER"
+            insertPreciousMetalsPricesIntoDB(SILVER, silverPrices);
+        }
+
+        final String PLATINUM = "PLATINUM";
+        lastDt = getPreciousMetals_UpdateDate(PLATINUM);
+        if (isDataExpired(lastDt)) {
+            String platinumPrices = downloadData("SCF/CME_PL1_EN", lastDt); //Old Code "LPPM/PLAT"
+            insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
+        }        
+
         //Energy Prices
         final String CRUDE_OIL = "CRUDE-OIL";
-        Date lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
+        lastDt = getEnergyPrices_UpdateDate(CRUDE_OIL);
         if (isDataExpired(lastDt)) {
             String crudeOilPrices = downloadData("SCF/CME_CL1_EN", lastDt); // CHRIS/CME_CL1
             insertEnergyPricesIntoDB(CRUDE_OIL, crudeOilPrices);
@@ -2942,27 +2968,12 @@ public class StockDataHandler {
             insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
         }
 
-        //M2 - Money Supply
-        final String M2 = "M2-Vel";
-        lastDt = getEconomicData_UpdateDate(M2);
-        if (isDataExpired(lastDt)) {
-            String m2Data = downloadData("FRED/M2V", lastDt);
-            insertEconomicDataIntoDB(M2, m2Data);
-        }
-        
         //Mortgage Rates
         lastDt = get30YrMortgageRates_UpdateDate();
         if (isDataExpired(lastDt)) {
             String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
             insertMortgageDataIntoDB(thirtyYrMtgRates);
         }        
-        
-        //New Home Prices
-        lastDt = getAvgNewHomePrices_UpdateDate();
-        if (isDataExpired(lastDt)) {
-            String newHomePrices = downloadData("FRED/ASPNHSUS", lastDt);
-            insertNewHomePriceDataIntoDB(newHomePrices);
-        }
 
         //CPI
         lastDt = getCPI_UpdateDate();
@@ -2993,33 +3004,28 @@ public class StockDataHandler {
             insertCurrencyRatiosIntoDB(EURO, usdEur);
         }        
 
-        //Precious Metals
-        final String GOLD = "GOLD";
-        lastDt = getPreciousMetals_UpdateDate(GOLD);
+        //M2 - Money Supply
+        /*
+        final String M2 = "M2-Vel";
+        lastDt = getEconomicData_UpdateDate(M2);
         if (isDataExpired(lastDt)) {
-            String goldPrices = downloadData("SCF/CME_GC1_EN", lastDt); //Old Code "WGC/GOLD_DAILY_USD"
-            insertPreciousMetalsPricesIntoDB(GOLD, goldPrices);
+            String m2Data = downloadFREDData("M2V", lastDt);
+            insertEconomicDataIntoDB(M2, m2Data);
+        }
+        */ 
+
+        //New Home Prices
+        lastDt = getAvgNewHomePrices_UpdateDate();
+        if (isDataExpired(lastDt)) {
+            String newHomePrices = downloadFREDData("ASPNHSUS", lastDt);
+            insertNewHomePriceDataIntoDB(newHomePrices);
         }
         
-        final String SILVER = "SILVER";
-        lastDt = getPreciousMetals_UpdateDate(SILVER);
-        if (isDataExpired(lastDt)) {
-            String silverPrices = downloadData("SCF/CME_SI1_EN", lastDt); //Old Code "LBMA/SILVER"
-            insertPreciousMetalsPricesIntoDB(SILVER, silverPrices);
-        }
-
-        final String PLATINUM = "PLATINUM";
-        lastDt = getPreciousMetals_UpdateDate(PLATINUM);
-        if (isDataExpired(lastDt)) {
-            String platinumPrices = downloadData("SCF/CME_PL1_EN", lastDt); //Old Code "LPPM/PLAT"
-            insertPreciousMetalsPricesIntoDB(PLATINUM, platinumPrices);
-        }        
-
         //Interest Rates - Prime
         final String PRIME = "PRIME";
         lastDt = getInterestRates_UpdateDate(PRIME);
         if (isDataExpired(lastDt)) {
-            String primeRates = downloadData("FRED/DPRIME", lastDt);
+            String primeRates = downloadFREDData("DPRIME", lastDt);
             insertInterestRatesIntoDB(PRIME, primeRates);
         }        
 
@@ -3027,7 +3033,7 @@ public class StockDataHandler {
         final String EFF_FUNDS_RT = "EF_FNDS_RT";
         lastDt = getInterestRates_UpdateDate(EFF_FUNDS_RT);
         if (isDataExpired(lastDt)) {
-            String effFundsRate = downloadData("FRED/DFF", lastDt);
+            String effFundsRate = downloadFREDData("DFF", lastDt);
             insertInterestRatesIntoDB(EFF_FUNDS_RT, effFundsRate);
         }        
 
@@ -3035,7 +3041,7 @@ public class StockDataHandler {
         final String SIX_MO_T_BILL = "6_MO_TBILL";
         lastDt = getInterestRates_UpdateDate(SIX_MO_T_BILL);
         if (isDataExpired(lastDt)) {
-            String sixMoTBillRates = downloadData("FRED/DTB6", lastDt);
+            String sixMoTBillRates = downloadFREDData("DTB6", lastDt);
             insertInterestRatesIntoDB(SIX_MO_T_BILL, sixMoTBillRates);
         }
 
@@ -3043,7 +3049,7 @@ public class StockDataHandler {
         final String FIVE_YR_T_RT = "5_YR_T_RT";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_T_RT);
         if (isDataExpired(lastDt)) {
-            String fiveYrTRates = downloadData("FRED/DGS5", lastDt);
+            String fiveYrTRates = downloadFREDData("DGS5", lastDt);
             insertInterestRatesIntoDB(FIVE_YR_T_RT, fiveYrTRates);
         }
 
@@ -3051,7 +3057,7 @@ public class StockDataHandler {
         final String CREDIT_CARD_RT = "CREDIT_CRD";
         lastDt = getInterestRates_UpdateDate(CREDIT_CARD_RT);
         if (isDataExpired(lastDt)) {
-            String cardRates = downloadData("FRED/TERMCBCCALLNS", lastDt);
+            String cardRates = downloadFREDData("TERMCBCCALLNS", lastDt);
             insertInterestRatesIntoDB(CREDIT_CARD_RT, cardRates);
         }
         
@@ -3059,7 +3065,7 @@ public class StockDataHandler {
         final String FIVE_YR_ARM_RT = "5_YR_ARM";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_ARM_RT);
         if (isDataExpired(lastDt)) {
-            String fiveYrARM = downloadData("FMAC/ARM5YR", lastDt);
+            String fiveYrARM = downloadFREDData("ARM5YR", lastDt);
             insertInterestRatesIntoDB(FIVE_YR_ARM_RT, fiveYrARM);
         }
 
@@ -3067,7 +3073,7 @@ public class StockDataHandler {
         final String SIX_MO_LIBOR = "6_MO_LIBOR";
         lastDt = getInterestRates_UpdateDate(SIX_MO_LIBOR);
         if (isDataExpired(lastDt)) {
-            String sixMoLIBOR = downloadData("FRED/USD6MTD156N", lastDt);
+            String sixMoLIBOR = downloadFREDData("USD6MTD156N", lastDt);
             insertInterestRatesIntoDB(SIX_MO_LIBOR, sixMoLIBOR);
         }
         
@@ -3075,7 +3081,7 @@ public class StockDataHandler {
         final String FIVE_YR_SWAP = "5_YR_SWAP";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_SWAP);
         if (isDataExpired(lastDt)) {
-            String fiveYrSwaps = downloadData("FRED/DSWP5", lastDt);
+            String fiveYrSwaps = downloadFREDData("DSWP5", lastDt);
             insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
         }
       
@@ -3500,6 +3506,84 @@ public class StockDataHandler {
             
         } catch(Exception exc) {
             logger.Log("StockDataHandler", "downloadYahooData", "Exception", exc.toString(), true);
+        }
+
+        return responseStr.toString();
+    }
+
+    private String downloadFREDData(final String CODE, final Date FROM_DT) throws Exception {
+        
+        String summary = String.format("Code: %s, From: %s", CODE, FROM_DT.toString());
+        logger.Log("StockDataHandler", "downloadFREDData", summary, "", false);
+        
+        //Move the date ONE day ahead
+        final long DAY_IN_MILLIS = 86400000;
+        Date newFromDt = new Date();
+        newFromDt.setTime(FROM_DT.getTime() + DAY_IN_MILLIS);
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        String dtStr = sdf.format(newFromDt);
+        String sYear = dtStr.substring(0, 4);
+        String sMonth = dtStr.substring(5, 7);
+        String sDay = dtStr.substring(8, 10);
+        
+        String fredQuery = "http://api.stlouisfed.org/fred/series/observations?series_id=" + CODE + "&api_key=" + FRED_KEY + "&observation_start=" + sYear + "-" + sMonth + "-" + sDay;
+
+        StringBuilder responseStr = new StringBuilder();
+
+        try {
+            URL url = new URL(fredQuery);
+
+            //Try 3 times for a good response
+            URLConnection conxn = null;
+            boolean isGood = false;
+            for (int i = 0; i < 3; i++) {
+                conxn = url.openConnection();
+                HttpURLConnection httpConxn = (HttpURLConnection)conxn;
+                if (httpConxn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    isGood = true;
+                    break;
+                }
+                
+                Thread.sleep(5000);
+                logger.Log("StockDataHandler", "downloadFREDData", "Retrying", url.toString(), true);
+            }
+
+            //Ensure we finally got a good response
+            if (!isGood) 
+                throw new Exception("Bad response from URL: " + url.toString());
+            
+            logger.Log("StockDataHandler", "downloadFREDData", "Downloading", fredQuery, false);
+            
+            //Now Convert XML to CSV
+            try (InputStream is = conxn.getInputStream()) {
+
+                DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+                DocumentBuilder docBuilder = dbFactory.newDocumentBuilder();
+                Document doc = docBuilder.parse(conxn.getInputStream());
+                doc.getDocumentElement().normalize();
+
+                System.out.println("Root element :" + doc.getDocumentElement().getNodeName());
+
+                NodeList nList = doc.getElementsByTagName("observation");
+                int listSize = nList.getLength();
+                for (int i = 0; i < listSize; i++) {
+
+                    Node nNode = nList.item(i);
+                    if (nNode.getNodeType() == Node.ELEMENT_NODE) {
+
+                        Element eElement = (Element) nNode;
+                        String date = eElement.getAttribute("date");
+                        String value = eElement.getAttribute("value");
+                        
+                        responseStr.append(date).append(",").append(value).append("\n");
+                    }
+                }
+            }
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "downloadFREDData", "Exception", exc.toString(), true);
         }
 
         return responseStr.toString();
