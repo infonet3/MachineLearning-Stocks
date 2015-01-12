@@ -1330,6 +1330,9 @@ public class StockDataHandler {
         String summary = String.format("Rate Type: %s", RATE_TYPE);
         logger.Log("StockDataHandler", "insertInterestRatesIntoDB", summary, "", false);
 
+        if (primeRates.isEmpty())
+            return;
+        
         String[] rows = primeRates.split("\n");
 
         String row;
@@ -3061,6 +3064,7 @@ public class StockDataHandler {
             insertInterestRatesIntoDB(CREDIT_CARD_RT, cardRates);
         }
         
+        /*
         //Interest Rates - 5 Year ARM Rates
         final String FIVE_YR_ARM_RT = "5_YR_ARM";
         lastDt = getInterestRates_UpdateDate(FIVE_YR_ARM_RT);
@@ -3068,7 +3072,8 @@ public class StockDataHandler {
             String fiveYrARM = downloadFREDData("ARM5YR", lastDt);
             insertInterestRatesIntoDB(FIVE_YR_ARM_RT, fiveYrARM);
         }
-
+        */ 
+        
         //Interest Rates - 6 Months LIBOR
         final String SIX_MO_LIBOR = "6_MO_LIBOR";
         lastDt = getInterestRates_UpdateDate(SIX_MO_LIBOR);
@@ -3563,8 +3568,6 @@ public class StockDataHandler {
                 DocumentBuilder docBuilder = dbFactory.newDocumentBuilder();
                 Document doc = docBuilder.parse(conxn.getInputStream());
                 doc.getDocumentElement().normalize();
-
-                System.out.println("Root element :" + doc.getDocumentElement().getNodeName());
 
                 NodeList nList = doc.getElementsByTagName("observation");
                 int listSize = nList.getLength();
