@@ -1453,8 +1453,6 @@ public class StockDataHandler {
             conxn.setAutoCommit(false);
             
             for (i = 0; i < rows.length; i++) {
-                if (i == 0) //Skip the header row
-                    continue;
 
                 //Parse the record
                 try {
@@ -2974,7 +2972,8 @@ public class StockDataHandler {
         //Mortgage Rates
         lastDt = get30YrMortgageRates_UpdateDate();
         if (isDataExpired(lastDt)) {
-            String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
+            //String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
+            String thirtyYrMtgRates = downloadFREDData("MORTGAGE30US", lastDt);
             insertMortgageDataIntoDB(thirtyYrMtgRates);
         }        
 
@@ -3017,6 +3016,14 @@ public class StockDataHandler {
         }
         */ 
 
+        //Unemployment
+        final String UNEMPLOYMENT = "UNEMPLOY";
+        lastDt = getEconomicData_UpdateDate(UNEMPLOYMENT);
+        if (isDataExpired(lastDt)) {
+            String unemploymentData = downloadFREDData("UNRATE", lastDt);
+            insertEconomicDataIntoDB(UNEMPLOYMENT, unemploymentData);
+        }
+        
         //New Home Prices
         lastDt = getAvgNewHomePrices_UpdateDate();
         if (isDataExpired(lastDt)) {
