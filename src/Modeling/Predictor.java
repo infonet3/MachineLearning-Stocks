@@ -189,16 +189,27 @@ public class Predictor implements Runnable {
         
     }
     
-    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date runDate, final String PRED_TYPE) throws Exception {
+    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date RUN_DATE, final String PRED_TYPE) throws Exception {
 
         logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "", false);
         
         List<StockHolding> topStocks = new ArrayList<>();
+        final double MIN_RATIO = 0.99;
         
         try {
-            //Get List of Stocks forecasted to go up
+            //Ensure the predictions are present before continuing
             StockDataHandler sdh = new StockDataHandler();
-            List<String> stockList = sdh.getPostiveClassificationPredictions(runDate, PRED_TYPE);
+            double predToTickerPct = sdh.getPredToTickersPct(RUN_DATE);
+            String summary = String.format("Predictions To Ticker Percent = %.2f", predToTickerPct);
+            logger.Log("Predictor", "topStockPicks", summary, "", false);
+            
+            if (predToTickerPct < MIN_RATIO) {
+                logger.Log("Predictor", "topStockPicks", "Prediction to Ticker Ratio TOO LOW!", "", true);
+                System.exit(30);
+            }
+            
+            //Get List of Stocks forecasted to go up
+            List<String> stockList = sdh.getPostiveClassificationPredictions(RUN_DATE, PRED_TYPE);
             if (stockList.size() >= NUM_STOCKS) {
 
                 //Get the Forecasted Percent Change for each stock
@@ -206,7 +217,7 @@ public class Predictor implements Runnable {
                 List<FuturePrice> fpList = new ArrayList<>();
                 final String MODEL_TYPE = "M5P";
                 for (String stock : stockList) {
-                    fp = sdh.getTargetValueRegressionPredictions(stock, runDate, PRED_TYPE, MODEL_TYPE);
+                    fp = sdh.getTargetValueRegressionPredictions(stock, RUN_DATE, PRED_TYPE, MODEL_TYPE);
                     fpList.add(fp);
                 }
 

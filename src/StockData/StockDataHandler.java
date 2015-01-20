@@ -688,6 +688,34 @@ public class StockDataHandler {
         
         return stockPrices;
     }
+
+    /*Method: getPredToTickersPct
+     *Description: Determines how many predictions we have per tickers in the DB
+     */
+    public double getPredToTickersPct(final Date RUN_DATE) throws Exception {
+
+        String summary = String.format("Run Date: %s", RUN_DATE.toString());
+        logger.Log("StockDataHandler", "getPredToTickersPct", summary, "", false);
+
+        double pct = 0.0;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_PredictionToTickerPct(?)}")) {
+            
+            java.sql.Date dt = new java.sql.Date(RUN_DATE.getTime());
+            stmt.setDate(1, dt);
+
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                pct = rs.getDouble(1);
+            }
+                
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "getPredToTickersPct", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return pct;
+    }
     
     public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt, boolean saveToFile) throws Exception {
 
@@ -790,7 +818,7 @@ public class StockDataHandler {
             //Ensure that records were returned
             if (recordCount == 0) {
                 String excOutput = String.format("Ticker: %s, No records were returned from the DB!", stockTicker);
-                throw new Exception(excOutput);
+                logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", excOutput, "", false);
             }
             
         } catch(Exception exc) {
