@@ -587,90 +587,38 @@ public class TradeEngine implements EWrapper {
         }
     }
     
-    /* Method: runTrading
-     * Notes: This method will only buy at 9AM and will only sell at 3PM
+    /* Method: runTrading_Buy
      */
-    public void runTrading(final int MAX_STOCK_COUNT, final int IB_GATE_PORT) throws Exception {
+    public void runTrading_Buy(final int MAX_STOCK_COUNT, final int IB_GATE_PORT) throws Exception {
+
+        String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
+        logger.Log("TradeEngine", "runTrading_Buy", strOutput, "", false);
 
         final int WAIT_TIME = 3000;
-        
-        Calendar calNow = Calendar.getInstance();
-        final int HOUR_OF_DAY = calNow.get(Calendar.HOUR_OF_DAY);
-        
-        String strOutput = String.format("Max Stock Count: %d", MAX_STOCK_COUNT);
-        logger.Log("TradeEngine", "runTrading", strOutput, "", false);
-        
+
         EClientSocket client = connect(IB_GATE_PORT);
         try {
-            //Get current holdings
+            //Get current holdings at IB
             client.reqPositions();
             Thread.sleep(WAIT_TIME);
             int holdingCount = listHoldings.size();
 
-            //Find expiration from DB
-            StockDataHandler sdh = new StockDataHandler();
-            if (holdingCount > 0) {
+            //No stocks held at IB
+            if (holdingCount == 0) {
+                StockDataHandler sdh = new StockDataHandler();
                 List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
-                logger.Log("TradeEngine", "runTrading", "Current Holdings = " + listCurStocks.size(), "", false);
+                logger.Log("TradeEngine", "runTrading_Buy", "Current Holdings = " + listCurStocks.size(), "", false);
 
                 //Sanity check
                 if (holdingCount != listCurStocks.size()) {
-                    logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
+                    logger.Log("TradeEngine", "runTrading_Buy", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
                     System.exit(5);
                 }
 
-                //Sell everything if expired
-                Date now = new Date();
-                Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
-                if (now.compareTo(expDt) >= 0) { 
-
-                    if (HOUR_OF_DAY != 15) //Ensure its 3PM
-                        return;
-
-                    String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
-                    logger.Log("TradeEngine", "runTrading", "Holdings Expired", strExpOutput, false);
-
-                    for (int i = 0; i < listCurStocks.size(); i++) {
-                        StockHolding stk = listCurStocks.get(i);
-
-                        retrieveStockQuote(client, i, stk.getTicker(), WAIT_TIME);
-                        
-                        //Now ensure the quote is valid
-                        if (!isStockQuoteValid(stk.getTicker())) {
-                            logger.Log("TradeEngine", "runTrading", stk.getTicker(), "Invalid Stock Quote!", true);
-                            continue;
-                        }
-
-                        //Limit order for 99.5% of value
-                        BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("0.995"));
-                        String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
-                        double limitPrice = Double.parseDouble(strValue);
-
-                        int orderID = sdh.getStockOrderID();
-                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), limitPrice);
-                        Thread.sleep(WAIT_TIME);
-
-                        //Update DB
-                        sdh.updateStockTrade(stk.getTicker());
-                    }
-
-                    return; //Sold all stocks, done
-
-                } //End If expired holdings
-                //Stocks aren't expired yet, done
-                else {
-                    logger.Log("TradeEngine", "runTrading", "Holdings Not Yet Expired", "", false);
-                    return; 
-                }
-            } //End If holdings > 0
-            //No current stock holdings
-            else if (HOUR_OF_DAY == 9 || HOUR_OF_DAY == 10) { //9-10AM to buy stocks
-
-                logger.Log("TradeEngine", "runTrading", "No current stock holdings", "", false);
-                
-                Dates dates = new Dates();
+                logger.Log("TradeEngine", "runTrading_Buy", "No current stock holdings", "", false);
                 
                 //Honor 3 wait waiting period
+                Dates dates = new Dates();
                 Date lastSale = sdh.getLastStockSaleDate();
                 if (lastSale != null) {
                     Calendar calSale = Calendar.getInstance();
@@ -680,8 +628,9 @@ public class TradeEngine implements EWrapper {
                     calSale = dates.getTargetDate(calSale, WAITING_PERIOD);
 
                     //Exit if 3 day waiting period isn't yet met
+                    Calendar calNow = Calendar.getInstance();
                     if (calNow.compareTo(calSale) < 0) {
-                        logger.Log("TradeEngine", "runTrading", "Waiting for 3 days to trade again", "", false);
+                        logger.Log("TradeEngine", "runTrading_Buy", "Waiting for 3 days to trade again", "", false);
                         return;
                     }
                 }
@@ -690,12 +639,12 @@ public class TradeEngine implements EWrapper {
                 reqAccountBalance(client);
                 Thread.sleep(WAIT_TIME);
                 if (availableFunds == null) {
-                    logger.Log("TradeEngine", "runTrading", "Assertion Failed", "Account Balance wasn't retrieved from IB", true);
+                    logger.Log("TradeEngine", "runTrading_Buy", "Assertion Failed", "Account Balance wasn't retrieved from IB", true);
                     System.exit(6);
                 }
                 
                 //Enter buy orders
-                logger.Log("TradeEngine", "runTrading", "Buying Stocks", "", false);
+                logger.Log("TradeEngine", "runTrading_Buy", "Buying Stocks", "", false);
 
                 final BigDecimal CASH_RESERVE = new BigDecimal("100.00");
                 BigDecimal divisor = new BigDecimal(String.valueOf(MAX_STOCK_COUNT));
@@ -707,7 +656,7 @@ public class TradeEngine implements EWrapper {
                 final String MODEL_TYPE = "M5P";
                 List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday, PRED_TYPE);
                 if (stkPicks.size() != MAX_STOCK_COUNT) {
-                    logger.Log("TradeEngine", "runTrading", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
+                    logger.Log("TradeEngine", "runTrading_Buy", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
                     return;
                 }
 
@@ -719,7 +668,7 @@ public class TradeEngine implements EWrapper {
 
                     //Now ensure the quote is valid
                     if (!isStockQuoteValid(ticker)) {
-                        logger.Log("TradeEngine", "runTrading", ticker, "Invalid Stock Quote!", true);
+                        logger.Log("TradeEngine", "runTrading_Buy", ticker, "Invalid Stock Quote!", true);
                         continue;
                     }
 
@@ -743,7 +692,74 @@ public class TradeEngine implements EWrapper {
             client.eDisconnect();
         }
     }
-    
+
+    /* Method: runTrading_Sell
+     */
+    public void runTrading_Sell(final int IB_GATE_PORT) throws Exception {
+        
+        logger.Log("TradeEngine", "runTrading_Sell", "", "", false);
+
+        final int WAIT_TIME = 3000;
+
+        EClientSocket client = connect(IB_GATE_PORT);
+        try {
+            //Get current holdings
+            client.reqPositions();
+            Thread.sleep(WAIT_TIME);
+            int holdingCount = listHoldings.size();
+
+            //Find expiration from DB
+            StockDataHandler sdh = new StockDataHandler();
+            if (holdingCount > 0) {
+                List<StockHolding> listCurStocks = sdh.getCurrentStockHoldings();
+                logger.Log("TradeEngine", "runTrading_Sell", "Current Holdings = " + listCurStocks.size(), "", false);
+
+                //Sanity check
+                if (holdingCount != listCurStocks.size()) {
+                    logger.Log("TradeEngine", "runTrading_Sell", "Assertion Failed", "Number of positions held at IB doesn't match positions held in DB", true);
+                    System.exit(5);
+                }
+
+                //Sell everything if expired
+                Date now = new Date();
+                Date expDt = listCurStocks.get(0).getTargetDate(); //Get first stocks's expiration date, they should be the same
+                if (now.compareTo(expDt) >= 0) { 
+
+                    String strExpOutput = String.format("Current Date: %s, Expiration Date: %s", now.toString(), expDt.toString());
+                    logger.Log("TradeEngine", "runTrading_Sell", "Holdings Expired", strExpOutput, false);
+
+                    for (int i = 0; i < listCurStocks.size(); i++) {
+                        StockHolding stk = listCurStocks.get(i);
+
+                        retrieveStockQuote(client, i, stk.getTicker(), WAIT_TIME);
+                        
+                        //Now ensure the quote is valid
+                        if (!isStockQuoteValid(stk.getTicker())) {
+                            logger.Log("TradeEngine", "runTrading_Sell", stk.getTicker(), "Invalid Stock Quote!", true);
+                            continue;
+                        }
+
+                        //Limit order for 99.5% of value
+                        BigDecimal tmpLimitPrice = stockQuote.multiply(new BigDecimal("0.995"));
+                        String strValue = String.format("%.2f", tmpLimitPrice.doubleValue());
+                        double limitPrice = Double.parseDouble(strValue);
+
+                        int orderID = sdh.getStockOrderID();
+                        reqTrade(client, TradeAction.SELL, orderID, stk.getTicker(), stk.getSharesHeld(), limitPrice);
+                        Thread.sleep(WAIT_TIME);
+
+                        //Update DB
+                        sdh.updateStockTrade(stk.getTicker());
+                    }
+
+                } //End If Expired
+            } //End If holding Count > 0
+            
+        } finally {
+            client.eDisconnect();
+        }
+    }
+
     private void reqAccountBalance(EClientSocket client) throws Exception {
         
         logger.Log("TradeEngine", "reqAccountBalance", "", "", false);

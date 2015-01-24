@@ -42,6 +42,8 @@ public class Main {
             Predictor pred = new Predictor();
 
             //Loop through the required actions
+            int port = 0;
+            String holidayCode = null;
             String firstArg = args[0];
             StockDataHandler sdh = new StockDataHandler();
             Map<Date, String> mapHolidays = sdh.getAllHolidays();
@@ -125,25 +127,25 @@ public class Main {
 
                         break;
 
-                    //Trading
-                    case 'T':
-                        logger.Log("Main", "main", "Option T", "Perform Automated Trading", false);
+                    //Trading - Buy
+                    case 'U':
+                        logger.Log("Main", "main", "Option U", "Perform Automated Trading - Buy", false);
 
                         //Cmd Line Arguments must equal 2 - T IB_GateWay_Port
                         if (args.length != 2) {
-                            logger.Log("Main", "main", "Program Arguments", "For T Option - Must have two Arguments [T PORT].", true);
-                            System.out.println("Missing argument for T Option!");
+                            logger.Log("Main", "main", "Program Arguments", "For U Option - Must have two Arguments [U PORT].", true);
+                            System.out.println("Missing argument for U Option!");
                             System.exit(1);
                         }
 
                         //2nd Argument - IB Gateway Port
-                        int port = Integer.parseInt(args[1]);
+                        port = Integer.parseInt(args[1]);
 
                         //How many stocks to hold in our portfolio
                         final int MAX_STOCK_COUNT = 7;
                         
                         //Holiday Check
-                        String holidayCode = mapHolidays.get(yesterday);
+                        holidayCode = mapHolidays.get(yesterday);
                         if (holidayCode == null)
                             holidayCode = "";
 
@@ -156,7 +158,39 @@ public class Main {
                                 TradeEngine trade = new TradeEngine();
                                 trade.emailTodaysStockPicks(MAX_STOCK_COUNT, yesterday);
 
-                                trade.runTrading(MAX_STOCK_COUNT, port);
+                                trade.runTrading_Buy(MAX_STOCK_COUNT, port);
+                                break;
+                        }
+
+                        break;
+
+                    //Trading - Sell
+                    case 'S':
+                        logger.Log("Main", "main", "Option S", "Perform Automated Trading - Sell", false);
+
+                        //Cmd Line Arguments must equal 2 - S IB_GateWay_Port
+                        if (args.length != 2) {
+                            logger.Log("Main", "main", "Program Arguments", "For S Option - Must have two Arguments [S PORT].", true);
+                            System.out.println("Missing argument for S Option!");
+                            System.exit(1);
+                        }
+
+                        //2nd Argument - IB Gateway Port
+                        port = Integer.parseInt(args[1]);
+                        
+                        //Holiday Check
+                        holidayCode = mapHolidays.get(yesterday);
+                        if (holidayCode == null)
+                            holidayCode = "";
+
+                        switch (holidayCode) {
+                            case "Closed":
+                            case "Early": //Can only buy on such a day and not sell 
+                                break;
+
+                            default:
+                                TradeEngine trade = new TradeEngine();
+                                trade.runTrading_Sell(port);
                                 break;
                         }
 
