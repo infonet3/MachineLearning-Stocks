@@ -1353,15 +1353,15 @@ public class StockDataHandler {
         }
     }
     
-    private void insertInterestRatesIntoDB(final String RATE_TYPE, String primeRates) throws Exception {
+    private void insertInterestRatesIntoDB(final String RATE_TYPE, String interestRates) throws Exception {
 
         String summary = String.format("Rate Type: %s", RATE_TYPE);
         logger.Log("StockDataHandler", "insertInterestRatesIntoDB", summary, "", false);
 
-        if (primeRates.isEmpty())
+        if (interestRates.isEmpty())
             return;
         
-        String[] rows = primeRates.split("\n");
+        String[] rows = interestRates.split("\n");
 
         String row;
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -1385,7 +1385,10 @@ public class StockDataHandler {
                     dt = sdf.parse(cells[0]);
                     sqlDt = new java.sql.Date(dt.getTime());
                     
-                    rate = new BigDecimal(cells[1]);
+                    if (cells[1].equals("."))
+                        continue;
+                    else
+                        rate = new BigDecimal(cells[1]);
 
                     //Insert the record into the DB
                     stmt.setDate(1, sqlDt);
@@ -1413,6 +1416,9 @@ public class StockDataHandler {
         String summary = String.format("Indicator: %s", indicator);
         logger.Log("StockDataHandler", "insertEconomicDataIntoDB", "", "", false);
 
+        if (econData.isEmpty())
+            return;
+        
         String[] rows = econData.split("\n");
 
         String row;
@@ -1428,8 +1434,6 @@ public class StockDataHandler {
             conxn.setAutoCommit(false);
             
             for (i = 0; i < rows.length; i++) {
-                if (i == 0) //Skip the header row
-                    continue;
 
                 //Parse the record
                 try {
@@ -1466,6 +1470,9 @@ public class StockDataHandler {
 
         logger.Log("StockDataHandler", "insertMortgageDataIntoDB", "", "", false);
 
+        if (thirtyYrMtgRates.isEmpty())
+            return;
+        
         String[] rows = thirtyYrMtgRates.split("\n");
 
         String row;
@@ -1516,6 +1523,9 @@ public class StockDataHandler {
 
         logger.Log("StockDataHandler", "insertNewHomePriceDataIntoDB", "", "", false);
 
+        if (newHomePrices.isEmpty())
+            return;
+        
         String[] rows = newHomePrices.split("\n");
 
         String row;
