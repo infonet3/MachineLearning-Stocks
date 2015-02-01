@@ -44,7 +44,7 @@ public class Predictor implements Runnable {
     int targetDaysOut;
     Date fromDate;
     Date toDate;
-    String predType;
+    PredictionType predType;
 
     public Predictor() throws Exception {
 
@@ -57,7 +57,7 @@ public class Predictor implements Runnable {
     }
 
     //Used when multithreading is needed to generate predictions
-    public Predictor(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date FROM_DATE, final Date TO_DATE, final String PRED_TYPE) throws Exception {
+    public Predictor(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date FROM_DATE, final Date TO_DATE, final PredictionType PRED_TYPE) throws Exception {
 
         this();
         
@@ -85,9 +85,9 @@ public class Predictor implements Runnable {
         }
     }
     
-    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date fromDate, final Date toDate, final String PRED_TYPE) throws Exception {
+    public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date fromDate, final Date toDate, final PredictionType PRED_TYPE) throws Exception {
 
-        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE_MODEL + ", Target Days Out: " + TARGET_DAYS_OUT + ", Prediction Type: " + PRED_TYPE;
+        String summary = "ModelType: " + MODEL_TYPE + ", From: " + fromDate + ", To: " + toDate + ", Days In Future: " + DAYS_IN_FUTURE_MODEL + ", Target Days Out: " + TARGET_DAYS_OUT + ", Prediction Type: " + PRED_TYPE.toString();
         logger.Log("Predictor", "predictAllStocksForDates", summary, "", false);
         
         //Weekend Test - From Date
@@ -119,7 +119,7 @@ public class Predictor implements Runnable {
             System.gc();
             
             //Get Features for the selected dates
-            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime(), false);
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE_MODEL, MODEL_TYPE, calFrom.getTime(), calTo.getTime(), false, PRED_TYPE);
             
             //Load the model
             String curModelPath;
@@ -189,7 +189,7 @@ public class Predictor implements Runnable {
         
     }
     
-    public List<StockHolding> topStockPicks(final int NUM_STOCKS, final Date RUN_DATE, final String PRED_TYPE) throws Exception {
+    public List<StockHolding> topStockPicksClassAndReg(final int NUM_STOCKS, final Date RUN_DATE, final String PRED_TYPE) throws Exception {
 
         logger.Log("Predictor", "topStockPicks", "Stock Count = " + NUM_STOCKS, "", false);
         
@@ -197,15 +197,21 @@ public class Predictor implements Runnable {
         final double MIN_RATIO = 0.99;
         
         try {
-            //Ensure the predictions are present before continuing
-            StockDataHandler sdh = new StockDataHandler();
-            double predToTickerPct = sdh.getPredToTickersPct(RUN_DATE);
-            String summary = String.format("Predictions To Ticker Percent = %.2f", predToTickerPct);
-            logger.Log("Predictor", "topStockPicks", summary, "", false);
             
-            if (predToTickerPct < MIN_RATIO) {
-                logger.Log("Predictor", "topStockPicks", "Prediction to Ticker Ratio TOO LOW!", "", true);
-                System.exit(30);
+            StockDataHandler sdh = new StockDataHandler();
+            final String CURRENT_PRED_TYPE = "CURRENT";
+
+            if (PRED_TYPE.equals(CURRENT_PRED_TYPE)) {
+
+                double predToTickerPct = sdh.getPredToTickersPct(RUN_DATE);
+                String summary = String.format("Predictions To Ticker Percent = %.2f", predToTickerPct);
+                logger.Log("Predictor", "topStockPicks", summary, "", false);
+
+                //Ensure the predictions are present before continuing
+                if (predToTickerPct < MIN_RATIO) {
+                    logger.Log("Predictor", "topStockPicks", "Prediction to Ticker Ratio TOO LOW!", "", true);
+                    System.exit(30);
+                }
             }
             
             //Get List of Stocks forecasted to go up
@@ -241,6 +247,59 @@ public class Predictor implements Runnable {
             
         } catch(Exception exc) {
             logger.Log("Predictor", "topStockPicks", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return topStocks;
+    }
+
+    public List<StockHolding> topStockPicksRegressionOnly(final int NUM_STOCKS, final Date RUN_DATE, final String PRED_TYPE) throws Exception {
+
+        logger.Log("Predictor", "topStockPicksRegressionOnly", "Stock Count = " + NUM_STOCKS, "", false);
+        
+        List<StockHolding> topStocks = new ArrayList<>();
+        final double MIN_RATIO = 0.99;
+        
+        try {
+            
+            StockDataHandler sdh = new StockDataHandler();
+            final String CURRENT_PRED_TYPE = "CURRENT";
+
+            if (PRED_TYPE.equals(CURRENT_PRED_TYPE)) {
+
+                throw new Exception("NEED TO FIX FOR JUST REGRESSION RUN!!");
+                
+                //double predToTickerPct = sdh.getPredToTickersPct(RUN_DATE);
+                //String summary = String.format("Predictions To Ticker Percent = %.2f", predToTickerPct);
+                //logger.Log("Predictor", "topStockPicks", summary, "", false);
+
+                //Ensure the predictions are present before continuing
+                //if (predToTickerPct < MIN_RATIO) {
+                //    logger.Log("Predictor", "topStockPicks", "Prediction to Ticker Ratio TOO LOW!", "", true);
+                //    System.exit(30);
+                //}
+            }
+            
+            //Get List of Stocks forecasted to go up
+            List<FuturePrice> fpList = sdh.getTargetValueRegressionPredictionsForAllStocks(RUN_DATE, PRED_TYPE);
+            if (fpList.size() >= NUM_STOCKS) {
+
+                //Pick Top stocks
+                for (int i = 0; i < NUM_STOCKS; i++) {
+                    String ticker = fpList.get(i).getTicker();
+                    Date projDt = fpList.get(i).getProjectedDt();
+                    double pctChg = fpList.get(i).getForecastPctChg();
+
+                    StockHolding stk = new StockHolding(ticker, 0, projDt);
+                    topStocks.add(stk);
+                    
+                    String output = String.format("Ticker: %s, Forecast Pct Chg: %f, Target Date: %s", ticker, pctChg, projDt.toString());
+                    logger.Log("Predictor", "topStockPicksRegressionOnly", output, "", false);
+                } 
+            }
+            
+        } catch(Exception exc) {
+            logger.Log("Predictor", "topStockPicksRegressionOnly", "Exception", exc.toString(), true);
             throw exc;
         }
         
@@ -301,31 +360,35 @@ public class Predictor implements Runnable {
                 
                 sdh.removeBacktestingData();
                 Date dt = curDate.getTime();
-                
+
+                //Move date forward 90 days
                 Calendar toCal = Calendar.getInstance();
                 toCal.setTime(dt);
                 toCal.add(Calendar.DATE, DAYS_FORECAST);
                 Date toDt = toCal.getTime();
 
+                //Don't go beyond today
+                if (toDt.compareTo(finalDate.getTime()) >= 0)
+                    toDt = finalDate.getTime();
+
                 //Generate models
-                Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                //Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 
-                tRandForst.start();
+                //tRandForst.start();
                 tM5P.start();
                 
-                tRandForst.join();
+                //tRandForst.join();
                 tM5P.join();
 
                 //Use model to create predictions
-                final String PRED_TYPE_BACKTEST = "BACKTEST";
-                Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
-                Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PRED_TYPE_BACKTEST));
+                //Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
+                Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
                 
-                tRandForstPreds.start();
+                //tRandForstPreds.start();
                 tM5PPreds.start();
                 
-                tRandForstPreds.join();
+                //tRandForstPreds.join();
                 tM5PPreds.join();
             }
             
@@ -450,7 +513,8 @@ public class Predictor implements Runnable {
                 }
                 
                 final String PRED_TYPE = "BACKTEST";
-                List<StockHolding> topStocks = topStockPicks(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
+                //List<StockHolding> topStocks = topStockPicksClassAndReg(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
+                List<StockHolding> topStocks = topStockPicksRegressionOnly(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
 
                 //Generate buy orders
                 int size = topStocks.size();

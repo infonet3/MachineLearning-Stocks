@@ -526,7 +526,7 @@ public class TradeEngine implements EWrapper {
 
         Predictor p = new Predictor();
         final String PRED_TYPE = "CURRENT";
-        List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, runDate, PRED_TYPE);
+        List<StockHolding> stkPicks = p.topStockPicksClassAndReg(MAX_STOCK_COUNT, runDate, PRED_TYPE);
         
         StringBuilder sb = new StringBuilder("Today's top stock picks: ");
         for (StockHolding stk : stkPicks) {
@@ -540,7 +540,7 @@ public class TradeEngine implements EWrapper {
 
     private boolean isPriceCloseToYesterdayClose(String ticker) throws Exception {
 
-        //Ensure price is similar to yesterday's close, 10% max
+        //Ensure price is similar to yesterday's close, 20% max
         Dates dates = new Dates();
         StockDataHandler sdh = new StockDataHandler();
         StockQuote quote = sdh.getStockQuote(ticker, dates.getYesterday());
@@ -548,8 +548,8 @@ public class TradeEngine implements EWrapper {
         
         double ratio = yesterdayClose.doubleValue() / stockQuote.doubleValue();
         
-        //10% max deviation
-        if (ratio < 0.9 || ratio > 1.1) 
+        //20% max deviation
+        if (ratio < 0.8 || ratio > 1.2) 
             return false;
         else 
             return true;
@@ -557,16 +557,14 @@ public class TradeEngine implements EWrapper {
     
     private boolean isStockQuoteValid(String ticker) throws Exception {
 
-        final double MIN_TRADE_PRICE = 5.0; //Min price for a stock, otherwise don't trade it
-                                
-        if (stockQuote == null || stockQuote.doubleValue() <= MIN_TRADE_PRICE) {
-            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is null OR less than Min trade price!", true);
+        if (stockQuote == null) {
+            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is null!", true);
             return false;
         }
 
         boolean isPriceCloseToYesterday = isPriceCloseToYesterdayClose(ticker);
         if (!isPriceCloseToYesterday) {
-            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is 10% or more different from yesterdays close!", true);
+            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is 20% or more different from yesterdays close!", true);
             return false;
         }
         
@@ -654,7 +652,7 @@ public class TradeEngine implements EWrapper {
                 Date yesterday = dates.getYesterday();
                 final String PRED_TYPE = "CURRENT";
                 final String MODEL_TYPE = "M5P";
-                List<StockHolding> stkPicks = p.topStockPicks(MAX_STOCK_COUNT, yesterday, PRED_TYPE);
+                List<StockHolding> stkPicks = p.topStockPicksClassAndReg(MAX_STOCK_COUNT, yesterday, PRED_TYPE);
                 if (stkPicks.size() != MAX_STOCK_COUNT) {
                     logger.Log("TradeEngine", "runTrading_Buy", "Stock Picks Number Mismatch", "Requested: " + MAX_STOCK_COUNT + ", Received: " + stkPicks.size(), false);
                     return;

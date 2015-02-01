@@ -9,6 +9,7 @@ import Modeling.ModelTypes;
 import static Modeling.ModelTypes.LOGIST_REG;
 import static Modeling.ModelTypes.RAND_FORST;
 import static Modeling.ModelTypes.SVM;
+import Modeling.PredictionType;
 import Utilities.Logger;
 import java.io.InputStream;
 import java.net.URL;
@@ -73,7 +74,6 @@ public class StockDataHandler {
     final String QUANDL_AUTH_TOKEN;
     final String QUANDL_BASE_URL;
     
-    final String BEA_USER_ID;
     final String FRED_KEY;
     
     final int SVC_THROTTLE;
@@ -95,7 +95,6 @@ public class StockDataHandler {
             QUANDL_AUTH_TOKEN = p.getProperty("quandl_auth_token");
             QUANDL_BASE_URL = p.getProperty("quandl_base_url");
             
-            BEA_USER_ID = p.getProperty("bea_user_id");
             FRED_KEY = p.getProperty("fred_key");
             
             SVC_THROTTLE = Integer.parseInt(p.getProperty("throttle"));
@@ -447,7 +446,7 @@ public class StockDataHandler {
                 stmt.setDate(2, dt);
                 stmt.setDate(3, projDt);
                 stmt.setString(4, p.getModelType());
-                stmt.setString(5, p.getPredType());
+                stmt.setString(5, p.getPredType().toString());
                 stmt.setBigDecimal(6, p.getEstimatedValue());
 
                 stmt.addBatch();
@@ -535,7 +534,45 @@ public class StockDataHandler {
         
         return fp;
     }
-    
+
+    public List<FuturePrice> getTargetValueRegressionPredictionsForAllStocks(final Date RUN_DT, final String PRED_TYPE) throws Exception {
+
+        String summary = String.format("Date: %s", RUN_DT.toString());
+        logger.Log("StockDataHandler", "getTargetValueRegressionPredictionsForAllStocks", summary, "", false);
+
+        List<FuturePrice> fpList = new ArrayList<>();
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression(?, ?)}")) {
+
+            java.sql.Date dt = new java.sql.Date(RUN_DT.getTime());
+            stmt.setDate(1, dt);
+
+            stmt.setString(2, PRED_TYPE);
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            String ticker;
+            BigDecimal curPrice;
+            double forecastPctChg;
+            Date projectedDt;
+            while (rs.next()) {
+                ticker = rs.getString(1);
+                curPrice = rs.getBigDecimal(2);
+                forecastPctChg = rs.getDouble(3);
+                projectedDt = rs.getDate(4);
+                
+                FuturePrice fp = new FuturePrice(ticker, forecastPctChg, curPrice, projectedDt);
+                fpList.add(fp);
+            }
+                
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "getTargetValueRegressionPredictionsForAllStocks", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return fpList;
+    }
+
     public List<String> getPostiveClassificationPredictions(Date date, final String PRED_TYPE) throws Exception {
 
         String summary = String.format("Date: %s", date.toString());
@@ -717,7 +754,7 @@ public class StockDataHandler {
         return pct;
     }
     
-    public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt, boolean saveToFile) throws Exception {
+    public String getAllStockFeaturesFromDB(String stockTicker, int daysInFuture, ModelTypes approach, Date fromDt, Date toDt, boolean saveToFile, final PredictionType PRED_TYPE) throws Exception {
 
         String strFromDt;
         if (fromDt == null)
@@ -818,7 +855,11 @@ public class StockDataHandler {
             //Ensure that records were returned
             if (recordCount == 0) {
                 String excOutput = String.format("Ticker: %s, No records were returned from the DB!", stockTicker);
-                logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", excOutput, "", false);
+                logger.Log("StockDataHandler", "getAllStockFeaturesFromDB", excOutput, "", true);
+                
+                if (PRED_TYPE == PredictionType.BACKTEST) {
+                    throw new Exception("No records returned from the DB!");
+                }
             }
             
         } catch(Exception exc) {
@@ -1238,74 +1279,6 @@ public class StockDataHandler {
             throw exc;
         }
     }
-
-    private void insertGDPDataIntoDB(List<BEA_Data> listData) throws Exception {
-
-        logger.Log("StockDataHandler", "insertGDPDataIntoDB", "", "", false);
-
-        try (Connection conxn = getDBConnection();
-            CallableStatement stmt = conxn.prepareCall("{call sp_Insert_BEA_Data (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
-
-            conxn.setAutoCommit(false);
-
-            for (BEA_Data e : listData) {
-                
-                int year = e.getYear();
-                int quarter = e.getQuarter();
-
-                //Move ahead one quarter
-                if (quarter == 4) {
-                    year++;
-                    quarter = 1;
-                }
-                else {
-                    quarter++;
-                }
-                
-                //Minimal Date
-                if (year < 1990)
-                    continue;
-
-                //Insert values into DB
-                stmt.setShort(1, (short)year);
-                stmt.setByte(2, (byte)quarter);
-                stmt.setBigDecimal(3, e.getGrossPrivDomInv());
-                stmt.setBigDecimal(4, e.getFixInvestment());
-                stmt.setBigDecimal(5, e.getNonResidential());
-                stmt.setBigDecimal(6, e.getResidential());
-                stmt.setBigDecimal(7, e.getGDP());
-                stmt.setBigDecimal(8, e.getGoods1());
-                stmt.setBigDecimal(9, e.getGoods2());
-                stmt.setBigDecimal(10, e.getGoods3());
-                stmt.setBigDecimal(11, e.getServices1());
-                stmt.setBigDecimal(12, e.getServices2());
-                stmt.setBigDecimal(13, e.getServices3());
-                stmt.setBigDecimal(14, e.getGovConsExpAndGrossInv());
-                stmt.setBigDecimal(15, e.getFederal());
-                stmt.setBigDecimal(16, e.getNatDefense());
-                stmt.setBigDecimal(17, e.getNonDefense());
-                stmt.setBigDecimal(18, e.getStateAndLocal());
-                stmt.setBigDecimal(19, e.getStructures());
-                stmt.setBigDecimal(20, e.getExports());
-                stmt.setBigDecimal(21, e.getImports());
-                stmt.setBigDecimal(22, e.getDurableGoods());
-                stmt.setBigDecimal(23, e.getNonDurGoods());
-                stmt.setBigDecimal(24, e.getPersConsExp());
-                stmt.setBigDecimal(25, e.getIntPropProducts());
-                stmt.setBigDecimal(26, e.getEquipment());
-
-                stmt.addBatch();
-            }
-
-            //Send Commands to DB
-            stmt.executeBatch();
-            conxn.commit();
-            
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertGDPDataIntoDB", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
     
     private void insertUnemploymentRatesIntoDB(String unemploymentRates) throws Exception {
 
@@ -1633,289 +1606,6 @@ public class StockDataHandler {
             throw exc;
         }
     }
-
-    private void insertStockFundamentalsIntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
-
-        logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "", "", false);
-
-        String row;
-        java.sql.Date sqlDt;
-        int i = 0;
-       
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_StockFundamentals (?, ?, ?, ?)}")) {
-            
-            conxn.setAutoCommit(false);
-            
-            for (i = 0; i < listStockFund.size(); i++) {
-
-                StockFundamentals_Annual fund = listStockFund.get(i);
-                Date[] dates = fund.getFinancials_Dates();
-
-                //Save Revenue
-                BigDecimal[] rev = fund.getFinancials_Revenue();
-                for (int j = 0; j < rev.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-REVENUE");
-                    stmt.setBigDecimal(4, rev[j]);
-
-                    stmt.addBatch();
-                }
-
-                //Gross Margin
-                BigDecimal[] grossMargin = fund.getFinancials_GrossMargin();
-                for (int j = 0; j < grossMargin.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-GROSS-MARGIN");
-                    stmt.setBigDecimal(4, grossMargin[j]);
-
-                    stmt.addBatch();
-                }
-
-                //Operating Income
-                BigDecimal[] operIncome = fund.getFinancials_OperIncome();
-                for (int j = 0; j < operIncome.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-OPERATING-INCOME");
-                    stmt.setBigDecimal(4, operIncome[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Operating Margin
-                BigDecimal[] operMargin = fund.getFinancials_OperMargin();
-                for (int j = 0; j < operMargin.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-OPERATING-MARGIN");
-                    stmt.setBigDecimal(4, operMargin[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Net Income
-                BigDecimal[] netIncome = fund.getFinancials_NetIncome();
-                for (int j = 0; j < netIncome.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-NET-INCOME");
-                    stmt.setBigDecimal(4, netIncome[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //EPS
-                BigDecimal[] eps = fund.getFinancials_EPS();
-                for (int j = 0; j < eps.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-EPS");
-                    stmt.setBigDecimal(4, eps[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Dividends
-                BigDecimal[] div = fund.getFinancials_Dividends();
-                for (int j = 0; j < div.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-DIVIDENDS");
-                    stmt.setBigDecimal(4, div[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Payout Ratio
-                BigDecimal[] payout = fund.getFinancials_PayoutRatio();
-                for (int j = 0; j < payout.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-PAYOUT-RATIO");
-                    stmt.setBigDecimal(4, payout[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Num Shares
-                BigDecimal[] numShares = fund.getFinancials_SharesMil();
-                for (int j = 0; j < numShares.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-NUM-SHARES");
-                    stmt.setBigDecimal(4, numShares[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Book Value Per Share
-                BigDecimal[] bookVal = fund.getFinancials_BookValPerShare();
-                for (int j = 0; j < bookVal.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-BOOK-VALUE-PER-SHARE");
-                    stmt.setBigDecimal(4, bookVal[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Operating Cash Flow
-                BigDecimal[] operCashFlow = fund.getFinancials_OperCashFlow();
-                for (int j = 0; j < operCashFlow.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-OPERATING-CASH-FLOW");
-                    stmt.setBigDecimal(4, operCashFlow[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Capital Spending
-                BigDecimal[] capSpending = fund.getFinancials_CapSpending();
-                for (int j = 0; j < capSpending.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-CAPITAL-SPENDING");
-                    stmt.setBigDecimal(4, capSpending[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Free Cash Flow
-                BigDecimal[] freeCashFlow = fund.getFinancials_FreeCashFlow();
-                for (int j = 0; j < freeCashFlow.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-FREE-CASH-FLOW");
-                    stmt.setBigDecimal(4, freeCashFlow[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Free Cash Flow Per Share
-                BigDecimal[] freeCashFlowPerShare = fund.getFinancials_FreeCashFlow();
-                for (int j = 0; j < freeCashFlowPerShare.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-FREE-CASH-FLOW-PER-SHARE");
-                    stmt.setBigDecimal(4, freeCashFlowPerShare[j]);
-
-                    stmt.addBatch();
-                }
-
-                //Working Capital
-                BigDecimal[] workCap = fund.getFinancials_WorkingCap();
-                for (int j = 0; j < workCap.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-WORKING-CAPITAL");
-                    stmt.setBigDecimal(4, workCap[j]);
-
-                    stmt.addBatch();
-                }
-                
-                //Return on Assets
-                BigDecimal[] roa = fund.getFinancials_ReturnOnAssets();
-                for (int j = 0; j < roa.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-RETURN-ON-ASSETS");
-                    stmt.setBigDecimal(4, roa[j]);
-
-                    stmt.addBatch();
-                }
-
-                //Return on Equity
-                BigDecimal[] roe = fund.getFinancials_ReturnOnEquity();
-                for (int j = 0; j < roe.length; j++) {
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    stmt.setString(3, "ANNUAL-RETURN-ON-EQUITY");
-                    stmt.setBigDecimal(4, roe[j]);
-
-                    stmt.addBatch();
-                }
-            }
-            
-            stmt.executeBatch();
-            conxn.commit();
-            
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentalsIntoDB", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
     
     public List<StockTicker> getAllStockTickers() throws Exception {
 
@@ -1995,98 +1685,6 @@ public class StockDataHandler {
             
         } catch (Exception exc) {
             logger.Log("StockDataHandler", "insertStockTickersIntoDB", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
-
-    
-    private void insertStockFundamentals_Annual_IntoDB(List<StockFundamentals_Annual> listStockFund) throws Exception {
-
-        logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "", "", false);
-
-        String row;
-        java.sql.Date sqlDt;
-       
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Annual (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
-            
-            conxn.setAutoCommit(false);
-            
-            for (int i = 0; i < listStockFund.size(); i++) {
-
-                StockFundamentals_Annual fund = listStockFund.get(i);
-
-                //Loop through the dates
-                Date[] dates = fund.getFinancials_Dates();
-                BigDecimal[] bdArray;
-                for (int j = 0; j < dates.length - 1; j++) { //Skip TTM
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    bdArray = fund.getFinancials_BookValPerShare();
-                    stmt.setBigDecimal(3, bdArray[j]);
-
-                    bdArray = fund.getFinancials_CapSpending();
-                    stmt.setBigDecimal(4, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_Dividends();
-                    stmt.setBigDecimal(5, bdArray[j]);
-
-                    bdArray = fund.getFinancials_EPS();
-                    stmt.setBigDecimal(6, bdArray[j]);
-
-                    bdArray = fund.getFinancials_FreeCashFlow();
-                    stmt.setBigDecimal(7, bdArray[j]);
-
-                    bdArray = fund.getFinancials_FreeCashFlowPerShare();
-                    stmt.setBigDecimal(8, bdArray[j]);
-
-                    bdArray = fund.getFinancials_GrossMargin();
-                    stmt.setBigDecimal(9, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_NetIncome();
-                    stmt.setBigDecimal(10, bdArray[j]);
-
-                    bdArray = fund.getFinancials_SharesMil();
-                    stmt.setBigDecimal(11, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_OperCashFlow();
-                    stmt.setBigDecimal(12, bdArray[j]);
-
-                    bdArray = fund.getFinancials_OperMargin();
-                    stmt.setBigDecimal(13, bdArray[j]);
-
-                    bdArray = fund.getFinancials_PayoutRatio();
-                    stmt.setBigDecimal(14, bdArray[j]);
-
-                    bdArray = fund.getFinancials_ReturnOnAssets();
-                    stmt.setBigDecimal(15, bdArray[j]);
-
-                    bdArray = fund.getFinancials_ReturnOnEquity();
-                    stmt.setBigDecimal(16, bdArray[j]);
-                                        
-                    bdArray = fund.getFinancials_Revenue();
-                    stmt.setBigDecimal(17, bdArray[j]);
-
-                    bdArray = fund.getFinancials_WorkingCap();
-                    stmt.setBigDecimal(18, bdArray[j]);
-                    
-                    bdArray = fund.getFinancials_OperIncome();
-                    stmt.setBigDecimal(19, bdArray[j]);
-                    
-                    stmt.addBatch();
-                }
-            }
-            
-            //Save to DB
-            stmt.executeBatch();
-            conxn.commit();
-            
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentals_Annual_IntoDB", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -2263,167 +1861,6 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
-    private void insertStockFundamentals_Quarter_IntoDB(List<StockFundamentals_Quarter> listStockFund) throws Exception {
-
-        logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "", "", false);
-
-        String row;
-        java.sql.Date sqlDt;
-       
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Quarter (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
-            
-            conxn.setAutoCommit(false);
-            
-            for (int i = 0; i < listStockFund.size(); i++) {
-
-                StockFundamentals_Quarter fund = listStockFund.get(i);
-
-                //Loop through the dates
-                Date[] dates = fund.getFinancials_Dates();
-                BigDecimal[] bdArray;
-                for (int j = 0; j < dates.length - 1; j++) { //Skip TTM
-
-                    stmt.setString(1, fund.getTicker());
-                    
-                    sqlDt = new java.sql.Date(dates[j].getTime());
-                    stmt.setDate(2, sqlDt);
-
-                    bdArray = fund.getFinancials_Revenue();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(3, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(3, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_CostOfRev();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(4, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(4, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_GrossProfit();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(5, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(5, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_RandD();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(6, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(6, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_SalesGenAdmin();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(7, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(7, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_TotalOpExp();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(8, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(8, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_OperIncome();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(9, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(9, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_IntExp();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(10, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(10, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_OtherIncome();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(11, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(11, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_IncomeBeforeTax();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(12, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(12, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_ProvForIncTax();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(13, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(13, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_NetIncomeContOp();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(14, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(14, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_NetIncomeDiscontOp();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(15, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(15, new BigDecimal("0.0"));
-
-                    bdArray = fund.getFinancials_NetIncome();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(16, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(16, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_NetIncomeCommonShareholders();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(17, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(17, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_EPS_Basic();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(18, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(18, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_EPS_Diluted();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(19, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(19, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_AvgSharesOutstanding_Basic();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(20, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(20, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_AvgSharesOutstanding_Diluted();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(21, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(21, new BigDecimal("0.0"));
-                    
-                    bdArray = fund.getFinancials_EBITDA();
-                    if (bdArray != null)
-                        stmt.setBigDecimal(22, bdArray[j]);
-                    else
-                        stmt.setBigDecimal(22, new BigDecimal("0.0"));
-                    
-                    stmt.addBatch();
-                }
-            }
-            
-            //Save to DB
-            stmt.executeBatch();
-            conxn.commit();
-            
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "insertStockFundamentals_Quarter_IntoDB", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
-
     
     public Date get30YrMortgageRates_UpdateDate() throws Exception {
 
@@ -2660,57 +2097,6 @@ public class StockDataHandler {
         }
         
     }
-    
-    public Quarter getBEA_UpdateDate() throws Exception {
-
-        logger.Log("StockDataHandler", "getBEA_UpdateDate", "", "", false);
-
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_BEA_LastUpdate ()}")) {
-            
-            ResultSet rs = stmt.executeQuery();
-            
-            Quarter qtr;
-            if (rs.next()) {
-                qtr = new Quarter(rs.getInt(1), rs.getInt(2));
-                return qtr;
-            }
-            else {
-                return null;
-            }
-            
-        } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getBEA_UpdateDate", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
-
-    public Date getStockFundamentals_UpdateDate(String stockTicker, String indicator) throws Exception {
-
-        String summary = String.format("Ticker: %s, Indicator: ", stockTicker, indicator);
-        logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", summary, "", false);
-
-        try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_StockFundamentals_LastUpdate (?, ?)}")) {
-            
-            stmt.setString(1, stockTicker);
-            stmt.setString(2, indicator);
-            
-            ResultSet rs = stmt.executeQuery();
-            
-            if (rs.next())
-                return rs.getDate(1);
-            else {
-                Calendar c = GregorianCalendar.getInstance();
-                c.set(1990, 1, 1);
-                return c.getTime();
-            }
-            
-        } catch (Exception exc) {
-            logger.Log("StockDataHandler", "getStockFundamentals_UpdateDate", "Exception", exc.toString(), true);
-            throw exc;
-        }
-    }
 
     public Date getInterestRates_UpdateDate(final String INT_RATE_TYPE) throws Exception {
 
@@ -2828,17 +2214,17 @@ public class StockDataHandler {
         }
     }
 
-    public void setStockFundamentals_Annual_PctChg() throws Exception {
-
-        logger.Log("StockDataHandler", "setStockFundamentals_Annual_PctChg", "", "", false);
+    public void setEconomicData_ValidDates() throws Exception {
+        
+        logger.Log("StockDataHandler", "setEconomicData_ValidDates", "", "", false);
         
         try (Connection conxn = getDBConnection();
-             CallableStatement stmt = conxn.prepareCall("{call sp_Update_AnnualFundamentals_PctChg ()}")) {
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_EconomicData_ValidDates ()}")) {
 
             stmt.executeUpdate();
             
         } catch (Exception exc) {
-            logger.Log("StockDataHandler", "setStockFundametals_Annual_PctChg", "Excepton", exc.toString(), true);
+            logger.Log("StockDataHandler", "setEconomicData_ValidDates", "Exception", exc.toString(), true);
             throw exc;
         }
     }
@@ -3006,7 +2392,7 @@ public class StockDataHandler {
             String naturalGasPrices = downloadData("SCF/CME_NG1_EN", lastDt); // CHRIS/CME_NG1
             insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
         }
-
+        
         //Mortgage Rates
         lastDt = get30YrMortgageRates_UpdateDate();
         if (isDataExpired(lastDt)) {
@@ -3044,16 +2430,123 @@ public class StockDataHandler {
             insertCurrencyRatiosIntoDB(EURO, usdEur);
         }        
 
-        //M2 - Money Supply
-        /*
-        final String M2 = "M2-Vel";
-        lastDt = getEconomicData_UpdateDate(M2);
+        //START FRED DATA----------------------------------------------------------------------------------------------------------
+        //M2 - Values
+        final String M2_VAL = "M2-VAL";
+        lastDt = getEconomicData_UpdateDate(M2_VAL);
         if (isDataExpired(lastDt)) {
-            String m2Data = downloadFREDData("M2V", lastDt);
-            insertEconomicDataIntoDB(M2, m2Data);
+            String m2ValueData = downloadFREDData("M2", lastDt);
+            insertEconomicDataIntoDB(M2_VAL, m2ValueData);
         }
-        */ 
 
+        //GDP - Values
+        final String GDP_VAL = "GDP-VAL";
+        lastDt = getEconomicData_UpdateDate(GDP_VAL);
+        if (isDataExpired(lastDt)) {
+            String gdpValueData = downloadFREDData("GDP", lastDt);
+            insertEconomicDataIntoDB(GDP_VAL, gdpValueData);
+        }
+        
+        //GDP - Percent
+        final String GDP_PCT = "GDP-PCT";
+        lastDt = getEconomicData_UpdateDate(GDP_PCT);
+        if (isDataExpired(lastDt)) {
+            String gdpPctData = downloadFREDData("A191RL1Q225SBEA", lastDt);
+            insertEconomicDataIntoDB(GDP_PCT, gdpPctData);
+        }
+
+        /*
+        //IMPORTS - Values
+        final String IMPORTS_VAL = "IMPORTS-VAL";
+        lastDt = getEconomicData_UpdateDate(IMPORTS_VAL);
+        if (isDataExpired(lastDt)) {
+            String importsValueData = downloadFREDData("IMPGS", lastDt);
+            insertEconomicDataIntoDB(IMPORTS_VAL, importsValueData);
+        }
+
+        //IMPORTS - Percent
+        final String IMPORTS_PCT = "IMPORTS-PCT";
+        lastDt = getEconomicData_UpdateDate(IMPORTS_PCT);
+        if (isDataExpired(lastDt)) {
+            String importsPctData = downloadFREDData("A021RL1Q158SBEA", lastDt);
+            insertEconomicDataIntoDB(IMPORTS_PCT, importsPctData);
+        }
+        */
+        
+        //EXPORTS - Value
+        final String EXPORTS_VAL = "EXPORTS-VAL";
+        lastDt = getEconomicData_UpdateDate(EXPORTS_VAL);
+        if (isDataExpired(lastDt)) {
+            String exportsValueData = downloadFREDData("EXPGS", lastDt);
+            insertEconomicDataIntoDB(EXPORTS_VAL, exportsValueData);
+        }
+        
+        //EXPORTS - Percent
+        final String EXPORTS_PCT = "EXPORTS-PCT";
+        lastDt = getEconomicData_UpdateDate(EXPORTS_PCT);
+        if (isDataExpired(lastDt)) {
+            String exportsPctData = downloadFREDData("A020RL1Q158SBEA", lastDt);
+            insertEconomicDataIntoDB(EXPORTS_PCT, exportsPctData);
+        }
+        
+        //NET EXPORTS
+        final String NET_EXPORTS = "NET-EXPORTS";
+        lastDt = getEconomicData_UpdateDate(NET_EXPORTS);
+        if (isDataExpired(lastDt)) {
+            String netExports = downloadFREDData("NETEXP", lastDt);
+            insertEconomicDataIntoDB(NET_EXPORTS, netExports);
+        }
+        
+        /*
+        //GOV CONS - Value
+        final String GOV_VAL = "GOV-VAL";
+        lastDt = getEconomicData_UpdateDate(GOV_VAL);
+        if (isDataExpired(lastDt)) {
+            String govValueData = downloadFREDData("GCE", lastDt);
+            insertEconomicDataIntoDB(GOV_VAL, govValueData);
+        }
+        
+        //GOV CONS - Percent
+        final String GOV_PCT = "GOV-PCT";
+        lastDt = getEconomicData_UpdateDate(GOV_PCT);
+        if (isDataExpired(lastDt)) {
+            String govPctData = downloadFREDData("A822RL1Q225SBEA", lastDt);
+            insertEconomicDataIntoDB(GOV_PCT, govPctData);
+        }
+        
+        //PERSONAL CONS - Value
+        final String PERS_VAL = "PERS-VAL";
+        lastDt = getEconomicData_UpdateDate(PERS_VAL);
+        if (isDataExpired(lastDt)) {
+            String persValueData = downloadFREDData("PCEC", lastDt);
+            insertEconomicDataIntoDB(PERS_VAL, persValueData);
+        }
+        
+        //PERSONAL CONS - Percent
+        final String PERS_PCT = "PERS-PCT";
+        lastDt = getEconomicData_UpdateDate(PERS_PCT);
+        if (isDataExpired(lastDt)) {
+            String persPctData = downloadFREDData("DPCERL1Q225SBEA", lastDt);
+            insertEconomicDataIntoDB(PERS_PCT, persPctData);
+        }
+        
+        //GROSS PRIV INV - Value
+        final String PRIVINV_VAL = "PRIVINV-VAL";
+        lastDt = getEconomicData_UpdateDate(PRIVINV_VAL);
+        if (isDataExpired(lastDt)) {
+            String privInvValueData = downloadFREDData("GPDI", lastDt);
+            insertEconomicDataIntoDB(PRIVINV_VAL, privInvValueData);
+        }
+        
+        //GROSS PRIV INV - Percent
+        final String PRIVINV_PCT = "PRIVINV-PCT";
+        lastDt = getEconomicData_UpdateDate(PRIVINV_PCT);
+        if (isDataExpired(lastDt)) {
+            String privInvPctData = downloadFREDData("A006RL1Q225SBEA", lastDt);
+            insertEconomicDataIntoDB(PRIVINV_PCT, privInvPctData);
+        }
+        */
+        
         //Unemployment
         final String UNEMPLOYMENT = "UNEMPLOY";
         lastDt = getEconomicData_UpdateDate(UNEMPLOYMENT);
@@ -3062,6 +2555,10 @@ public class StockDataHandler {
             insertEconomicDataIntoDB(UNEMPLOYMENT, unemploymentData);
         }
         
+        //Set the expiration date for the Economic Data Set
+        setEconomicData_ValidDates();
+        //END FRED ECONOMIC DATA****************************************************
+
         //New Home Prices
         lastDt = getAvgNewHomePrices_UpdateDate();
         if (isDataExpired(lastDt)) {
@@ -3134,11 +2631,9 @@ public class StockDataHandler {
             String fiveYrSwaps = downloadFREDData("DSWP5", lastDt);
             insertInterestRatesIntoDB(FIVE_YR_SWAP, fiveYrSwaps);
         }
-      
-        //GDP
-        List<BEA_Data> listBEAData = downloadBEAData();
-        insertGDPDataIntoDB(listBEAData);
+        //END FRED DATA-------------------------------------------------------------------------------------------------
         
+        //START YAHOO DATA-------------------------------------------------------------------------------------------------
         //Global Stock Indexes
         final String SP500 = "S&P500";
         lastDt = getStockIndex_UpdateDate(SP500);
@@ -3637,185 +3132,6 @@ public class StockDataHandler {
         return responseStr.toString();
     }
     
-    private List<BEA_Data> downloadBEAData() throws Exception {
-
-        logger.Log("StockDataHandler", "downloadBEAData", "", "", false);
-
-        Quarter qtr = getBEA_UpdateDate();
-
-        String yearStr;
-        if (qtr == null)
-            yearStr = "X";
-        else {
-            int year = qtr.getYear();
-            yearStr = String.valueOf(year);
-        }
-        
-        StringBuilder sb = new StringBuilder();
-        List<BEA_Data> list = new ArrayList<>();
-
-        try {
-            URL url = new URL("http://www.bea.gov/api/data/?&UserID=" + BEA_USER_ID + "&method=GetData&DataSetName=NIPA&TableID=1&Frequency=Q&Year=" + yearStr + "&ResultFormat=JSON");
-            URLConnection conxn = url.openConnection();
-
-            logger.Log("StockDataHandler", "downloadBEAData", "URL", url.toString(), false);
-            
-            //Pull back the data as JSON
-            try (InputStream is = conxn.getInputStream()) {
-                int c;
-                for(;;) {
-                    c = is.read();
-                    if (c == -1)
-                        break;
-
-                    sb.append((char)c);
-                }
-            }
-           
-            //Now parse the JSON
-            JsonParser parser = Json.createParser(new StringReader(sb.toString()));
-            String seriesCode = null;
-            String lineDesc = null;
-            String timePeriod = null;
-            String dataValue = null;
-            Map<String, BEA_Data> map = new HashMap<>();
-            
-            while(parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                if (event == JsonParser.Event.KEY_NAME) {
-                    String tokenStr = parser.getString();
-                    switch(tokenStr) {
-                        case "SeriesCode":
-                            parser.next();
-                            seriesCode = parser.getString();
-                            break;
-                        case "LineDescription":
-                            parser.next();
-                            lineDesc = parser.getString();
-                            break;
-                        case "TimePeriod":
-                            parser.next();
-                            timePeriod = parser.getString();
-                            break;
-                        case "DataValue":
-                            parser.next();
-                            dataValue = parser.getString().replaceAll(",", "");
-                            break;
-                    } //End Switch
-                } //End If
-
-                //Save record to DB if we have all elements
-                if (seriesCode != null && lineDesc != null && timePeriod != null && dataValue != null) {
-                    
-                    //See if this time period exists in the Hash Map
-                    BEA_Data data = null;
-                    if (map.get(timePeriod) == null) {
-                        short year = Short.parseShort(timePeriod.substring(0, 4));
-                        byte quarter = Byte.parseByte(timePeriod.substring(5, 6));
-
-                        data = new BEA_Data(year, quarter);
-                        map.put(timePeriod, data);
-                    }
-                    else {
-                        data = map.get(timePeriod);
-                    }
-                    
-                    //Now save the data to the correct field
-                    BigDecimal val = new BigDecimal(dataValue);
-                    switch (seriesCode) {
-                        case "DDURRL": //Durable goods
-                            data.setDurableGoods(val);
-                            break;
-                        case "Y033RL": //Equipment
-                            data.setEquipment(val);
-                            break;
-                        case "A020RL": //Exports
-                            data.setExports(val);
-                            break;
-                        case "A823RL": //Federal
-                            data.setFederal(val);
-                            break;
-                        case "A007RL": //Fixed investment
-                            data.setFixInvestment(val);
-                            break;
-                        case "DGDSRL": //Goods1
-                            data.setGoods1(val);
-                            break;
-                        case "A255RL": //Goods2
-                            data.setGoods2(val);
-                            break;
-                        case "A253RL": //Goods3
-                            data.setGoods3(val);
-                            break;
-                        case "A822RL": //Government consumption expenditures and gross investment	
-                            data.setGovConsExpAndGrossInv(val);
-                            break;
-                        case "A191RL": //Gross domestic product	
-                            data.setGDP(val);
-                            break;
-                        case "A006RL": //Gross private domestic investment	
-                            data.setGrossPrivDomInv(val);
-                            break;
-                        case "A021RL": //Imports	
-                            data.setImports(val);
-                            break;
-                        case "Y001RL": //Intellectual property products	
-                            data.setIntPropProducts(val);
-                            break;
-                        case "A824RL": //National defense	
-                            data.setNatDefense(val);
-                            break;
-                        case "A825RL": //Nondefense
-                            data.setNonDefense(val);
-                            break;
-                        case "DNDGRL": //Nondurable goods	
-                            data.setNonDurGoods(val);
-                            break;
-                        case "A008RL": //Nonresidential	
-                            data.setNonResidential(val);
-                            break;
-                        case "DPCERL": //Personal consumption expenditures	
-                            data.setPersConsExp(val);
-                            break;
-                        case "A011RL": //Residential	
-                            data.setResidential(val);
-                            break;
-                        case "DSERRL": //Services1
-                            data.setServices1(val);
-                            break;
-                        case "A646RL": //Services2	
-                            data.setServices2(val);
-                            break;
-                        case "A656RL": //Services3	
-                            data.setServices3(val);
-                            break;
-                        case "A829RL": //State and local	
-                            data.setStateAndLocal(val);
-                            break;
-                        case "A009RL": //Structures	
-                            data.setStructures(val);
-                            break;
-                    } //End case
-                
-                    //Reset Values
-                    seriesCode = lineDesc = timePeriod = dataValue = null;
-
-                } //End If
-            } //End parsing loop
-            
-            //Now extract out a list
-            Set<Entry<String, BEA_Data>> set = map.entrySet();
-            for (Entry<String, BEA_Data> entry : set) {
-                list.add(entry.getValue());
-            }
-
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "downloadBEAData", "Exception", exc.toString(), true);
-        }
-        
-        return list;
-    }
-    
     public void setModelValues(String ticker, String modelType, int daysForecast, double accuracy) throws Exception {
 
         String summary = String.format("Ticker: %s, Model: %s, Days Forecast: %d, Accuracy: %.3f", ticker, modelType, daysForecast, accuracy);
@@ -3836,43 +3152,6 @@ public class StockDataHandler {
             logger.Log("StockDataHandler", "setModelValues", "Exception", exc.toString(), true);
             throw exc;
         }
-    }
-    
-    public String downloadCensusData() throws Exception {
-
-        logger.Log("StockDataHandler", "downloadCensusData", "", "", false);
-
-        String key = "aff69a193c409c1d534e2e03c908e7a7ce06cb78";
-        String retailTradeAndFoodSvc = "http://api.census.gov/data/eits/mrts?get=cell_value&for=us:*&category_code=44X72&data_type_code=SM&time=from+2004-08&key=" + key;
-        String housingStarts = "http://api.census.gov/data/eits/resconst?get=cell_value&for=us:*&category_code=STARTS&data_type_code=TOTAL&time=from+2004-08&key=" + key;
-        String manuTradeInvAndSales = "http://api.census.gov/data/eits/mtis?get=cell_value&for=us:*&category_code=TOTBUS&data_type_code=IM&time=from+2004-08&key=" + key;
-        
-        StringBuilder responseStr = new StringBuilder();
-
-        try {
-            URL url = new URL(manuTradeInvAndSales);
-            URLConnection conxn = url.openConnection();
-
-            System.out.println("Downloading: " + manuTradeInvAndSales);
-            
-            //Pull back the data as CSV
-            try (InputStream is = conxn.getInputStream()) {
-                
-                int b;
-                for(;;) {
-                    b = is.read();
-                    if (b == -1)
-                        break;
-                    
-                    responseStr.append((char) b);
-                }
-            }
-            
-        } catch(Exception exc) {
-            logger.Log("StockDataHandler", "downloadCensusData", "Exception", exc.toString(), true);
-        }
-
-        return responseStr.toString();
     }
     
     private String downloadData(final String QUANDL_CODE, final Date FROM_DT) throws Exception {

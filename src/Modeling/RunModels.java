@@ -105,7 +105,7 @@ public class RunModels implements Runnable {
             System.gc();
             
             //Pull records from DB
-            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, fromDt, toDt, true);
+            String dataExamples = sdh.getAllStockFeaturesFromDB(ticker.getTicker(), DAYS_IN_FUTURE, MODEL, fromDt, toDt, true, PredictionType.BACKTEST);
 
             //Pull the training data
             Instances train;

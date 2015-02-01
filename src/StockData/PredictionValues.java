@@ -4,6 +4,7 @@
  */
 package StockData;
 
+import Modeling.PredictionType;
 import java.math.BigDecimal;
 import java.util.Date;
 
@@ -15,14 +16,14 @@ public class PredictionValues {
     private String ticker;
     private Date date;
     private Date projectedDate;
-    private String predType;
+    private PredictionType predType;
     private String modelType;
     private BigDecimal estimatedValue;
     private BigDecimal curCloseValue;
     private BigDecimal futureValue;
     private BigDecimal curOpenValue;
 
-    public PredictionValues(String ticker, Date date, Date projectedDate, String modelType, String predType, BigDecimal estimatedValue) {
+    public PredictionValues(String ticker, Date date, Date projectedDate, String modelType, PredictionType predType, BigDecimal estimatedValue) {
         this.ticker = ticker;
         this.date = date;
         this.projectedDate = projectedDate;
@@ -76,7 +77,7 @@ public class PredictionValues {
         return curOpenValue;
     }
 
-    public String getPredType() {
+    public PredictionType getPredType() {
         return predType;
     }
     

@@ -5,6 +5,7 @@
 package BootStrap;
 
 import Modeling.ModelTypes;
+import Modeling.PredictionType;
 import Modeling.Predictor;
 import Modeling.RunModels;
 import StockData.StockDataHandler;
@@ -86,9 +87,8 @@ public class Main {
                     case 'C':
                         logger.Log("Main", "main", "Option C", "Get Current Predictions", false);
 
-                        final String PRED_TYPE_CURRENT = "CURRENT";
-                        Thread tRandForestCurPred = new Thread(new Predictor(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT));
-                        Thread tM5PCurPred = new Thread(new Predictor(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PRED_TYPE_CURRENT));
+                        Thread tRandForestCurPred = new Thread(new Predictor(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT));
+                        Thread tM5PCurPred = new Thread(new Predictor(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT));
 
                         tRandForestCurPred.start();
                         tM5PCurPred.start();
@@ -117,7 +117,7 @@ public class Main {
                         
                         Calendar fromCal = Calendar.getInstance();
                         
-                        fromCal.set(2010, 1, 2);
+                        fromCal.set(2012, 1, 2);
                         Date fromDt = fromCal.getTime();
 
                         Calendar toCal = Calendar.getInstance();
