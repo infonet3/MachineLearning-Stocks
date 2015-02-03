@@ -117,7 +117,7 @@ public class Main {
                         
                         Calendar fromCal = Calendar.getInstance();
                         
-                        fromCal.set(2012, 1, 2);
+                        fromCal.set(2012, 1, 10);
                         Date fromDt = fromCal.getTime();
 
                         Calendar toCal = Calendar.getInstance();

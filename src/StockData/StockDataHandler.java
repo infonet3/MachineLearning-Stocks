@@ -1861,7 +1861,102 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
+
+    private void insertAnnualStockFundamentalsIntoDB(List<StockFundamentals> listFund) throws Exception {
+
+        logger.Log("StockDataHandler", "insertAnnualStockFundamentalsIntoDB", "", "", false);
+
+        String row;
+        java.sql.Date sqlDt;
+       
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Stock_Fundamentals_Annual (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)}")) {
+            
+            conxn.setAutoCommit(false);
+            final BigDecimal BLANK_VALUE = new BigDecimal("0.0");
+
+            for (int i = 0; i < listFund.size(); i++) {
+
+                StockFundamentals fund = listFund.get(i);
+                
+                stmt.setString(1, fund.getTicker());
+                
+                sqlDt = new java.sql.Date(fund.getDate().getTime());
+                stmt.setDate(2, sqlDt);
+
+                if (fund.getRevenue() != null)
+                    stmt.setBigDecimal(3, fund.getRevenue());
+                else
+                    stmt.setBigDecimal(3, BLANK_VALUE);
+                
+                if (fund.getNetIncome() != null)
+                    stmt.setBigDecimal(4, fund.getNetIncome());
+                else
+                    stmt.setBigDecimal(4, BLANK_VALUE);
+
+                if (fund.getNetIncomeCommon() != null)
+                    stmt.setBigDecimal(5, fund.getNetIncomeCommon());
+                else
+                    stmt.setBigDecimal(5, BLANK_VALUE);
+
+                if (fund.getEbitda() != null)
+                    stmt.setBigDecimal(6, fund.getEbitda());
+                else
+                    stmt.setBigDecimal(6, BLANK_VALUE);
+
+                if (fund.getEbt() != null)
+                    stmt.setBigDecimal(7, fund.getEbt());
+                else
+                    stmt.setBigDecimal(7, BLANK_VALUE);
+                    
+                if (fund.getNcfo() != null)
+                    stmt.setBigDecimal(8, fund.getNcfo());
+                else
+                    stmt.setBigDecimal(8, BLANK_VALUE);
+
+                if (fund.getDps() != null)
+                    stmt.setBigDecimal(9, fund.getDps());
+                else
+                    stmt.setBigDecimal(9, BLANK_VALUE);
+                    
+                if (fund.getEps() != null)
+                    stmt.setBigDecimal(10, fund.getEps());
+                else
+                    stmt.setBigDecimal(10, BLANK_VALUE);
+
+                if (fund.getEpsDiluted() != null)
+                    stmt.setBigDecimal(11, fund.getEpsDiluted());
+                else
+                    stmt.setBigDecimal(11, BLANK_VALUE);
+
+                if (fund.getIntExposure() != null)
+                    stmt.setBigDecimal(12, fund.getIntExposure());
+                else
+                    stmt.setBigDecimal(12, BLANK_VALUE);
+                    
+                if (fund.getFcf() != null)
+                    stmt.setBigDecimal(13, fund.getFcf());
+                else
+                    stmt.setBigDecimal(13, BLANK_VALUE);
+
+                if (fund.getFcfps() != null)
+                    stmt.setBigDecimal(14, fund.getFcfps());
+                else
+                    stmt.setBigDecimal(14, BLANK_VALUE);
+                
+                stmt.addBatch();
+            }
+            
+            //Save to DB
+            stmt.executeBatch();
+            conxn.commit();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "insertAnnualStockFundamentalsIntoDB", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+
     public Date get30YrMortgageRates_UpdateDate() throws Exception {
 
         logger.Log("StockDataHandler", "get30YrMortgageRates_UpdateDate", "", "", false);
@@ -2214,6 +2309,21 @@ public class StockDataHandler {
         }
     }
 
+    public void setStockFundamentals_Annual_ValidDates() throws Exception {
+        
+        logger.Log("StockDataHandler", "setStockFundamentals_Annual_ValidDates", "", "", false);
+        
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_Stock_Fundamentals_Annual_ValidDates ()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "setStockFundamentals_Annual_ValidDates", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+
     public void setEconomicData_ValidDates() throws Exception {
         
         logger.Log("StockDataHandler", "setEconomicData_ValidDates", "", "", false);
@@ -2244,6 +2354,21 @@ public class StockDataHandler {
         }
     }
 
+    public void setStockFundamentals_Annual_PctChg() throws Exception {
+
+        logger.Log("StockDataHandler", "setStockFundamentals_Annual_PctChg", "", "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Update_AnnualFundamentals_PctChg ()}")) {
+
+            stmt.executeUpdate();
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "setStockFundamentals_Annual_PctChg", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+
     public Date getQtrStockFundamentals_UpdateDate(String ticker) throws Exception {
 
         logger.Log("StockDataHandler", "getQtrStockFundamentals_UpdateDate", "Ticker: " + ticker, "", false);
@@ -2267,7 +2392,31 @@ public class StockDataHandler {
             throw exc;
         }
     }
-    
+
+    public Date getAnnualStockFundamentals_UpdateDate(String ticker) throws Exception {
+
+        logger.Log("StockDataHandler", "getAnnualStockFundamentals_UpdateDate", "Ticker: " + ticker, "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_AnnualStockFundamentals_LastUpdate (?)}")) {
+
+            stmt.setString(1, ticker);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next())
+                return rs.getDate(1);
+            else {
+                Calendar c = GregorianCalendar.getInstance();
+                c.set(1990, 1, 1);
+                return c.getTime();
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getAnnualStockFundamentals_UpdateDate", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+
     public Date getUnemployment_UpdateDate() throws Exception {
 
         logger.Log("StockDataHandler", "getUnemployment_UpdateDate", "", "", false);
@@ -2332,12 +2481,11 @@ public class StockDataHandler {
                 insertStockPricesIntoDB(st.getTicker(), stockValues);
             }        
         }
-
         //Compute moving averages
         computeMovingAverages();
         computeStockQuoteSlopes();
 
-        //Fundamentals - Premium Data
+        //Fundamentals - Quarterly
         for (StockTicker st : listOfAllStocks) {
             
             lastDt = getQtrStockFundamentals_UpdateDate(st.getTicker());
@@ -2348,6 +2496,17 @@ public class StockDataHandler {
         setStockFundamentals_Quarter_ValidDates();
         setStockFundamentals_Quarter_PctChg();
 
+        //Fundamentals - Annual
+        for (StockTicker st : listOfAllStocks) {
+            
+            lastDt = getAnnualStockFundamentals_UpdateDate(st.getTicker());
+            List<StockFundamentals> annualFundamentalsList = getAnnualStockFundamentals(st.getTicker(), lastDt);
+            if (annualFundamentalsList != null)
+                insertAnnualStockFundamentalsIntoDB(annualFundamentalsList);
+        }
+        setStockFundamentals_Annual_ValidDates();
+        setStockFundamentals_Annual_PctChg();
+        
         //Remove bad data
         removeAllBadData();
     }    
@@ -2957,7 +3116,140 @@ public class StockDataHandler {
         
         return listFundamentals;
     }
-    
+
+    private List<StockFundamentals> getAnnualStockFundamentals(String ticker, Date lastDt) throws Exception {
+
+        //Revenue
+        String quandlCode = "SF1/" + ticker + "_REVENUE_ARY";
+        String stockValues = downloadData(quandlCode, lastDt);
+
+        //See if we have new data to process
+        Map<Date, BigDecimal> revenueMap = new HashMap<>();
+        if (stockValues.split("\n").length > 1) 
+            insertFundamentalValuesIntoMap(stockValues, revenueMap);
+        else 
+            return null; //No new data
+        
+        //Net Income
+        quandlCode = "SF1/" + ticker + "_NETINC_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> netIncMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, netIncMap);
+        
+        //Net Income Common
+        quandlCode = "SF1/" + ticker + "_NETINCCMN_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> netIncCmnMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, netIncCmnMap);
+        
+        //EBITDA
+        quandlCode = "SF1/" + ticker + "_EBITDA_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ebitdaMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ebitdaMap);
+
+        //EBT
+        quandlCode = "SF1/" + ticker + "_EBT_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ebtMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ebtMap);
+
+        //NCFO
+        quandlCode = "SF1/" + ticker + "_NCFO_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> ncfoMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, ncfoMap);
+
+        //DPS
+        quandlCode = "SF1/" + ticker + "_DPS_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> dpsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, dpsMap);
+
+        //EPS
+        quandlCode = "SF1/" + ticker + "_EPS_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> epsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, epsMap);
+
+        //EPS Diluted
+        quandlCode = "SF1/" + ticker + "_EPSDIL_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> epsDilMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, epsDilMap);
+
+        //Interest Exposure
+        quandlCode = "SF1/" + ticker + "_INTEXP_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> intExpMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, intExpMap);
+
+        //Free Cash Flow
+        quandlCode = "SF1/" + ticker + "_FCF_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> fcfMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, fcfMap);
+
+        //Free Cash Flow - Per Share
+        quandlCode = "SF1/" + ticker + "_FCFPS_ARY";
+        stockValues = downloadData(quandlCode, lastDt);
+        Map<Date, BigDecimal> fcfpsMap = new HashMap<>();
+        insertFundamentalValuesIntoMap(stockValues, fcfpsMap);
+
+        //Now create the complete record list - Loop through all available dates
+        List<StockFundamentals> listFundamentals = new ArrayList<>();
+        Set<Entry<Date, BigDecimal>> entrySet = revenueMap.entrySet();
+        for (Entry<Date, BigDecimal> entry : entrySet) {
+            StockFundamentals fund = new StockFundamentals();
+            
+            fund.setTicker(ticker);
+            
+            Date dt = entry.getKey();
+            fund.setDate(dt);
+            fund.setReportingDt(dt);
+
+            BigDecimal revenue = entry.getValue();
+            fund.setRevenue(revenue);
+            
+            BigDecimal netIncome = netIncMap.get(dt);
+            fund.setNetIncome(netIncome);
+            
+            BigDecimal netIncomeCommon = netIncCmnMap.get(dt);
+            fund.setNetIncomeCommon(netIncomeCommon);
+            
+            BigDecimal ebitda = ebitdaMap.get(dt);
+            fund.setEbitda(ebitda);
+            
+            BigDecimal ebt = ebtMap.get(dt);
+            fund.setEbt(ebt);
+            
+            BigDecimal ncfo = ncfoMap.get(dt);
+            fund.setNcfo(ncfo);
+            
+            BigDecimal dps = dpsMap.get(dt);
+            fund.setDps(dps);
+            
+            BigDecimal eps = epsMap.get(dt);
+            fund.setEps(eps);
+            
+            BigDecimal epsDil = epsDilMap.get(dt);
+            fund.setEpsDiluted(epsDil);
+            
+            BigDecimal intExp = intExpMap.get(dt);
+            fund.setIntExposure(intExp);
+            
+            BigDecimal fcf = fcfMap.get(dt);
+            fund.setFcf(fcf);
+            
+            BigDecimal fcfps = fcfpsMap.get(dt);
+            fund.setFcfps(fcfps);
+            
+            listFundamentals.add(fund);
+        }
+        
+        return listFundamentals;
+    }
+
     private void insertFundamentalValuesIntoMap(String stockValues, Map<Date, BigDecimal> map) throws Exception {
 
         logger.Log("StockDataHandler", "insertFundamentalValuesIntoMap", "", "", false);
