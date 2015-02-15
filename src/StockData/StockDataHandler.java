@@ -500,7 +500,7 @@ public class StockDataHandler {
         String summary = String.format("Stock: %s, Date: %s", stock, date.toString());
         logger.Log("StockDataHandler", "getTargetValueRegressionPredictions", summary, "", false);
 
-        FuturePrice fp;
+        FuturePrice fp = null;
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_Predictions_Regression_PctForecast(?, ?, ?, ?)}")) {
 
@@ -515,14 +515,16 @@ public class StockDataHandler {
             ResultSet rs = stmt.executeQuery();
             
             BigDecimal curPrice;
+            BigDecimal predPrice;
             double forecastPctChg = 0.0;
             Date projectedDt;
             if (rs.next()) {
                 curPrice = rs.getBigDecimal(1);
-                forecastPctChg = rs.getDouble(2);
-                projectedDt = rs.getDate(3);
-                
-                fp = new FuturePrice(stock, forecastPctChg, curPrice, projectedDt);
+                predPrice = rs.getBigDecimal(2);
+                forecastPctChg = rs.getDouble(3);
+                projectedDt = rs.getDate(4);
+
+                fp = new FuturePrice(stock, forecastPctChg, curPrice, predPrice, projectedDt);
             }
             else
                 throw new Exception("Method: getTargetValueRegressionPredictions, Description: No data returned!");
@@ -553,15 +555,17 @@ public class StockDataHandler {
             
             String ticker;
             BigDecimal curPrice;
+            BigDecimal predPrice;
             double forecastPctChg;
             Date projectedDt;
             while (rs.next()) {
                 ticker = rs.getString(1);
                 curPrice = rs.getBigDecimal(2);
-                forecastPctChg = rs.getDouble(3);
-                projectedDt = rs.getDate(4);
+                predPrice = rs.getBigDecimal(3);
+                forecastPctChg = rs.getDouble(4);
+                projectedDt = rs.getDate(5);
                 
-                FuturePrice fp = new FuturePrice(ticker, forecastPctChg, curPrice, projectedDt);
+                FuturePrice fp = new FuturePrice(ticker, forecastPctChg, curPrice, predPrice, projectedDt);
                 fpList.add(fp);
             }
                 
@@ -776,6 +780,7 @@ public class StockDataHandler {
 
             CallableStatement stmt = null;
             switch(approach) {
+                case VOTING:
                 case LINEAR_REG:
                 case M5P:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_ProjectedValue(?, ?, ?, ?)}");
@@ -2552,14 +2557,6 @@ public class StockDataHandler {
             insertEnergyPricesIntoDB(NATURAL_GAS, naturalGasPrices);
         }
         
-        //Mortgage Rates
-        lastDt = get30YrMortgageRates_UpdateDate();
-        if (isDataExpired(lastDt)) {
-            //String thirtyYrMtgRates = downloadData("FMAC/FIX30YR", lastDt);
-            String thirtyYrMtgRates = downloadFREDData("MORTGAGE30US", lastDt);
-            insertMortgageDataIntoDB(thirtyYrMtgRates);
-        }        
-
         //CPI
         lastDt = getCPI_UpdateDate();
         if (isDataExpired(lastDt)) {
@@ -2590,6 +2587,15 @@ public class StockDataHandler {
         }        
 
         //START FRED DATA----------------------------------------------------------------------------------------------------------
+
+        //Mortgage Rates
+        final String MORT_RATES = "MORT-RATES";
+        lastDt = getEconomicData_UpdateDate(MORT_RATES);
+        if (isDataExpired(lastDt)) {
+            String thirtyYrMtgRates = downloadFREDData("MORTGAGE30US", lastDt);
+            insertEconomicDataIntoDB(MORT_RATES, thirtyYrMtgRates);
+        }
+        
         //M2 - Values
         final String M2_VAL = "M2-VAL";
         lastDt = getEconomicData_UpdateDate(M2_VAL);
@@ -2614,7 +2620,6 @@ public class StockDataHandler {
             insertEconomicDataIntoDB(GDP_PCT, gdpPctData);
         }
 
-        /*
         //IMPORTS - Values
         final String IMPORTS_VAL = "IMPORTS-VAL";
         lastDt = getEconomicData_UpdateDate(IMPORTS_VAL);
@@ -2630,7 +2635,6 @@ public class StockDataHandler {
             String importsPctData = downloadFREDData("A021RL1Q158SBEA", lastDt);
             insertEconomicDataIntoDB(IMPORTS_PCT, importsPctData);
         }
-        */
         
         //EXPORTS - Value
         final String EXPORTS_VAL = "EXPORTS-VAL";
@@ -2656,7 +2660,6 @@ public class StockDataHandler {
             insertEconomicDataIntoDB(NET_EXPORTS, netExports);
         }
         
-        /*
         //GOV CONS - Value
         final String GOV_VAL = "GOV-VAL";
         lastDt = getEconomicData_UpdateDate(GOV_VAL);
@@ -2704,7 +2707,6 @@ public class StockDataHandler {
             String privInvPctData = downloadFREDData("A006RL1Q225SBEA", lastDt);
             insertEconomicDataIntoDB(PRIVINV_PCT, privInvPctData);
         }
-        */
         
         //Unemployment
         final String UNEMPLOYMENT = "UNEMPLOY";
@@ -2716,6 +2718,7 @@ public class StockDataHandler {
         
         //Set the expiration date for the Economic Data Set
         setEconomicData_ValidDates();
+        
         //END FRED ECONOMIC DATA****************************************************
 
         //New Home Prices

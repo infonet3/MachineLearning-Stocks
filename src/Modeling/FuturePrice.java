@@ -15,12 +15,14 @@ public class FuturePrice implements Comparable {
     private String ticker;
     private double forecastPctChg;
     private BigDecimal currentPrice;
+    private BigDecimal predictedPrice;
     private Date projectedDt;
 
-    public FuturePrice(String ticker, double forecastPctChg, BigDecimal currentPrice, Date projectedDt) {
+    public FuturePrice(String ticker, double forecastPctChg, BigDecimal currentPrice, BigDecimal predictedPrice, Date projectedDt) {
         this.ticker = ticker;
         this.forecastPctChg = forecastPctChg;
         this.currentPrice = currentPrice;
+        this.predictedPrice = predictedPrice;
         this.projectedDt = projectedDt;
     }
 
@@ -63,5 +65,13 @@ public class FuturePrice implements Comparable {
 
     public void setProjectedDt(Date projectedDt) {
         this.projectedDt = projectedDt;
+    }
+
+    public BigDecimal getPredictedPrice() {
+        return predictedPrice;
+    }
+
+    public void setPredictedPrice(BigDecimal predictedPrice) {
+        this.predictedPrice = predictedPrice;
     }
 }

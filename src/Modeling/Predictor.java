@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Properties;
 import weka.classifiers.Classifier;
 import weka.classifiers.functions.LinearRegression;
+import weka.classifiers.meta.Vote;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
@@ -126,6 +127,12 @@ public class Predictor implements Runnable {
             Classifier classifier = null;
             switch (MODEL_TYPE) {
 
+                case VOTING:
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-Voting.model";
+                    Vote v = (Vote)SerializationHelper.read(curModelPath);
+                    classifier = v;
+                    break;
+                
                 case M5P:
                     curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-M5P.model";
                     M5P mp = (M5P)SerializationHelper.read(curModelPath);
@@ -162,6 +169,7 @@ public class Predictor implements Runnable {
             //Label instances
             List<PredictionValues> listPredictions = new ArrayList<>();
             for (int i = 0; i < test.numInstances(); i++) {
+
                 double clsLabel = classifier.classifyInstance(test.instance(i));
 
                 double[] array = test.instance(i).toDoubleArray();
@@ -179,14 +187,13 @@ public class Predictor implements Runnable {
                 BigDecimal bd = new BigDecimal(String.valueOf(clsLabel));
                 PredictionValues val = new PredictionValues(ticker.getTicker(), curDate.getTime(), targetDate.getTime(), MODEL_TYPE.toString(), PRED_TYPE, bd);
                 listPredictions.add(val);
-                
+
             } //End of Instance Loop
 
             //Save Predictions to DB - Save all predictions for one stock at a time
             sdh.insertStockPredictions(listPredictions);
             
         } //End ticker list loop
-        
     }
     
     public List<StockHolding> topStockPicksClassAndReg(final int NUM_STOCKS, final Date RUN_DATE, final String PRED_TYPE) throws Exception {
@@ -288,12 +295,14 @@ public class Predictor implements Runnable {
                 for (int i = 0; i < NUM_STOCKS; i++) {
                     String ticker = fpList.get(i).getTicker();
                     Date projDt = fpList.get(i).getProjectedDt();
+                    BigDecimal curValue = fpList.get(i).getCurrentPrice();
+                    BigDecimal predValue = fpList.get(i).getPredictedPrice();
                     double pctChg = fpList.get(i).getForecastPctChg();
 
                     StockHolding stk = new StockHolding(ticker, 0, projDt);
                     topStocks.add(stk);
                     
-                    String output = String.format("Ticker: %s, Forecast Pct Chg: %f, Target Date: %s", ticker, pctChg, projDt.toString());
+                    String output = String.format("Ticker: %s, Run Date: %s, Current Value: %s, Predicted Value: %s, Forecast Pct Chg: %f, Target Date: %s", ticker, RUN_DATE.toString(), curValue.toString(), predValue.toString(), pctChg, projDt.toString());
                     logger.Log("Predictor", "topStockPicksRegressionOnly", output, "", false);
                 } 
             }
@@ -374,22 +383,34 @@ public class Predictor implements Runnable {
                 //Generate models
                 //Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                //Thread tVote = new Thread(new RunModels(ModelTypes.VOTING, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 
                 //tRandForst.start();
                 tM5P.start();
+                //tLinReg.start();
+                //tVote.start();
                 
                 //tRandForst.join();
                 tM5P.join();
+                //tLinReg.join();
+                //tVote.join();
 
                 //Use model to create predictions
                 //Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
                 Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
+                //Thread tLinRegPreds = new Thread(new Predictor(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
+                //Thread tVotePreds = new Thread(new Predictor(ModelTypes.VOTING, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
                 
                 //tRandForstPreds.start();
                 tM5PPreds.start();
+                //tLinRegPreds.start();
+                //tVotePreds.start();
                 
                 //tRandForstPreds.join();
                 tM5PPreds.join();
+                //tLinRegPreds.join();
+                //tVotePreds.join();
             }
             
             //Weekend Test

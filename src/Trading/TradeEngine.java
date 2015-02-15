@@ -540,7 +540,7 @@ public class TradeEngine implements EWrapper {
 
     private boolean isPriceCloseToYesterdayClose(String ticker) throws Exception {
 
-        //Ensure price is similar to yesterday's close, 20% max
+        //Ensure price is similar to yesterday's close, 30% max
         Dates dates = new Dates();
         StockDataHandler sdh = new StockDataHandler();
         StockQuote quote = sdh.getStockQuote(ticker, dates.getYesterday());
@@ -548,8 +548,8 @@ public class TradeEngine implements EWrapper {
         
         double ratio = yesterdayClose.doubleValue() / stockQuote.doubleValue();
         
-        //20% max deviation
-        if (ratio < 0.8 || ratio > 1.2) 
+        //30% max deviation
+        if (ratio < 0.7 || ratio > 1.3) 
             return false;
         else 
             return true;
@@ -564,7 +564,7 @@ public class TradeEngine implements EWrapper {
 
         boolean isPriceCloseToYesterday = isPriceCloseToYesterdayClose(ticker);
         if (!isPriceCloseToYesterday) {
-            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is 20% or more different from yesterdays close!", true);
+            logger.Log("TradeEngine", "isStockQuoteValid", ticker, "Price is 30% or more different from yesterdays close!", true);
             return false;
         }
         

@@ -19,12 +19,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.functions.LinearRegression;
+import weka.classifiers.meta.Stacking;
+import weka.classifiers.meta.Vote;
 import weka.classifiers.trees.M5P;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
+import weka.core.SelectedTag;
 import weka.core.SerializationHelper;
+import weka.core.Tag;
 
 /**
  *
@@ -97,7 +102,7 @@ public class RunModels implements Runnable {
         Date fromDt = fromCal.getTime();
         
         //Run through all stock tickers
-        final int NUM_TREES = 100;
+        final int NUM_TREES = 110;
 
         for (int i = 0; i < stockList.size(); i++) {
             StockTicker ticker = stockList.get(i);
@@ -119,7 +124,34 @@ public class RunModels implements Runnable {
             Evaluation eval;
             String newFileName;
             Path p;
+            final int NUM_FOLDS = 5;
             switch (MODEL) {
+                
+                case VOTING:
+                    
+                    Stacking s = new Stacking();
+                    s.setMetaClassifier(new LinearRegression());
+                    Classifier[] classifiers = new Classifier[2];
+                    classifiers[0] = new M5P();
+                    classifiers[1] = new LinearRegression();
+                    s.setClassifiers(classifiers);
+                    s.buildClassifier(train);
+
+                    eval = new Evaluation(train);
+                    eval.crossValidateModel(s, train, NUM_FOLDS, new Random(1));
+
+                    accuracy = eval.correlationCoefficient();
+                    logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
+
+                    newFileName = MODEL_PATH + "/" + ticker.getTicker() + "-Voting.model";
+                    p = Paths.get(newFileName);
+                    if (Files.exists(p))
+                        Files.delete(p);
+
+                    SerializationHelper.write(newFileName, s);
+
+                    break;
+                
                 case RAND_FORST:
 
                     RandomForest rf = new RandomForest();
@@ -127,7 +159,7 @@ public class RunModels implements Runnable {
                     rf.buildClassifier(train);
 
                     eval = new Evaluation(train);
-                    eval.crossValidateModel(rf, train, 10, new Random(1));
+                    eval.crossValidateModel(rf, train, NUM_FOLDS, new Random(1));
 
                     accuracy = eval.correct() / (eval.correct() + eval.incorrect());
                     logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
@@ -147,7 +179,7 @@ public class RunModels implements Runnable {
                     mp.buildClassifier(train);
 
                     eval = new Evaluation(train);
-                    eval.crossValidateModel(mp, train, 10, new Random(1));
+                    eval.crossValidateModel(mp, train, NUM_FOLDS, new Random(1));
 
                     accuracy = eval.correlationCoefficient();
                     logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
@@ -167,7 +199,7 @@ public class RunModels implements Runnable {
                     linReg.buildClassifier(train);
 
                     eval = new Evaluation(train);
-                    eval.crossValidateModel(linReg, train, 10, new Random(1));
+                    eval.crossValidateModel(linReg, train, NUM_FOLDS, new Random(1));
 
                     accuracy = eval.correlationCoefficient();
                     logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
@@ -184,9 +216,7 @@ public class RunModels implements Runnable {
 
             //Save values to DB
             sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, accuracy);
-
             System.gc();
-
 
         } //End of for loop
     }
