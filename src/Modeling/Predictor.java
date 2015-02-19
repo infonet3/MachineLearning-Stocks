@@ -315,6 +315,47 @@ public class Predictor implements Runnable {
         return topStocks;
     }
 
+    public List<StockHolding> topStockPicksMagicFormula(final int NUM_STOCKS, final int DAYS_IN_FUTURE, final Date RUN_DATE) throws Exception {
+
+        logger.Log("Predictor", "topStockPicksMagicFormula", "Stock Count = " + NUM_STOCKS, "", false);
+        
+        List<StockHolding> topStocks = new ArrayList<>();
+        
+        try {
+            
+            StockDataHandler sdh = new StockDataHandler();
+            
+            //Get List of Stocks forecasted to go up
+            List<String> stockList = sdh.getMagicPicks(NUM_STOCKS, RUN_DATE);
+            if (stockList.size() == NUM_STOCKS) {
+
+                Dates dates = new Dates();
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(RUN_DATE);
+                Calendar targetCal = dates.getTargetDate(cal, DAYS_IN_FUTURE);
+                
+                //Pick Top stocks
+                for (int i = 0; i < NUM_STOCKS; i++) {
+                    String ticker = stockList.get(i);
+                    Date projDt = targetCal.getTime();
+
+                    StockHolding stk = new StockHolding(ticker, 0, projDt);
+                    topStocks.add(stk);
+                    
+                    String output = String.format("Ticker: %s, Run Date: %s, Target Date: %s", ticker, RUN_DATE.toString(), projDt.toString());
+                    logger.Log("Predictor", "topStockPicksMagicFormula", output, "", false);
+                } 
+            }
+            
+        } catch(Exception exc) {
+            logger.Log("Predictor", "topStockPicksMagicFormula", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return topStocks;
+    }
+
+    
     /*Method: topNBacktest
      *Description: Always trades at the open price 
      */
@@ -381,36 +422,25 @@ public class Predictor implements Runnable {
                     toDt = finalDate.getTime();
 
                 //Generate models
-                //Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
+                Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
-                //Thread tLinReg = new Thread(new RunModels(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, YEARS_BACK, dt));
-                //Thread tVote = new Thread(new RunModels(ModelTypes.VOTING, DAYS_IN_FUTURE, YEARS_BACK, dt));
                 
-                //tRandForst.start();
+                tRandForst.start();
                 tM5P.start();
-                //tLinReg.start();
-                //tVote.start();
                 
-                //tRandForst.join();
+                tRandForst.join();
                 tM5P.join();
-                //tLinReg.join();
-                //tVote.join();
 
                 //Use model to create predictions
-                //Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
+                Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
                 Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
-                //Thread tLinRegPreds = new Thread(new Predictor(ModelTypes.LINEAR_REG, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
-                //Thread tVotePreds = new Thread(new Predictor(ModelTypes.VOTING, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
                 
-                //tRandForstPreds.start();
+                tRandForstPreds.start();
+                Thread.sleep(20000); //NO IDEA WHY THIS IS NEEDED - COMPILER BUG?
                 tM5PPreds.start();
-                //tLinRegPreds.start();
-                //tVotePreds.start();
-                
-                //tRandForstPreds.join();
+
+                tRandForstPreds.join();
                 tM5PPreds.join();
-                //tLinRegPreds.join();
-                //tVotePreds.join();
             }
             
             //Weekend Test
@@ -534,9 +564,10 @@ public class Predictor implements Runnable {
                 }
                 
                 final String PRED_TYPE = "BACKTEST";
-                //List<StockHolding> topStocks = topStockPicksClassAndReg(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
-                List<StockHolding> topStocks = topStockPicksRegressionOnly(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
-
+                List<StockHolding> topStocks = topStockPicksClassAndReg(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
+                //List<StockHolding> topStocks = topStockPicksRegressionOnly(NUM_STOCKS, curDate.getTime(), PRED_TYPE);
+                //List<StockHolding> topStocks = topStockPicksMagicFormula(NUM_STOCKS, DAYS_IN_FUTURE, curDate.getTime());
+                
                 //Generate buy orders
                 int size = topStocks.size();
                 if (size == NUM_STOCKS) {

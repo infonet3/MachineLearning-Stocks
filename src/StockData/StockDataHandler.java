@@ -436,8 +436,11 @@ public class StockDataHandler {
                 java.sql.Date projDt = new java.sql.Date(p.getProjectedDate().getTime());
                 
                 //Dedup Check
-                if (map.containsKey(dt)) 
-                    throw new Exception("Method: insertStockPredictions, Duplicate dates found!");
+                if (map.containsKey(dt)) {
+                    String errorStr = String.format("Ticker: %s, Date: %s, Duplicate dates found!", p.getTicker(), dt.toString());
+                    logger.Log("StockDataHandler", "insertStockPrediction", "Exception", errorStr, true);
+                    continue;
+                }
                 else
                     map.put(dt, dt);
                 
@@ -535,6 +538,37 @@ public class StockDataHandler {
         }
         
         return fp;
+    }
+
+    public List<String> getMagicPicks(final int NUM_STOCKS, final Date RUN_DATE) throws Exception {
+
+        String summary = String.format("Num Stocks: %d, Date: %s", NUM_STOCKS, RUN_DATE.toString());
+        logger.Log("StockDataHandler", "getMagicPicks", summary, "", false);
+
+        List<String> stockPicks = new ArrayList<>();
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_MagicFormula(?, ?)}")) {
+
+            java.sql.Date dt = new java.sql.Date(RUN_DATE.getTime());
+            stmt.setDate(1, dt);
+
+            stmt.setInt(2, NUM_STOCKS);
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String ticker = rs.getString(1);
+                stockPicks.add(ticker);
+            }
+            
+            if (stockPicks.isEmpty())
+                throw new Exception("No stocks returned!");
+                
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "getMagicPicks", "Exception", exc.toString(), true);
+            throw exc;
+        }
+        
+        return stockPicks;
     }
 
     public List<FuturePrice> getTargetValueRegressionPredictionsForAllStocks(final Date RUN_DT, final String PRED_TYPE) throws Exception {
