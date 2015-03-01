@@ -44,8 +44,6 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
-import javax.json.Json;
-import javax.json.stream.JsonParser;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;

@@ -35,7 +35,7 @@ import weka.core.Tag;
  *
  * @author Matt Jones
  */
-public class RunModels implements Runnable {
+public class RunModels {
 
     static Logger logger = new Logger();
     final String CONF_FILE = "Resources/settings.conf";
@@ -77,7 +77,7 @@ public class RunModels implements Runnable {
         }
     }
         
-    private void runModels() throws Exception {
+    public void runModels() throws Exception {
 
         String summary = String.format("Model Type: %s, Days In Future: %d, Years Back: %d", MODEL, DAYS_IN_FUTURE, YEARS_BACK);
         logger.Log("RunModels", "runModels", summary, "", false);

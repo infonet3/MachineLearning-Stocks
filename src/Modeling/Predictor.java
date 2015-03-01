@@ -34,7 +34,7 @@ import weka.core.SerializationHelper;
  *
  * @author Matt Jones
  */
-public class Predictor implements Runnable {
+public class Predictor {
 
     static Logger logger = new Logger();
     final String CONF_FILE = "Resources/settings.conf";
@@ -70,6 +70,7 @@ public class Predictor implements Runnable {
         this.predType = PRED_TYPE;
     }
 
+    /*
     @Override
     public void run() {
 
@@ -85,6 +86,7 @@ public class Predictor implements Runnable {
             System.exit(25);
         }
     }
+    */ 
     
     public void predictAllStocksForDates(final ModelTypes MODEL_TYPE, final int DAYS_IN_FUTURE_MODEL, final int TARGET_DAYS_OUT, final Date fromDate, final Date toDate, final PredictionType PRED_TYPE) throws Exception {
 
@@ -418,29 +420,23 @@ public class Predictor implements Runnable {
                 Date toDt = toCal.getTime();
 
                 //Don't go beyond today
+                Dates d = new Dates();
                 if (toDt.compareTo(finalDate.getTime()) >= 0)
                     toDt = finalDate.getTime();
 
                 //Generate models
-                Thread tRandForst = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt));
-                Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt));
-                
-                tRandForst.start();
-                tM5P.start();
-                
-                tRandForst.join();
-                tM5P.join();
+                RunModels tRandForst = new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, dt);
+                tRandForst.runModels();
+
+                RunModels m5pModel = new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, dt);
+                m5pModel.runModels();
 
                 //Use model to create predictions
-                Thread tRandForstPreds = new Thread(new Predictor(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
-                Thread tM5PPreds = new Thread(new Predictor(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST));
-                
-                tRandForstPreds.start();
-                Thread.sleep(20000); //NO IDEA WHY THIS IS NEEDED - COMPILER BUG?
-                tM5PPreds.start();
+                Predictor randForstPreds = new Predictor();
+                randForstPreds.predictAllStocksForDates(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST);
 
-                tRandForstPreds.join();
-                tM5PPreds.join();
+                Predictor m5pPreds = new Predictor();
+                m5pPreds.predictAllStocksForDates(ModelTypes.M5P, DAYS_IN_FUTURE, DAYS_IN_FUTURE, dt, toDt, PredictionType.BACKTEST);
             }
             
             //Weekend Test

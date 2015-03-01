@@ -72,14 +72,11 @@ public class Main {
                     case 'M':
                         logger.Log("Main", "main", "Option M", "Generating Models", false);
 
-                        Thread tRandForest = new Thread(new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, null));
-                        Thread tM5P = new Thread(new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, null));
-
-                        tRandForest.start();
-                        tM5P.start();
+                        RunModels randForest = new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, null);
+                        randForest.runModels();
                         
-                        tRandForest.join();
-                        tM5P.join();
+                        RunModels m5P = new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, null);
+                        m5P.runModels();
                         
                         break;
 
@@ -87,14 +84,11 @@ public class Main {
                     case 'C':
                         logger.Log("Main", "main", "Option C", "Get Current Predictions", false);
 
-                        Thread tRandForestCurPred = new Thread(new Predictor(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT));
-                        Thread tM5PCurPred = new Thread(new Predictor(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT));
-
-                        tRandForestCurPred.start();
-                        tM5PCurPred.start();
+                        Predictor randForestCurPred = new Predictor();
+                        randForestCurPred.predictAllStocksForDates(ModelTypes.RAND_FORST, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT);
                         
-                        tRandForestCurPred.join();
-                        tM5PCurPred.join();
+                        Predictor m5PCurPred = new Predictor();
+                        m5PCurPred.predictAllStocksForDates(ModelTypes.M5P, 0, DAYS_IN_FUTURE, yesterday, yesterday, PredictionType.CURRENT);
                         
                         break;
 
