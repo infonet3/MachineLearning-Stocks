@@ -1001,6 +1001,60 @@ public class StockDataHandler {
         }
     }
 
+    private void insertMutualFundDataIntoDB(String fundTicker, String fundPrices) throws Exception {
+
+        String summary = String.format("Fund: %s", fundTicker);
+        logger.Log("StockDataHandler", "insertMutualFundDataIntoDB", summary, "", false);
+        
+        String[] rows = fundPrices.split("\n");
+
+        String row;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Date dt;
+        java.sql.Date sqlDt;
+        BigDecimal adjClosePrice;
+
+        int i = 0;
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Insert_MutualFund_Quote (?, ?, ?)}")) {
+
+            conxn.setAutoCommit(false);
+            
+            for (i = 0; i < rows.length; i++) {
+                if (i == 0) //Skip the header row
+                    continue;
+
+                //Parse the record
+                try {
+                    row = rows[i];
+                    String[] cells = row.split(",");
+                    
+                    dt = sdf.parse(cells[0]);
+                    sqlDt = new java.sql.Date(dt.getTime());
+
+                    adjClosePrice = new BigDecimal(cells[6]);
+
+                    //Insert the record into the DB
+                    stmt.setString(1, fundTicker);
+                    stmt.setDate(2, sqlDt);
+                    stmt.setBigDecimal(3, adjClosePrice);
+                    stmt.addBatch();
+                    
+                } catch(Exception exc) {
+                    logger.Log("StockDataHandler", "insertMutualFundDataIntoDB", "Exception", exc.toString(), true);
+                }
+            } //End For
+            
+            //Execute DB commands
+            stmt.executeBatch();
+            conxn.commit();
+            
+        } catch(Exception exc) {
+            logger.Log("StockDataHandler", "insertMutualFundDataIntoDB", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+
     private void insertEnergyPricesIntoDB(String energyCode, String energyPrices) throws Exception {
         
         String summary = String.format("Code: %s", energyCode);
@@ -2331,6 +2385,31 @@ public class StockDataHandler {
         }
     }
 
+    public Date getMutualFund_UpdateDate(String fundTicker) throws Exception {
+
+        String summary = String.format("Fund: %s", fundTicker);
+        logger.Log("StockDataHandler", "getMutualFund_UpdateDate", summary, "", false);
+
+        try (Connection conxn = getDBConnection();
+             CallableStatement stmt = conxn.prepareCall("{call sp_Retrieve_MutualFunds_LastUpdate (?)}")) {
+            
+            stmt.setString(1, fundTicker);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next())
+                return rs.getDate(1);
+            else {
+                Calendar c = GregorianCalendar.getInstance();
+                c.set(1990, 1, 1);
+                return c.getTime();
+            }
+            
+        } catch (Exception exc) {
+            logger.Log("StockDataHandler", "getMutualFund_UpdateDate", "Exception", exc.toString(), true);
+            throw exc;
+        }
+    }
+    
     public void setStockFundamentals_Quarter_ValidDates() throws Exception {
         
         logger.Log("StockDataHandler", "setStockFundamentals_Quarter_ValidDates", "", "", false);
@@ -2861,6 +2940,34 @@ public class StockDataHandler {
             insertStockIndexDataIntoDB(NIKEII, nikeiiIndex);
         }        
 
+        //Sector Data===================================================================================
+        final String ENERGY_SECTOR = "VGENX";
+        lastDt = getMutualFund_UpdateDate(ENERGY_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("VGENX", lastDt);
+            insertMutualFundDataIntoDB(ENERGY_SECTOR, fundData);
+        }
+     
+        final String REAL_ESTATE_SECTOR = "VGSLX";
+        lastDt = getMutualFund_UpdateDate(REAL_ESTATE_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("VGSLX", lastDt);
+            insertMutualFundDataIntoDB(REAL_ESTATE_SECTOR, fundData);
+        }        
+
+        final String METALS_SECTOR = "VGPMX";
+        lastDt = getMutualFund_UpdateDate(METALS_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("VGPMX", lastDt);
+            insertMutualFundDataIntoDB(METALS_SECTOR, fundData);
+        }        
+
+        final String HEALTH_CARE_SECTOR = "VGHCX";
+        lastDt = getMutualFund_UpdateDate(HEALTH_CARE_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("VGHCX", lastDt);
+            insertMutualFundDataIntoDB(HEALTH_CARE_SECTOR, fundData);
+        }        
     }
 
     private List<StockFundamentals> getQtrStockFundamentals(String ticker, Date lastDt) throws Exception {

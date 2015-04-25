@@ -74,8 +74,8 @@ public class Logger {
         String strOutput = String.format("Class: %s, Method: %s, Summary: %s, Description: %s, Alert: %s", className, method, summary, fullDescription, String.valueOf(isAlert));
         System.out.println(strOutput);
 
-        if (isAlert)
-            Notifications.EmailActions.SendEmail("Stock Program - Notification", strOutput);
+        //if (isAlert)
+        //    Notifications.EmailActions.SendEmail("Stock Program - Notification", strOutput);
         
         try (Connection conxn = getDBConnection();
              CallableStatement stmt = conxn.prepareCall("{call sp_Insert_Log (?, ?, ?, ?, ?)}")) {
