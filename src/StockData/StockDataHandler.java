@@ -2968,6 +2968,20 @@ public class StockDataHandler {
             String fundData = downloadYahooData("VGHCX", lastDt);
             insertMutualFundDataIntoDB(HEALTH_CARE_SECTOR, fundData);
         }        
+
+        final String TECH_SECTOR = "XLK";
+        lastDt = getMutualFund_UpdateDate(TECH_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("XLK", lastDt);
+            insertMutualFundDataIntoDB(TECH_SECTOR, fundData);
+        }        
+
+        final String FINANCE_SECTOR = "XLF";
+        lastDt = getMutualFund_UpdateDate(FINANCE_SECTOR);
+        if (isDataExpired(lastDt)) {
+            String fundData = downloadYahooData("XLF", lastDt);
+            insertMutualFundDataIntoDB(FINANCE_SECTOR, fundData);
+        }        
     }
 
     private List<StockFundamentals> getQtrStockFundamentals(String ticker, Date lastDt) throws Exception {

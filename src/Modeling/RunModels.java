@@ -102,11 +102,9 @@ public class RunModels {
         Date fromDt = fromCal.getTime();
         
         //Run through all stock tickers
-        final int NUM_TREES = 110;
+        final int NUM_TREES = 120;
 
-        for (int i = 0; i < stockList.size(); i++) {
-            StockTicker ticker = stockList.get(i);
-            
+        for (StockTicker ticker : stockList) {
             System.gc();
             
             //Pull records from DB
@@ -217,7 +215,6 @@ public class RunModels {
             //Save values to DB
             sdh.setModelValues(ticker.getTicker(), MODEL.toString(), DAYS_IN_FUTURE, accuracy);
             System.gc();
-
         } //End of for loop
     }
 
