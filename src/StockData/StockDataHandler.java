@@ -887,6 +887,7 @@ public class StockDataHandler {
                 dataExamples.append(row);
                 dataExamples.append("\n");
                 recordCount++;
+            
             }
             
             //Ensure that records were returned
