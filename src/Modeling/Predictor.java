@@ -127,6 +127,7 @@ public class Predictor {
             //Load the model
             String curModelPath;
             Classifier classifier = null;
+            M5P mp = null;
             switch (MODEL_TYPE) {
 
                 case VOTING:
@@ -137,7 +138,19 @@ public class Predictor {
                 
                 case M5P:
                     curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-M5P.model";
-                    M5P mp = (M5P)SerializationHelper.read(curModelPath);
+                    mp = (M5P)SerializationHelper.read(curModelPath);
+                    classifier = mp;
+                    break;
+                
+                case M5P_HIGH:
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-M5P_HIGH.model";
+                    mp = (M5P)SerializationHelper.read(curModelPath);
+                    classifier = mp;
+                    break;
+                
+                case M5P_LOW:
+                    curModelPath = modelPathRoot + "/" + ticker.getTicker() + "-M5P_LOW.model";
+                    mp = (M5P)SerializationHelper.read(curModelPath);
                     classifier = mp;
                     break;
 

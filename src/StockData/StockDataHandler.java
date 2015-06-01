@@ -822,6 +822,12 @@ public class StockDataHandler {
                 case RAND_FORST:
                     stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_Classification(?, ?, ?, ?)}");
                     break;
+                case M5P_HIGH:
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_HighValue(?, ?, ?, ?)}");
+                    break;
+                case M5P_LOW:
+                    stmt = conxn.prepareCall("{call sp_Retrieve_CompleteFeatureSetForStockTicker_LowValue(?, ?, ?, ?)}");
+                    break;
             }
             
             stmt.setString(1, stockTicker);

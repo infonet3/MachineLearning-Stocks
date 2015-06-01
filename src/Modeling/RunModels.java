@@ -123,6 +123,7 @@ public class RunModels {
             String newFileName;
             Path p;
             final int NUM_FOLDS = 5;
+            M5P mp = new M5P();
             switch (MODEL) {
                 
                 case VOTING:
@@ -173,7 +174,6 @@ public class RunModels {
 
                 case M5P:
 
-                    M5P mp = new M5P();
                     mp.buildClassifier(train);
 
                     eval = new Evaluation(train);
@@ -190,7 +190,45 @@ public class RunModels {
                     SerializationHelper.write(newFileName, mp);
 
                     break;
-                    
+
+                case M5P_HIGH:
+
+                    mp.buildClassifier(train);
+
+                    eval = new Evaluation(train);
+                    eval.crossValidateModel(mp, train, NUM_FOLDS, new Random(1));
+
+                    accuracy = eval.correlationCoefficient();
+                    logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
+
+                    newFileName = MODEL_PATH + "/" + ticker.getTicker() + "-M5P_HIGH.model";
+                    p = Paths.get(newFileName);
+                    if (Files.exists(p))
+                        Files.delete(p);
+
+                    SerializationHelper.write(newFileName, mp);
+
+                    break;
+
+                case M5P_LOW:
+
+                    mp.buildClassifier(train);
+
+                    eval = new Evaluation(train);
+                    eval.crossValidateModel(mp, train, NUM_FOLDS, new Random(1));
+
+                    accuracy = eval.correlationCoefficient();
+                    logger.Log("RunModels", "testAllStocks", "Model Stats", eval.toSummaryString("\nResults\n========\n", true), false);
+
+                    newFileName = MODEL_PATH + "/" + ticker.getTicker() + "-M5P_LOW.model";
+                    p = Paths.get(newFileName);
+                    if (Files.exists(p))
+                        Files.delete(p);
+
+                    SerializationHelper.write(newFileName, mp);
+
+                    break;
+
                 case LINEAR_REG:
 
                     LinearRegression linReg = new LinearRegression();
