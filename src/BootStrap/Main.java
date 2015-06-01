@@ -72,12 +72,22 @@ public class Main {
                     case 'M':
                         logger.Log("Main", "main", "Option M", "Generating Models", false);
 
+                        //Predict Future Prices
                         RunModels randForest = new RunModels(ModelTypes.RAND_FORST, DAYS_IN_FUTURE, YEARS_BACK, null);
                         randForest.runModels();
                         
                         RunModels m5P = new RunModels(ModelTypes.M5P, DAYS_IN_FUTURE, YEARS_BACK, null);
                         m5P.runModels();
+
+                        //Predict Daily High and Low
+                        final int NEXT_DAY = 1;
+
+                        RunModels m5P_High = new RunModels(ModelTypes.M5P_HIGH, NEXT_DAY, YEARS_BACK, null);
+                        m5P_High.runModels();
                         
+                        RunModels m5P_Low = new RunModels(ModelTypes.M5P_LOW, NEXT_DAY, YEARS_BACK, null);
+                        m5P_Low.runModels();
+
                         break;
 
                     //Current Predictions
